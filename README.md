@@ -1,109 +1,93 @@
-# University Learning Efficiency Platform (ULEP)
+# 🎓 ScholarHub - University Learning Efficiency Platform
 
-## 项目简介
-University Learning Efficiency Platform (ULEP) 是一个专为大学生设计的在线学习资源共享与答疑互动平台，旨在解决学习资料分散、答疑反馈不及时的问题。平台集资源共享、在线问答、教学管理于一体，提升学习效率。
+> **A High-Performance Collaborative Learning Platform for Universities.**
+> **基于云原生架构的分布式高校资源协作与答疑平台**
 
-## 功能概述
+![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
+![Stack](https://img.shields.io/badge/Tech-React%20%7C%20Node.js%20%7C%20PostgreSQL-blue)
+![Docker](https://img.shields.io/badge/Deployment-Docker-2496ED?logo=docker&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-### 通用功能
-- **账号安全**：修改登录密码。
-- **个人资料**：编辑头像、邮箱、昵称等信息。
-- **文件服务**：支持图片、PDF、压缩包等格式的上传与下载。
+---
 
-### 管理员功能
-- **课程管理**：增删改查课程信息。
-- **教师管理**：管理教师账号信息。
-- **内容风控**：审计资源与问答内容，删除违规内容。
+## 📖 Introduction (项目简介)
 
-### 学生功能
-- **注册与登录**：通过学号/邮箱注册并登录。
-- **通知中心**：接收问题回答通知。
-- **学习资源中心**：浏览、搜索、上传学习资源。
-- **在线问答区**：提问、查看回答、管理个人提问。
+**ScholarHub** is an enterprise-grade learning resource sharing and Q&A platform designed for universities. Unlike traditional LMS, it leverages modern cloud-native architecture to solve the fragmentation of learning materials and the latency of feedback.
 
-### 教师功能
-- **待办提醒**：查看未回答的问题。
-- **资源发布**：上传教学资料并设置可见性权限。
-- **答疑工作台**：回答学生提问并管理回答记录。
+**ScholarHub** 是一个专为高校设计的现代化资源协作与答疑平台。不同于传统的教务系统，本项目采用**前后端分离**架构，引入 **PostgreSQL 全文检索**、**Redis 缓存**与 **Docker 容器化部署**，致力于提供高性能、高可用的校园知识共享服务。
 
-## 数据库设计
+## ✨ Key Features (核心特性)
 
-### 数据表
-1. **Users (用户表)**
-   - 字段：ID, Username, Password, Role (Admin/Student/Teacher), Avatar, Email, Title (Teacher only)
-2. **Courses (课程表)**
-   - 字段：ID, Name, Description, Department, TeacherID (Foreign Key)
-3. **Resources (资源表)**
-   - 字段：ID, Title, Description, FilePath, UploaderID, CourseID, ViewType (Public/Class), DownloadCount, CreateTime
-4. **Questions (提问表)**
-   - 字段：ID, Title, Content, StudentID, CourseID, Status (Unanswered/Answered), CreateTime, Images
-5. **Answers (回答表)**
-   - 字段：ID, QuestionID, TeacherID, Content, Attachments, CreateTime
+* **🚀 Advanced Search (高性能检索)**: Built-in **PostgreSQL `tsvector`** full-text search engine, replacing traditional SQL `LIKE` queries for millisecond-level response. (基于 PG 向量的全文检索)
+* **🐳 Containerized (容器化交付)**: Fully dockerized environment. One command (`docker-compose up`) to spin up Backend, Frontend, Database, and Redis. (一键部署)
+* **🛡️ RBAC Security (企业级权限)**: Strict Role-Based Access Control middleware securing APIs for Admins, Teachers, and Students. (基于角色的权限控制)
+* **📂 Smart Storage (智能存储)**: Supports object storage strategy for managing course materials (PDF/Images) and rich-text Q&A attachments. (非结构化数据管理)
 
-## 技术栈
-- **前端**：React, TypeScript
-- **后端**：Node.js, Express
-- **数据库**：MySQL
-- **其他**：Webpack, RESTful API
+---
 
-## 项目结构
-```
-ScholarHub/
-├── client/                # 前端代码
-│   ├── src/
-│   │   ├── components/   # 组件
-│   │   ├── pages/        # 页面
-│   │   ├── App.tsx       # 应用入口
-│   │   └── main.tsx      # 渲染入口
-├── server/                # 后端代码
-│   ├── controllers/      # 控制器
-│   ├── models/           # 数据模型
-│   ├── routes/           # 路由
-│   └── app.js            # 应用入口
-└── README.md              # 项目说明
-```
+## 🛠 Tech Stack (技术栈)
 
-## 安装与运行
+* **Frontend**: React 18, TypeScript, TailwindCSS
+* **Backend**: Node.js, Express
+* **Database**: **PostgreSQL 15** (Utilizing `JSONB` for flexible schemas & `Array` types for tags/attachments)
+* **Caching**: Redis (Session management & Hot resource caching)
+* **DevOps**: Docker, Docker Compose
 
-### 环境要求
-- Node.js >= 16.x
-- MySQL >= 8.x
+---
 
-### 本地运行
-1. 克隆项目：
-   ```bash
-   git clone <repository-url>
-   ```
-2. 安装依赖：
-   ```bash
-   cd ScholarHub
-   npm install
-   ```
-3. 配置数据库：
-   - 创建 MySQL 数据库并导入初始数据。
-   - 在 `server/config` 文件夹中配置数据库连接。
-4. 启动后端服务：
-   ```bash
-   cd server
-   npm start
-   ```
-5. 启动前端服务：
-   ```bash
-   cd client
-   npm start
-   ```
-6. 打开浏览器访问：
-   ```
-   http://localhost:3000
-   ```
+## 🧩 Functional Modules (功能模块)
 
-## 开发计划
-- [ ] 路由功能开发
-- [ ] 平台布局与导航
-- [ ] 登录与注册功能
-- [ ] 管理员模块开发
-- [ ] 学生模块开发
-- [ ] 教师模块开发
+### 1. General & Auth (通用模块)
+* JWT Authentication & Secure Password Hashing.
+* Profile Management (Avatar, Email).
+* File Upload/Download Service.
 
-## 贡献
-欢迎提交 Issue 和 Pull Request！
+### 2. Admin Module (管理员)
+* **Course Management**: CRUD operations for courses and departments.
+* **User Governance**: Manage Teacher/Student accounts.
+* **Content Audit**: Moderate resources and Q&A to ensure compliance.
+
+### 3. Student Module (学生)
+* **Resource Center**: Browse/Search materials; Upload personal notes.
+* **Q&A Forum**: Ask questions with multi-image support (Stored via PG Arrays); Real-time notifications for answers.
+* **Personal Dashboard**: Track uploaded resources and question history.
+
+### 4. Teacher Module (教师)
+* **Work Bench**: "To-Do" alerts for unanswered questions.
+* **Resource Publishing**: Publish course materials with visibility control (Public vs. Class-only).
+* **Q&A Interaction**: Rich-text answers with attachments.
+
+---
+
+## 🗄️ Database Schema Design (数据库设计)
+
+> Optimized for PostgreSQL features.
+
+1.  **Users**: `ID, Username, Password, Role, Avatar, Email, Title`
+2.  **Courses**: `ID, Name, Description, Department, TeacherID (FK)`
+3.  **Resources**: `ID, Title, FilePath, ViewType, DownloadCount, SearchVector (tsvector)`
+4.  **Questions**: `ID, Title, Content, Images (JSON/Array), Status, CreatedAt`
+5.  **Answers**: `ID, Content, Attachments (JSON/Array), TeacherID`
+
+---
+
+## 🚀 Quick Start (快速开始)
+
+### Prerequisites
+* [Docker Desktop](https://www.docker.com/products/docker-desktop) (Recommended)
+* **Or**: Node.js >= 16 + PostgreSQL >= 14 + Redis
+
+### Method 1: Docker Compose (Recommended)
+The fastest way to run the full stack.
+
+```bash
+# 1. Clone the repository
+git clone [https://github.com/your-username/ScholarHub.git](https://github.com/your-username/ScholarHub.git)
+cd ScholarHub
+
+# 2. Start all services (App + DB + Redis)
+docker-compose up -d
+
+# 3. Access the App
+# Frontend: http://localhost:3000
+# Backend API: http://localhost:5000
