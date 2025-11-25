@@ -7,11 +7,9 @@ import Register from './pages/Register';
 const App: React.FC = () => {
   return (
     <Router>
-      <Navbar />
+
       <Routes>
-        <Route path="/" element={<h1>Welcome to ULEP</h1>} />
-        <Route path="/resources" element={<h1>Resources Page</h1>} />
-        <Route path="/questions" element={<h1>Questions Page</h1>} />
+        <Route path="/" element={<Navigate to='/login' />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/profile" element={<h1>Profile Page</h1>} />

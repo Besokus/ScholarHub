@@ -1,0 +1,23 @@
+{
+  "name": "scholarhub",
+  "version": "1.0.0",
+  "description": "> **A High-Performance Collaborative Learning Platform for Universities.**\r > **基于云原生架构的分布式高校资源协作与答疑平台**",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Besokus/ScholarHub.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Besokus/ScholarHub/issues"
+  },
+  "homepage": "https://github.com/Besokus/ScholarHub#readme",
+  "devDependencies": {
+    "vite": "^7.2.4"
+  }
+}
