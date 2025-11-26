@@ -1,10 +1,19 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useNavigate } from 'react-router-dom';
-import { Loader2, LogOut, User, BookOpen, LayoutDashboard } from 'lucide-react';
+import { Loader2, LogOut, User, BookOpen, LayoutDashboard, Bell } from 'lucide-react';
 
 // --- 懒加载页面 ---
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
+const StudentDashboard = lazy(() => import('./pages/student/Dashboard'));
+const StudentCourses = lazy(() => import('./pages/student/Courses'));
+const StudentResources = lazy(() => import('./pages/student/Resources'));
+const StudentQA = lazy(() => import('./pages/student/QA'));
+const StudentNotifications = lazy(() => import('./pages/student/Notifications'));
+const StudentProfile = lazy(() => import('./pages/student/Profile'));
+const StudentResourceUpload = lazy(() => import('./pages/student/ResourceUpload'));
+const StudentResourceDetail = lazy(() => import('./pages/student/ResourceDetail'));
+const StudentQAQuestion = lazy(() => import('./pages/student/QAQuestion'));
 
 // ✅ 新增：懒加载不同角色的首页
 // (实际项目中请创建这些文件，这里暂时用简单的占位组件演示)
@@ -44,6 +53,11 @@ const RoleBasedRedirect = () => {
   return <Navigate to="/profile" replace />;
 };
 
+const StudentRoute = () => {
+  const role = localStorage.getItem('role');
+  return role === 'STUDENT' ? <Outlet /> : <Navigate to="/login" replace />;
+};
+
 // --- 主布局 ---
 const MainLayout = () => {
   const navigate = useNavigate();
@@ -68,6 +82,14 @@ const MainLayout = () => {
                 {/* 展示当前角色 */}
                 <span className="font-semibold">{role === 'TEACHER' ? '教师端' : '学生端'}</span>
             </div>
+            <a 
+                href="/student/notifications" 
+                className="relative p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors"
+                title="通知"
+            >
+                <Bell size={20} />
+                <span className="absolute -top-1 -right-1 text-[10px] px-1.5 py-0.5 rounded-full bg-rose-500 text-white">新</span>
+            </a>
             <button 
                 onClick={handleLogout} 
                 className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
@@ -133,7 +155,17 @@ const App: React.FC = () => {
               <Route path="/" element={<RoleBasedRedirect />} />
 
               {/* 定义具体角色的首页路由 */}
-              <Route path="/student/dashboard" element={<StudentHome />} />
+              <Route element={<StudentRoute />}>
+                <Route path="/student/dashboard" element={<StudentDashboard />} />
+                <Route path="/student/courses" element={<StudentCourses />} />
+                <Route path="/student/resources" element={<StudentResources />} />
+                <Route path="/student/resources/upload" element={<StudentResourceUpload />} />
+                <Route path="/student/resources/:id" element={<StudentResourceDetail />} />
+                <Route path="/student/qa" element={<StudentQA />} />
+                <Route path="/student/qa/:questionId" element={<StudentQAQuestion />} />
+                <Route path="/student/notifications" element={<StudentNotifications />} />
+                <Route path="/student/profile" element={<StudentProfile />} />
+              </Route>
               <Route path="/teacher/dashboard" element={<TeacherHome />} />
               
               <Route path="/profile" element={<Profile />} />
