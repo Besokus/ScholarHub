@@ -51,7 +51,14 @@ export default function ResourceUpload() {
             {courses.map(c => (<option key={c} value={c}>{c}</option>))}
           </select>
           <textarea className="px-3 py-2 border rounded-lg md:col-span-2" rows={4} placeholder="详细简介" value={summary} onChange={e => setSummary(e.target.value)} />
-          <input type="file" onChange={e => setFile(e.target.files?.[0] || null)} className="md:col-span-2" />
+          <div className="md:col-span-2">
+            <input id="resource-file" type="file" onChange={e => setFile(e.target.files?.[0] || null)} className="hidden" />
+            <label htmlFor="resource-file" className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg cursor-pointer">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2"/></svg>
+              选择文件
+            </label>
+            {file && <span className="ml-3 text-sm text-gray-600">{file.name}</span>}
+          </div>
         </div>
         <div className="mt-4 flex items-center gap-3">
           <button onClick={submit} disabled={loading} className="px-4 py-2 bg-indigo-600 text-white rounded-lg">{loading ? '上传中' : '提交'}</button>

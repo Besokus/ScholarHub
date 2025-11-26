@@ -17,12 +17,20 @@ export default function QA() {
   const [sort, setSort] = useState<'latest' | 'hot' | 'unanswered'>('latest')
   const [page, setPage] = useState(1)
   const pageSize = 15
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   useEffect(() => {
     const load = async () => {
       try {
+        setLoading(true)
+        setError('')
         const res = await QaApi.list({ sort, status: sort === 'unanswered' ? 'unanswered' : '', page, pageSize })
         setList(res.items as QAItem[])
-      } catch {}
+      } catch {
+        setError('加载失败')
+      } finally {
+        setLoading(false)
+      }
     }
     load()
   }, [sort, page])
@@ -59,6 +67,8 @@ export default function QA() {
         <button onClick={() => { setSort('unanswered'); setPage(1) }} className={`px-3 py-1 rounded ${sort==='unanswered'?'bg-indigo-600 text-white':'bg-gray-100'}`}>未回答</button>
       </div>
       <div className="space-y-4">
+        {loading && <div className="text-sm text-gray-500">加载中...</div>}
+        {error && <div className="text-sm text-red-600">{error}</div>}
         {pageList.map(i => (
           <Card key={i.id} className="p-6">
             <div className="text-lg font-semibold text-gray-800">{i.title}</div>

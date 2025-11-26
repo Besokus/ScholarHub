@@ -6,19 +6,14 @@ import SearchBar from '../../components/common/SearchBar'
 import Pagination from '../../components/common/Pagination'
 import TreeView from '../../components/common/TreeView'
 import { ResourcesApi } from '../../services/api'
+import { CoursesApi } from '../../services/courses'
 
 type Resource = { id: string; title: string; course: string; tag: string }
 
 const data: Resource[] = []
 
 const tags = ['全部', '练习', '笔记', '答案']
-const tree = [
-  { id: 'all', name: '全部课程', children: [
-    { id: '数据结构', name: '数据结构' },
-    { id: '线性代数', name: '线性代数' },
-    { id: '大学英语', name: '大学英语' }
-  ] }
-]
+const initialTree = [ { id: 'all', name: '全部课程', children: [ { id: '数据结构', name: '数据结构' }, { id: '线性代数', name: '线性代数' }, { id: '大学英语', name: '大学英语' } ] } ]
 
 export default function Resources() {
   const [filter, setFilter] = useState('全部')
@@ -27,12 +22,25 @@ export default function Resources() {
   const [page, setPage] = useState(1)
   const pageSize = 20
   const [remote, setRemote] = useState<Resource[]>([])
+  const [tree, setTree] = useState<any[]>(initialTree)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   useEffect(() => {
+    CoursesApi.list().then(d => {
+      const children = (d.items || []).map((c: any) => ({ id: c.id, name: c.name }))
+      setTree([{ id: 'all', name: '全部课程', children }])
+    }).catch(() => {})
     const load = async () => {
       try {
+        setLoading(true)
+        setError('')
         const res = await ResourcesApi.list({ q: keyword, courseId, page, pageSize })
         setRemote(res.items.map((x: any) => ({ id: x.id, title: x.title, course: x.courseId, tag: '全部' })))
-      } catch {}
+      } catch {
+        setError('加载失败')
+      } finally {
+        setLoading(false)
+      }
     }
     load()
   }, [keyword, courseId, page, pageSize])
@@ -68,7 +76,9 @@ export default function Resources() {
             <SearchBar onSearch={({ keyword }) => { setKeyword(keyword); setPage(1) }} />
             <Link to="/student/resources/upload" className="px-3 py-2 bg-indigo-600 text-white rounded-lg">上传资源</Link>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {loading && <div className="text-sm text-gray-500">加载中...</div>}
+          {error && <div className="text-sm text-red-600">{error}</div>}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl-grid-cols-3 md:xl:grid-cols-3 gap-6">
             {list.map(r => (
               <Card key={r.id} className="p-6">
                 <div className="text-lg font-semibold text-gray-800">{r.title}</div>

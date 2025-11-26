@@ -1,16 +1,18 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import PageHeader from '../../components/common/PageHeader'
 import Card from '../../components/common/Card'
 import RichText from '../../components/editor/RichText'
 import { UploadsApi } from '../../services/uploads'
 import { QaApi } from '../../services/api'
 import { useNavigate } from 'react-router-dom'
+import { CoursesApi } from '../../services/courses'
 
-const courses = ['数据结构', '线性代数', '大学英语']
+const initialCourses = ['数据结构', '线性代数', '大学英语']
 
 export default function QAPublish() {
   const [title, setTitle] = useState('')
-  const [course, setCourse] = useState(courses[0])
+  const [courses, setCourses] = useState<string[]>(initialCourses)
+  const [course, setCourse] = useState(initialCourses[0])
   const [content, setContent] = useState('')
   const [images, setImages] = useState<File[]>([])
   const [msg, setMsg] = useState('')
@@ -43,6 +45,13 @@ export default function QAPublish() {
     }
   }
 
+  useEffect(() => {
+    CoursesApi.list().then(d => {
+      const arr = (d.items || []).map((c: any) => c.name)
+      if (arr.length) { setCourses(arr); setCourse(arr[0]) }
+    }).catch(() => {})
+  }, [])
+
   return (
     <div>
       <PageHeader title="发布问题" subtitle="填写问题信息并提交" />
@@ -55,7 +64,14 @@ export default function QAPublish() {
           <div className="md:col-span-2">
             <RichText value={content} onChange={setContent} maxLength={2000} />
           </div>
-          <input className="md:col-span-2" type="file" multiple accept="image/png,image/jpeg" onChange={e => setImages(Array.from(e.target.files || []).slice(0,3))} />
+          <div className="md:col-span-2">
+            <input id="qa-images" className="hidden" type="file" multiple accept="image/png,image/jpeg" onChange={e => setImages(Array.from(e.target.files || []).slice(0,3))} />
+            <label htmlFor="qa-images" className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg cursor-pointer">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2"/></svg>
+              选择图片
+            </label>
+            {!!images.length && <span className="ml-3 text-sm text-gray-600">已选择 {images.length} 张</span>}
+          </div>
         </div>
         <div className="mt-4 flex items-center gap-3">
           <button onClick={submit} disabled={loading} className="px-4 py-2 bg-indigo-600 text-white rounded-lg">{loading ? '提交中' : '提交'}</button>
@@ -65,4 +81,3 @@ export default function QAPublish() {
     </div>
   )
 }
-

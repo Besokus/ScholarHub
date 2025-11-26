@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import PageHeader from '../../components/common/PageHeader'
 import Card from '../../components/common/Card'
 import { QaApi } from '../../services/api'
+import { sanitizeHTML } from '../../utils/sanitize'
 
 export default function QAQuestion() {
   const { questionId } = useParams()
@@ -22,7 +23,7 @@ export default function QAQuestion() {
       <PageHeader title="问题详情" subtitle={q.title} />
       <Card className="p-6">
         {q.contentHTML ? (
-          <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: q.contentHTML }} />
+          <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHTML(q.contentHTML) }} />
         ) : (
           <div className="text-sm text-gray-700">{q.content}</div>
         )}

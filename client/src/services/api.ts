@@ -44,5 +44,6 @@ export const QaApi = {
 
 export const NotiApi = {
   unreadAnswers: () => apiFetch('/notifications?type=answer&status=unread'),
-  markRead: (id: string) => apiFetch(`/notifications/${id}/read`, { method: 'POST' })
+  markRead: (id: string) => apiFetch(`/notifications/${id}/read`, { method: 'POST' }),
+  readAll: () => apiFetch('/notifications/read-all', { method: 'POST' })
 }

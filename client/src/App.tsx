@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useNavigate } from 'react-router-dom';
 import { Loader2, LogOut, User, BookOpen, LayoutDashboard, Bell } from 'lucide-react';
+import Sidebar from './components/common/Sidebar';
 
 // --- 懒加载页面 ---
 const Login = lazy(() => import('./pages/Login'));
@@ -83,9 +84,16 @@ const MainLayout = () => {
                 {/* 展示当前角色 */}
                 <span className="font-semibold">{role === 'TEACHER' ? '教师端' : '学生端'}</span>
             </div>
+            <a
+                href="/student/profile"
+                className="px-3 py-1 text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 active:scale-95 rounded-full transition"
+                title="个人中心"
+            >
+                个人中心
+            </a>
             <a 
                 href="/student/notifications" 
-                className="relative p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors"
+                className="relative p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 active:scale-95 rounded-full transition"
                 title="通知"
             >
                 <Bell size={20} />
@@ -93,7 +101,7 @@ const MainLayout = () => {
             </a>
             <button 
                 onClick={handleLogout} 
-                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 active:scale-95 rounded-full transition"
                 title="退出登录"
             >
                 <LogOut size={20} />
@@ -101,9 +109,12 @@ const MainLayout = () => {
          </div>
       </nav>
       
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <Outlet />
-      </main>
+      <div className="flex">
+        <Sidebar />
+        <main className="flex-1 max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 };
