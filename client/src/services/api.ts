@@ -29,11 +29,12 @@ export const ResourcesApi = {
 }
 
 export const QaApi = {
-  list: (params: { courseId?: string; sort?: string; status?: string; page?: number; pageSize?: number }) => {
+  list: (params: { courseId?: string; sort?: string; status?: string; my?: boolean; page?: number; pageSize?: number }) => {
     const q = new URLSearchParams()
     if (params.courseId) q.set('courseId', params.courseId)
     if (params.sort) q.set('sort', params.sort)
     if (params.status) q.set('status', params.status)
+    if (params.my) q.set('my', '1')
     q.set('page', String(params.page || 1))
     q.set('pageSize', String(params.pageSize || 15))
     return apiFetch(`/qa/questions?${q.toString()}`)

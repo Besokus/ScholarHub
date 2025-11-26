@@ -67,7 +67,7 @@ export default function Resources() {
                 <button
                   key={t}
                   onClick={() => { setFilter(t); setPage(1) }}
-                  className={`px-3 py-1 rounded-full text-sm ${filter === t ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                  className={`px-3 py-1 rounded-full text-sm transition transform hover:scale-105 active:scale-95 ${filter === t ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700'}`}
                 >
                   {t}
                 </button>
