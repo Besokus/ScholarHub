@@ -127,7 +127,7 @@ const Login: React.FC = () => {
                     onChange={(e) => setUsername(e.target.value)}
                     required
                     className="w-full pl-11 pr-4 py-3 bg-white/5 border border-indigo-300/30 rounded-xl text-white focus:bg-white/10 focus:border-indigo-400 outline-none transition-all placeholder:text-indigo-400/50"
-                    placeholder="请输入学号"
+                    placeholder="请输入用户名"
                   />
                 </div>
               </div>
