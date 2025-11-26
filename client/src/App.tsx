@@ -9,6 +9,7 @@ const StudentDashboard = lazy(() => import('./pages/student/Dashboard'));
 const StudentCourses = lazy(() => import('./pages/student/Courses'));
 const StudentResources = lazy(() => import('./pages/student/Resources'));
 const StudentQA = lazy(() => import('./pages/student/QA'));
+const StudentQAPublish = lazy(() => import('./pages/student/QAPublish'));
 const StudentNotifications = lazy(() => import('./pages/student/Notifications'));
 const StudentProfile = lazy(() => import('./pages/student/Profile'));
 const StudentResourceUpload = lazy(() => import('./pages/student/ResourceUpload'));
@@ -162,6 +163,7 @@ const App: React.FC = () => {
                 <Route path="/student/resources/upload" element={<StudentResourceUpload />} />
                 <Route path="/student/resources/:id" element={<StudentResourceDetail />} />
                 <Route path="/student/qa" element={<StudentQA />} />
+                <Route path="/student/qa/publish" element={<StudentQAPublish />} />
                 <Route path="/student/qa/:questionId" element={<StudentQAQuestion />} />
                 <Route path="/student/notifications" element={<StudentNotifications />} />
                 <Route path="/student/profile" element={<StudentProfile />} />

@@ -1,18 +1,22 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import PageHeader from '../../components/common/PageHeader'
 import Card from '../../components/common/Card'
+import { ResourcesApi } from '../../services/api'
 
 export default function Profile() {
   const id = localStorage.getItem('id') || '2023123456'
   const role = localStorage.getItem('role') || 'STUDENT'
   const [prefEmail, setPrefEmail] = useState(true)
   const [prefBadge, setPrefBadge] = useState(true)
-  const myUploads = [
-    { id: 'r10', title: '算法总结', time: '2025-11-01 10:00' }
-  ]
-  const myDownloads = [
-    { id: 'r2', title: '线性代数总结', time: '2025-11-05 12:00' }
-  ]
+  const [myUploads, setMyUploads] = useState<any[]>([])
+  const [myDownloads, setMyDownloads] = useState<any[]>([])
+  useEffect(() => {
+    ResourcesApi.list({ page: 1, pageSize: 50 }).then(res => {
+      setMyUploads((res.items || []).filter((r: any) => r.uploaderId === id))
+    }).catch(() => {})
+    fetch('http://localhost:3000/api/resources/downloads/me', { headers: { 'X-User-Id': id } })
+      .then(r => r.json()).then(d => setMyDownloads(d.items || [])).catch(() => {})
+  }, [id])
   const myQuestions = [
     { id: 'q9', title: '哈希冲突如何处理', time: '2025-11-12 09:00' }
   ]
@@ -39,7 +43,7 @@ export default function Profile() {
         <Card className="p-6">
           <div className="text-lg font-semibold text-gray-800">我的上传</div>
           <ul className="mt-3 space-y-2 text-sm text-gray-600">
-            {myUploads.map(i => (<li key={i.id}>{i.title} · {i.time}</li>))}
+            {myUploads.map((i: any) => (<li key={i.id}>{i.title} · {i.courseId}</li>))}
           </ul>
         </Card>
       </div>
@@ -47,7 +51,7 @@ export default function Profile() {
         <Card className="p-6">
           <div className="text-lg font-semibold text-gray-800">下载历史</div>
           <ul className="mt-3 space-y-2 text-sm text-gray-600">
-            {myDownloads.map(i => (<li key={i.id}>{i.title} · {i.time}</li>))}
+            {myDownloads.map((i: any) => (<li key={i.id}>{i.resourceId} · {new Date(i.time).toLocaleString()}</li>))}
           </ul>
         </Card>
         <Card className="p-6">
@@ -60,4 +64,3 @@ export default function Profile() {
     </div>
   )
 }
-

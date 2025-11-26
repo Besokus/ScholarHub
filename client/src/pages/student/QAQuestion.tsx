@@ -21,7 +21,18 @@ export default function QAQuestion() {
     <div>
       <PageHeader title="问题详情" subtitle={q.title} />
       <Card className="p-6">
-        <div className="text-sm text-gray-700">{q.content}</div>
+        {q.contentHTML ? (
+          <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: q.contentHTML }} />
+        ) : (
+          <div className="text-sm text-gray-700">{q.content}</div>
+        )}
+        {!!(q.images && q.images.length) && (
+          <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3">
+            {q.images.map((src: string, i: number) => (
+              <img key={i} src={src} alt="img" className="w-full h-28 object-cover rounded" />
+            ))}
+          </div>
+        )}
         <div className="mt-2 text-xs text-gray-500">状态：{q.status === 'open' ? '待回答' : '已解决'} · ID：{questionId}</div>
       </Card>
     </div>

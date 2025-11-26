@@ -2,6 +2,7 @@ import React from 'react'
 import PageHeader from '../../components/common/PageHeader'
 import Card from '../../components/common/Card'
 import useNotifications from '../../hooks/useNotifications'
+import { NotiApi } from '../../services/api'
 import { useNavigate } from 'react-router-dom'
 
 export default function Notifications() {
@@ -11,6 +12,10 @@ export default function Notifications() {
     <div>
       <PageHeader title="通知提醒" subtitle="教师回答与系统消息" />
       <div className="space-y-4">
+        <div className="flex items-center justify-end">
+          <button className="px-3 py-1 bg-gray-100 rounded-lg text-sm" onClick={async () => { await NotiApi.unreadAnswers(); await NotiApi.markRead(''); }}>{/* 占位 */}</button>
+          <button className="px-3 py-1 bg-indigo-600 text-white rounded-lg text-sm" onClick={async () => { try { await fetch('http://localhost:3000/api/notifications/read-all', { method: 'POST' }); } catch {} }}>全部标记已读</button>
+        </div>
         {unread.map(n => (
           <Card key={n.id} className="p-6">
             <div className="flex items-center justify-between">
@@ -29,4 +34,3 @@ export default function Notifications() {
     </div>
   )
 }
-

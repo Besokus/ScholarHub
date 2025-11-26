@@ -2,10 +2,12 @@ export const API_BASE = 'http://localhost:3000/api'
 
 export async function apiFetch(path: string, options?: RequestInit) {
   const token = localStorage.getItem('token')
+  const uid = localStorage.getItem('id')
   const headers = {
     'Content-Type': 'application/json',
     ...(options?.headers || {}),
-    ...(token ? { Authorization: `Bearer ${token}` } : {})
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(uid ? { 'X-User-Id': uid } : {})
   }
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
