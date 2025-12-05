@@ -7,6 +7,7 @@ import Pagination from '../../components/common/Pagination'
 import TreeView from '../../components/common/TreeView'
 import { ResourcesApi } from '../../services/api'
 import { CoursesApi } from '../../services/courses'
+import Skeleton from '../../components/common/Skeleton'
 
 type Resource = { id: string; title: string; course: string; tag: string }
 
@@ -76,7 +77,13 @@ export default function Resources() {
             <SearchBar onSearch={({ keyword }) => { setKeyword(keyword); setPage(1) }} />
             <Link to="/student/resources/upload" className="px-3 py-2 bg-indigo-600 text-white rounded-lg">上传资源</Link>
           </div>
-          {loading && <div className="text-sm text-gray-500">加载中...</div>}
+          {loading && (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              <Skeleton className="h-24" />
+              <Skeleton className="h-24" />
+              <Skeleton className="h-24" />
+            </div>
+          )}
           {error && <div className="text-sm text-red-600">{error}</div>}
           <div className="grid grid-cols-1 md:grid-cols-2 xl-grid-cols-3 md:xl:grid-cols-3 gap-6">
             {list.map(r => (

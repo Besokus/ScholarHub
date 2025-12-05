@@ -6,10 +6,13 @@ import { QaApi } from '../../services/api'
 import RichText from '../../components/editor/RichText'
 import { UploadsApi } from '../../services/uploads'
 import { Link } from 'react-router-dom'
+import Skeleton from '../../components/common/Skeleton'
+import { useToast } from '../../components/common/Toast'
 
 type QAItem = { id: string; title: string; content: string; status: 'open' | 'solved'; hot: number; createdAt: number }
 
 export default function QA() {
+  const { show } = useToast()
   const [list, setList] = useState<QAItem[]>([])
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -45,6 +48,7 @@ export default function QA() {
     }
     QaApi.create({ courseId: '数据结构', title, contentHTML: content, images: uploaded }).then(q => {
       setList([{ id: q.id, title: q.title, content: q.content, status: q.status, hot: q.hot, createdAt: q.createdAt }, ...list])
+      show('发布成功', 'success')
     }).catch(() => {})
     setTitle('')
     setContent('')
@@ -67,7 +71,12 @@ export default function QA() {
         <button onClick={() => { setSort('unanswered'); setPage(1) }} className={`px-3 py-1 rounded ${sort==='unanswered'?'bg-indigo-600 text-white':'bg-gray-100'}`}>未回答</button>
       </div>
       <div className="space-y-4">
-        {loading && <div className="text-sm text-gray-500">加载中...</div>}
+        {loading && (
+          <div className="space-y-2">
+            <Skeleton className="h-20" />
+            <Skeleton className="h-20" />
+          </div>
+        )}
         {error && <div className="text-sm text-red-600">{error}</div>}
         {pageList.map(i => (
           <Card key={i.id} className="p-6">

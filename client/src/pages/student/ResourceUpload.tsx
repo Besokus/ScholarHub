@@ -8,6 +8,7 @@ const types = ['PDF', 'JPG', 'PNG', 'ZIP', 'RAR']
 const courses = ['数据结构', '线性代数', '大学英语']
 
 export default function ResourceUpload() {
+  const { show } = useToast()
   const [title, setTitle] = useState('')
   const [summary, setSummary] = useState('')
   const [course, setCourse] = useState(courses[0])
@@ -35,8 +36,10 @@ export default function ResourceUpload() {
       }
       await ResourcesApi.create({ title, summary, courseId: course, ...fileMeta })
       setMsg('上传成功')
+      show('上传成功', 'success')
     } catch {
       setMsg('上传失败')
+      show('上传失败', 'error')
     } finally {
       setLoading(false)
     }
@@ -68,3 +71,4 @@ export default function ResourceUpload() {
     </div>
   )
 }
+import { useToast } from '../../components/common/Toast'
