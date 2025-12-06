@@ -7,12 +7,10 @@ import { QaApi } from '../../services/api'
 import { useNavigate } from 'react-router-dom'
 import { CoursesApi } from '../../services/courses'
 
-const initialCourses = ['数据结构', '线性代数', '大学英语']
-
 export default function QAPublish() {
   const [title, setTitle] = useState('')
-  const [courses, setCourses] = useState<string[]>(initialCourses)
-  const [course, setCourse] = useState(initialCourses[0])
+  const [courses, setCourses] = useState<string[]>([])
+  const [course, setCourse] = useState('')
   const [content, setContent] = useState('')
   const [images, setImages] = useState<File[]>([])
   const [msg, setMsg] = useState('')
@@ -22,6 +20,7 @@ export default function QAPublish() {
   const validate = () => {
     if (!title || title.length > 50) return '标题需填写且不超过50字'
     if (!content || content.length > 2000) return '内容需填写且不超过2000字'
+    if (!course) return '请选择课程'
     return ''
   }
 

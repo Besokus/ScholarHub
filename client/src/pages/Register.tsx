@@ -1,15 +1,20 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { User, Mail, Lock, ArrowRight, Loader2, AlertCircle, CheckCircle2, GraduationCap, School, BookOpen, Sparkles } from 'lucide-react';
+import { AuthApi } from '../services/api';
 
 const Register: React.FC = () => {
   const [username, setUsername] = useState('');
+  const [accountId, setAccountId] = useState('');
+  const [realName, setRealName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'STUDENT' | 'TEACHER'>('STUDENT');
   
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,30 +22,15 @@ const Register: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // 模拟请求延迟 (实际开发时请删除此行并解开下方的 fetch 注释)
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      /* const res = await fetch('http://localhost:3000/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, email, password, role }),
-      });
-      const data = await res.json();
-      
-      if (!res.ok) {
-        setMessage({ type: 'error', text: data.message || '注册失败，请稍后重试' });
-        setIsLoading(false);
-        return;
-      }
-      */
-
-      // 模拟成功
-      setMessage({ type: 'success', text: '注册成功！请前往登录页面。' });
-      // 这里的逻辑通常是：注册成功后 2秒 跳转到登录页
-      // setTimeout(() => navigate('/login'), 2000);
-      
-    } catch (err) {
-      setMessage({ type: 'error', text: '网络连接错误，请检查您的网络' });
+      const id = accountId.trim();
+      const name = role === 'TEACHER' ? realName.trim() : username.trim();
+      await AuthApi.register({ id, username: name, email, password, role });
+      setMessage({ type: 'success', text: '注册成功！即将跳转登录页' });
+      setTimeout(() => navigate('/login'), 1200);
+    } catch (err: any) {
+      const serverMsg = err?.data?.message
+      const text = serverMsg || err?.message || '注册失败，请稍后重试'
+      setMessage({ type: 'error', text })
     } finally {
       setIsLoading(false);
     }
@@ -163,10 +153,21 @@ const Register: React.FC = () => {
                   <input 
                     type="text"
                     required
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    value={accountId}
+                    onChange={(e) => setAccountId(e.target.value)}
                     className="w-full pl-11 pr-4 py-3 bg-white/50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400"
-                    placeholder="设置用户名"
+                    placeholder="学号/教工号"
+                  />
+                </div>
+                <div className="group relative">
+                  <User className="absolute left-4 top-3.5 h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
+                  <input 
+                    type="text"
+                    required
+                    value={role === 'TEACHER' ? realName : username}
+                    onChange={(e) => role === 'TEACHER' ? setRealName(e.target.value) : setUsername(e.target.value)}
+                    className="w-full pl-11 pr-4 py-3 bg-white/50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400"
+                    placeholder={role === 'TEACHER' ? '填写真实姓名' : '设置用户名'}
                   />
                 </div>
 

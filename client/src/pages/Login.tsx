@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion'; // 核心动画库
 import { User, Lock, ArrowRight, Loader2, AlertCircle, CheckCircle2, GraduationCap, BookOpen, Sparkles } from 'lucide-react';
+import { AuthApi } from '../services/api';
 
 import bgImage from '../assets/images/usst_campus.jpg';
 
@@ -9,31 +11,23 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
     setIsLoading(true);
     
-    // 模拟请求
     try {
-      // 【关键修改】模拟后端返回的数据
-      const mockResponse = {
-        token: 'fake-jwt-token',
-        user: {
-          username: username,
-          // 实际项目中，这个 role 是后端数据库查出来的
-          role: username.includes('teacher') ? 'TEACHER' : 'STUDENT'
-        }
-      };
-
-      // 【关键修改】将 Token 和 Role 都存起来
-      localStorage.setItem('token', mockResponse.token);
-      localStorage.setItem('role', mockResponse.user.role); 
-
+      const data = await AuthApi.login({ username, password });
+      const token = data.data?.token || data.token;
+      const user = data.data?.user || data.user;
+      if (!token || !user) throw new Error('invalid_response');
+      localStorage.setItem('token', token);
+      if (user.id) localStorage.setItem('id', String(user.id));
+      if (user.role) localStorage.setItem('role', String(user.role));
       setMessage({ type: 'success', text: '登录成功！正在进入工作台...' });
-      
-      // 登录成功后，跳转到根路径，让 App.tsx 里的分发器去决定具体去哪
+      navigate('/');
     } catch (err) {
       setMessage({ type: 'error', text: '登录失败，请重试' });
     } finally {

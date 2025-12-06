@@ -6,15 +6,16 @@ import SearchBar from '../../components/common/SearchBar'
 import Pagination from '../../components/common/Pagination'
 import TreeView from '../../components/common/TreeView'
 import { ResourcesApi } from '../../services/api'
+import { API_ORIGIN } from '../../services/api'
 import { CoursesApi } from '../../services/courses'
 import Skeleton from '../../components/common/Skeleton'
 
-type Resource = { id: string; title: string; course: string; tag: string }
+type Resource = { id: string; title: string; course: string; tag: string; fileUrl?: string }
 
 const data: Resource[] = []
 
 const tags = ['全部', '练习', '笔记', '答案']
-const initialTree = [ { id: 'all', name: '全部课程', children: [ { id: '数据结构', name: '数据结构' }, { id: '线性代数', name: '线性代数' }, { id: '大学英语', name: '大学英语' } ] } ]
+const initialTree = [ { id: 'all', name: '全部课程', children: [] } ]
 
 export default function Resources() {
   const [filter, setFilter] = useState('全部')
@@ -36,7 +37,7 @@ export default function Resources() {
         setLoading(true)
         setError('')
         const res = await ResourcesApi.list({ q: keyword, courseId, page, pageSize })
-        setRemote(res.items.map((x: any) => ({ id: x.id, title: x.title, course: x.courseId, tag: '全部' })))
+        setRemote(res.items.map((x: any) => ({ id: x.id, title: x.title, course: x.courseId, tag: '全部', fileUrl: x.fileUrl })))
       } catch {
         setError('加载失败')
       } finally {
@@ -92,7 +93,11 @@ export default function Resources() {
                 <div className="text-sm text-gray-500 mt-1">{r.course}</div>
                 <div className="mt-4">
                   <Link to={`/student/resources/${r.id}`} className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm mr-2">详情</Link>
-                  <button className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm">下载</button>
+                  {r.fileUrl ? (
+                    <a href={`${API_ORIGIN}${r.fileUrl}`} target="_blank" rel="noreferrer" className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm">下载</a>
+                  ) : (
+                    <button disabled className="px-3 py-2 bg-gray-300 text-gray-600 rounded-lg text-sm cursor-not-allowed">无文件</button>
+                  )}
                 </div>
               </Card>
             ))}

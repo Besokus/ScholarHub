@@ -16,12 +16,13 @@ const express_1 = require("express");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const db_1 = __importDefault(require("../db"));
+const auth_1 = require("../middleware/auth");
 const router = (0, express_1.Router)();
 // User Registration (Student/Teacher)
 router.post('/register', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { username, password, email, role } = req.body;
-    if (!username || !password || !email) {
-        return res.status(400).json({ message: 'Username, password, and email are required' });
+    const { id, username, password, email, role } = req.body;
+    if (!id || !username || !password || !email) {
+        return res.status(400).json({ message: 'Id, username, password, and email are required' });
     }
     if (role === 'ADMIN') {
         return res.status(403).json({ message: 'Admin registration is not allowed' });
@@ -30,7 +31,7 @@ router.post('/register', (req, res) => __awaiter(void 0, void 0, void 0, functio
     try {
         const existingUser = yield db_1.default.user.findFirst({
             where: {
-                OR: [{ username }, { email }],
+                OR: [{ id }, { username }, { email }],
             },
         });
         if (existingUser) {
@@ -39,6 +40,7 @@ router.post('/register', (req, res) => __awaiter(void 0, void 0, void 0, functio
         const hashedPassword = yield bcryptjs_1.default.hash(password, 10);
         const user = yield db_1.default.user.create({
             data: {
+                id,
                 username,
                 password: hashedPassword,
                 email,
@@ -58,7 +60,10 @@ router.post('/login', (req, res) => __awaiter(void 0, void 0, void 0, function* 
         return res.status(400).json({ message: 'Username and password are required' });
     }
     try {
-        const user = yield db_1.default.user.findUnique({ where: { username } });
+        let user = yield db_1.default.user.findUnique({ where: { id: username } });
+        if (!user) {
+            user = yield db_1.default.user.findUnique({ where: { username } });
+        }
         if (!user) {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
@@ -85,8 +90,8 @@ router.get('/me', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         const secret = process.env.JWT_SECRET || 'dev-secret';
         const decoded = jsonwebtoken_1.default.verify(token, secret);
         const payload = typeof decoded === 'string' ? {} : decoded;
-        const sub = typeof payload.sub === 'string' ? parseInt(payload.sub, 10) : payload.sub;
-        if (!sub || Number.isNaN(sub)) {
+        const sub = typeof payload.sub === 'string' ? payload.sub : String(payload.sub || '');
+        if (!sub) {
             return res.status(401).json({ message: 'Invalid token payload' });
         }
         const user = yield db_1.default.user.findUnique({
@@ -100,6 +105,28 @@ router.get('/me', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     }
     catch (error) {
         res.status(401).json({ message: 'Invalid token' });
+    }
+}));
+// Update username (students only)
+router.patch('/username', auth_1.requireAuth, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const uid = req.userId;
+        const { username } = req.body;
+        if (!username || !username.trim())
+            return res.status(400).json({ message: 'Username required' });
+        const user = yield db_1.default.user.findUnique({ where: { id: uid } });
+        if (!user)
+            return res.status(404).json({ message: 'User not found' });
+        if (user.role !== 'STUDENT')
+            return res.status(403).json({ message: 'Only students can update username' });
+        const exists = yield db_1.default.user.findUnique({ where: { username } });
+        if (exists && exists.id !== uid)
+            return res.status(400).json({ message: 'Username already exists' });
+        const updated = yield db_1.default.user.update({ where: { id: uid }, data: { username } });
+        res.json({ user: { id: updated.id, username: updated.username, role: updated.role, email: updated.email, avatar: updated.avatar, title: updated.title } });
+    }
+    catch (err) {
+        res.status(500).json({ message: err.message || 'Server error' });
     }
 }));
 exports.default = router;

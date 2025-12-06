@@ -3,8 +3,6 @@ import PageHeader from '../../components/common/PageHeader'
 import Card from '../../components/common/Card'
 import Pagination from '../../components/common/Pagination'
 import { QaApi } from '../../services/api'
-import RichText from '../../components/editor/RichText'
-import { UploadsApi } from '../../services/uploads'
 import { Link } from 'react-router-dom'
 import Skeleton from '../../components/common/Skeleton'
 import { useToast } from '../../components/common/Toast'
@@ -14,9 +12,6 @@ type QAItem = { id: string; title: string; content: string; status: 'open' | 'so
 export default function QA() {
   const { show } = useToast()
   const [list, setList] = useState<QAItem[]>([])
-  const [title, setTitle] = useState('')
-  const [content, setContent] = useState('')
-  const [images, setImages] = useState<File[]>([])
   const [sort, setSort] = useState<'latest' | 'hot' | 'unanswered'>('latest')
   const [page, setPage] = useState(1)
   const pageSize = 15
@@ -37,23 +32,6 @@ export default function QA() {
     }
     load()
   }, [sort, page])
-  const submit = async () => {
-    if (!title.trim() || !content.trim()) return
-    let uploaded: string[] = []
-    if (images.length) {
-      try {
-        const up = await UploadsApi.uploadImageBatch(images.slice(0, 3))
-        uploaded = (up.urls || []).map((u: any) => u.url)
-      } catch {}
-    }
-    QaApi.create({ courseId: '数据结构', title, contentHTML: content, images: uploaded }).then(q => {
-      setList([{ id: q.id, title: q.title, content: q.content, status: q.status, hot: q.hot, createdAt: q.createdAt }, ...list])
-      show('发布成功', 'success')
-    }).catch(() => {})
-    setTitle('')
-    setContent('')
-    setImages([])
-  }
   const filtered = useMemo(() => {
     let arr = [...list]
     if (sort === 'latest') arr.sort((a, b) => b.createdAt - a.createdAt)
@@ -70,6 +48,7 @@ export default function QA() {
         <button onClick={() => { setSort('hot'); setPage(1) }} className={`px-3 py-1 rounded ${sort==='hot'?'bg-indigo-600 text-white':'bg-gray-100'}`}>最热</button>
         <button onClick={() => { setSort('unanswered'); setPage(1) }} className={`px-3 py-1 rounded ${sort==='unanswered'?'bg-indigo-600 text-white':'bg-gray-100'}`}>未回答</button>
       </div>
+      
       <div className="space-y-4">
         {loading && (
           <div className="space-y-2">

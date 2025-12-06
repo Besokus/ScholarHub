@@ -6,23 +6,25 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
+  id        String   @id
   username  String   @unique
+  fullName  String?
   password  String
-  role      Role     @default(STUDENT)
+  role      String   @default("STUDENT")
   avatar    String?
   email     String   @unique
-  title     String? // Teacher only
+  title     String?
 
-  courses  Course[]
+  courses   Course[]
   resources Resource[]
   questions Question[]
   answers   Answer[]
+  notifications Notification[]
 }
 
 model Course {
@@ -30,65 +32,61 @@ model Course {
   name        String
   description String?
   department  String
-  teacherId   Int
+  teacherId   String
   teacher     User     @relation(fields: [teacherId], references: [id])
 
-  resources Resource[]
-  questions Question[]
+  resources   Resource[]
+  questions   Question[]
 }
 
 model Resource {
-  id            Int          @id @default(autoincrement())
+  id            Int      @id @default(autoincrement())
   title         String
   description   String?
   filePath      String
-  uploaderId    Int
-  uploader      User         @relation(fields: [uploaderId], references: [id])
+  uploaderId    String
+  uploader      User     @relation(fields: [uploaderId], references: [id])
   courseId      Int
-  course        Course       @relation(fields: [courseId], references: [id])
-  viewType      ResourceType @default(PUBLIC)
-  downloadCount Int          @default(0)
-  createTime    DateTime     @default(now())
+  course        Course   @relation(fields: [courseId], references: [id])
+  viewType      String   @default("PUBLIC")
+  downloadCount Int      @default(0)
+  createTime    DateTime @default(now())
 }
 
 model Question {
-  id         Int            @id @default(autoincrement())
+  id         Int      @id @default(autoincrement())
   title      String
   content    String
-  studentId  Int
-  student    User           @relation(fields: [studentId], references: [id])
+  studentId  String
+  student    User     @relation(fields: [studentId], references: [id])
   courseId   Int
-  course     Course         @relation(fields: [courseId], references: [id])
-  status     QuestionStatus @default(UNANSWERED)
-  createTime DateTime       @default(now())
+  course     Course   @relation(fields: [courseId], references: [id])
+  status     String   @default("UNANSWERED")
+  createTime DateTime @default(now())
   images     String?
 
-  answers Answer[]
+  answers    Answer[]
 }
 
 model Answer {
   id          Int      @id @default(autoincrement())
   questionId  Int
   question    Question @relation(fields: [questionId], references: [id])
-  teacherId   Int
+  teacherId   String
   teacher     User     @relation(fields: [teacherId], references: [id])
   content     String
   attachments String?
   createTime  DateTime @default(now())
 }
 
-enum Role {
-  ADMIN
-  TEACHER
-  STUDENT
+model Notification {
+  id          Int      @id @default(autoincrement())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  questionId  Int?
+  answerId    Int?
+  type        String
+  read        Boolean  @default(false)
+  createTime  DateTime @default(now())
 }
 
-enum ResourceType {
-  PUBLIC
-  CLASS_ONLY
-}
-
-enum QuestionStatus {
-  UNANSWERED
-  ANSWERED
-}

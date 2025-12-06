@@ -1,65 +1,140 @@
 import { Router } from 'express'
+import prisma from '../db'
 
 const router = Router()
 
-type Resource = { id: string; title: string; summary: string; courseId: string; size: string; type: string; downloadCount: number; uploaderId?: string; uploaderName?: string; fileUrl?: string }
+function toClientShape(r: any) {
+  return {
+    id: r.id,
+    title: r.title,
+    summary: r.description || '',
+    courseId: r.course?.name || String(r.courseId),
+    type: 'FILE',
+    size: '',
+    downloadCount: r.downloadCount || 0,
+    fileUrl: r.filePath ? (r.filePath.startsWith('/uploads') ? r.filePath : `/uploads/${r.filePath}`) : undefined
+  }
+}
 
-const resources: Resource[] = [
-  { id: 'r1', title: '数据结构题库', summary: '常见题型', courseId: '数据结构', size: '2.4MB', type: 'PDF', downloadCount: 12 },
-  { id: 'r2', title: '线性代数总结', summary: '知识点整理', courseId: '线性代数', size: '1.1MB', type: 'PDF', downloadCount: 4 },
-  { id: 'r3', title: '英语阅读答案', summary: '第三章', courseId: '大学英语', size: '0.8MB', type: 'PDF', downloadCount: 6 }
-]
+async function ensureCourseByName(name: string) {
+  const admin = await prisma.user.findUnique({ where: { username: 'admin' } })
+  const tUser = admin || (await prisma.user.create({ data: { id: `teacher_${Date.now()}`, username: `teacher_${Date.now()}`, password: 'nopass', role: 'TEACHER', email: `t${Date.now()}@example.com` } }))
+  const teacherId = tUser.id
+  let course = await prisma.course.findFirst({ where: { name } })
+  if (!course) {
+    course = await prisma.course.create({ data: { name, department: '通识', teacherId } })
+  }
+  return course
+}
 
-router.get('/', (req, res) => {
-  const q = String(req.query.q || '').toLowerCase()
-  const courseId = String(req.query.courseId || '')
-  const page = parseInt(String(req.query.page || '1')) || 1
-  const pageSize = parseInt(String(req.query.pageSize || '20')) || 20
-  let list = resources
-  if (q) list = list.filter(r => r.title.toLowerCase().includes(q))
-  if (courseId && courseId !== 'all') list = list.filter(r => r.courseId === courseId)
-  const total = list.length
-  const items = list.slice((page - 1) * pageSize, page * pageSize)
-  res.json({ items, total })
+router.get('/', async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim().toLowerCase()
+    const courseId = String(req.query.courseId || '')
+    const page = parseInt(String(req.query.page || '1')) || 1
+    const pageSize = parseInt(String(req.query.pageSize || '20')) || 20
+    const where: any = {}
+    if (q) where.title = { contains: q }
+    if (courseId && courseId !== 'all') {
+      const course = await prisma.course.findFirst({ where: { name: courseId } })
+      if (course) where.courseId = course.id
+      else where.courseId = -1
+    }
+    const [items, total] = await Promise.all([
+      prisma.resource.findMany({ where, include: { course: true }, orderBy: { id: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
+      prisma.resource.count({ where })
+    ])
+    res.json({ items: items.map(toClientShape), total })
+  } catch (err: any) {
+    res.status(500).json({ message: err.message || 'Server error' })
+  }
 })
 
-router.get('/:id', (req, res) => {
-  const r = resources.find(x => x.id === req.params.id)
-  if (!r) return res.status(404).json({ message: 'Not found' })
-  res.json(r)
+router.get('/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10)
+    const r = await prisma.resource.findUnique({ where: { id }, include: { course: true } })
+    if (!r) return res.status(404).json({ message: 'Not found' })
+    res.json(toClientShape(r))
+  } catch (err: any) {
+    res.status(500).json({ message: err.message || 'Server error' })
+  }
 })
 
-router.post('/', (req, res) => {
-  const { title, summary, courseId, type, size, fileUrl } = req.body || {}
-  if (!title || !summary || !courseId) return res.status(400).json({ message: 'Invalid' })
-  const id = `r${Date.now()}`
-  const uploaderId = (req.header('X-User-Id') || '').trim() || undefined
-  const item: Resource = { id, title, summary, courseId, type: type || 'PDF', size: size || '0MB', downloadCount: 0, uploaderId, uploaderName: uploaderId ? `用户${uploaderId}` : '系统', fileUrl }
-  resources.unshift(item)
-  res.json(item)
+router.post('/', async (req, res) => {
+  try {
+    const { title, summary, courseId, fileUrl } = req.body || {}
+    if (!title || !summary || !courseId || !fileUrl) return res.status(400).json({ message: 'Invalid' })
+    const uploaderId = (req as any).userId || undefined
+    const course = await ensureCourseByName(String(courseId))
+    const created = await prisma.resource.create({
+      data: {
+        title,
+        description: summary,
+        filePath: fileUrl,
+        uploaderId: uploaderId || (await prisma.user.findUnique({ where: { username: 'admin' } }))!.id,
+        courseId: course.id,
+        viewType: 'PUBLIC'
+      },
+      include: { course: true }
+    })
+    res.json(toClientShape(created))
+  } catch (err: any) {
+    res.status(500).json({ message: err.message || 'Server error' })
+  }
 })
 
-const downloadLogs: { id: string; resourceId: string; userId?: string; time: number }[] = []
-
-router.post('/:id/downloads', (req, res) => {
-  const r = resources.find(x => x.id === req.params.id)
-  if (!r) return res.status(404).json({ message: 'Not found' })
-  r.downloadCount += 1
-  const userId = (req.header('X-User-Id') || '').trim() || undefined
-  downloadLogs.push({ id: `d${Date.now()}`, resourceId: r.id, userId, time: Date.now() })
-  res.json({ downloadCount: r.downloadCount })
+router.put('/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10)
+    const { title, summary, courseId, fileUrl } = req.body || {}
+    const data: any = {}
+    if (title) data.title = title
+    if (summary) data.description = summary
+    if (fileUrl) data.filePath = fileUrl
+    if (courseId && courseId !== 'all') {
+      const course = await ensureCourseByName(String(courseId))
+      data.courseId = course.id
+    }
+    const updated = await prisma.resource.update({ where: { id }, data, include: { course: true } })
+    res.json(toClientShape(updated))
+  } catch (err: any) {
+    if (err.code === 'P2025') return res.status(404).json({ message: 'Not found' })
+    res.status(500).json({ message: err.message || 'Server error' })
+  }
 })
 
-router.get('/downloads/me', (req, res) => {
-  const userId = (req.header('X-User-Id') || '').trim()
-  const list = downloadLogs.filter(l => !userId || l.userId === userId)
-  res.json({ items: list })
+router.delete('/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10)
+    await prisma.resource.delete({ where: { id } })
+    res.json({ ok: true })
+  } catch (err: any) {
+    if (err.code === 'P2025') return res.status(404).json({ message: 'Not found' })
+    res.status(500).json({ message: err.message || 'Server error' })
+  }
 })
 
-router.get('/me/uploads', (req, res) => {
-  const userId = (req.header('X-User-Id') || '').trim()
-  const list = resources.filter(r => !userId || r.uploaderId === userId)
-  res.json({ items: list })
+router.post('/:id/downloads', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10)
+    const updated = await prisma.resource.update({ where: { id }, data: { downloadCount: { increment: 1 } } })
+    res.json({ downloadCount: updated.downloadCount })
+  } catch (err: any) {
+    if (err.code === 'P2025') return res.status(404).json({ message: 'Not found' })
+    res.status(500).json({ message: err.message || 'Server error' })
+  }
+})
+
+router.get('/me/uploads', async (req, res) => {
+  try {
+    const uid = parseInt((req.header('X-User-Id') || '').trim() || '0', 10)
+    const userId = (req as any).userId
+    const list = await prisma.resource.findMany({ where: userId ? { uploaderId: userId } : {}, include: { course: true }, orderBy: { id: 'desc' } })
+    res.json({ items: list.map(toClientShape) })
+  } catch (err: any) {
+    res.status(500).json({ message: err.message || 'Server error' })
+  }
 })
 
 export default router

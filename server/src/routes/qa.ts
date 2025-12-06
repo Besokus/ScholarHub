@@ -1,46 +1,123 @@
 import { Router } from 'express'
+import prisma from '../db'
 
 const router = Router()
 
-type Question = { id: string; courseId: string; title: string; content: string; contentHTML?: string; images?: string[]; status: 'open' | 'solved'; hot: number; createdAt: number; createdById?: string }
+function toClient(q: any) {
+  const imgs = (q.images || '').split(',').filter(Boolean)
+  return {
+    id: q.id,
+    courseId: q.course?.name || String(q.courseId),
+    title: q.title,
+    content: q.content,
+    contentHTML: q.content,
+    images: imgs,
+    status: q.status === 'ANSWERED' ? 'solved' : 'open',
+    hot: 0,
+    createdAt: new Date(q.createTime).getTime(),
+    createdById: q.studentId ? String(q.studentId) : undefined
+  }
+}
 
-const questions: Question[] = [
-  { id: 'q1', courseId: '数据结构', title: '栈与队列的区别', content: '入栈出栈与先进先出', status: 'open', hot: 12, createdAt: Date.now() - 86400000 },
-  { id: 'q2', courseId: '线性代数', title: '矩阵秩如何理解', content: '线性无关数量', status: 'solved', hot: 30, createdAt: Date.now() - 3600000 }
-]
+async function ensureCourseByName(name: string) {
+  const admin = await prisma.user.findUnique({ where: { username: 'admin' } })
+  const tUser = admin || (await prisma.user.create({ data: { id: `teacher_${Date.now()}`, username: `teacher_${Date.now()}`, password: 'nopass', role: 'TEACHER', email: `t${Date.now()}@example.com` } }))
+  const teacherId = tUser.id
+  let course = await prisma.course.findFirst({ where: { name } })
+  if (!course) course = await prisma.course.create({ data: { name, department: '通识', teacherId } })
+  return course
+}
 
-router.get('/questions', (req, res) => {
-  const courseId = String(req.query.courseId || '')
-  const sort = String(req.query.sort || 'latest')
-  const status = String(req.query.status || '')
-  const my = String(req.query.my || '')
-  const userId = (req.header('X-User-Id') || '').trim()
-  const page = parseInt(String(req.query.page || '1')) || 1
-  const pageSize = parseInt(String(req.query.pageSize || '15')) || 15
-  let list = questions
-  if (courseId) list = list.filter(q => q.courseId === courseId)
-  if (status === 'unanswered') list = list.filter(q => q.status === 'open')
-  if (my === '1' && userId) list = list.filter(q => q.createdById === userId)
-  if (sort === 'latest') list = list.sort((a, b) => b.createdAt - a.createdAt)
-  if (sort === 'hot') list = list.sort((a, b) => b.hot - a.hot)
-  const total = list.length
-  const items = list.slice((page - 1) * pageSize, page * pageSize)
-  res.json({ items, total })
+router.get('/questions', async (req, res) => {
+  try {
+    const courseName = String(req.query.courseId || '')
+    const sort = String(req.query.sort || 'latest')
+    const status = String(req.query.status || '')
+    const my = String(req.query.my || '')
+    const userId = (req as any).userId || ''
+    const page = parseInt(String(req.query.page || '1')) || 1
+    const pageSize = parseInt(String(req.query.pageSize || '15')) || 15
+    const where: any = {}
+    if (courseName) {
+      const course = await prisma.course.findFirst({ where: { name: courseName } })
+      if (course) where.courseId = course.id
+      else where.courseId = -1
+    }
+    if (status === 'unanswered') where.status = 'UNANSWERED'
+    if (my === '1' && userId) where.studentId = userId
+    const orderBy = sort === 'hot' ? { downloadCount: 'desc' } as any : { createTime: 'desc' }
+    const [items, total] = await Promise.all([
+      prisma.question.findMany({ where, orderBy, include: { course: true }, skip: (page - 1) * pageSize, take: pageSize }),
+      prisma.question.count({ where })
+    ])
+    res.json({ items: items.map(toClient), total })
+  } catch (err: any) {
+    res.status(500).json({ message: err.message || 'Server error' })
+  }
 })
 
-router.get('/questions/:id', (req, res) => {
-  const q = questions.find(x => x.id === req.params.id)
-  if (!q) return res.status(404).json({ message: 'Not found' })
-  res.json(q)
+router.get('/questions/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10)
+    const q = await prisma.question.findUnique({ where: { id }, include: { course: true } })
+    if (!q) return res.status(404).json({ message: 'Not found' })
+    res.json(toClient(q))
+  } catch (err: any) {
+    res.status(500).json({ message: err.message || 'Server error' })
+  }
 })
 
-router.post('/questions', (req, res) => {
-  const { courseId, title, content, contentHTML, images } = req.body || {}
-  if (!courseId || !title || (!content && !contentHTML)) return res.status(400).json({ message: 'Invalid' })
-  const createdById = (req.header('X-User-Id') || '').trim() || undefined
-  const item: Question = { id: `q${Date.now()}`, courseId, title, content: content || '', contentHTML, images, status: 'open', hot: 0, createdAt: Date.now(), createdById }
-  questions.unshift(item)
-  res.json(item)
+router.post('/questions', async (req, res) => {
+  try {
+    const { courseId, title, content, contentHTML, images } = req.body || {}
+    const text = contentHTML || content
+    if (!courseId || !title || !text) return res.status(400).json({ message: 'Invalid' })
+    const studentId = (req as any).userId || undefined
+    const course = await ensureCourseByName(String(courseId))
+    const created = await prisma.question.create({
+      data: {
+        courseId: course.id,
+        title,
+        content: text,
+        studentId: studentId || (await prisma.user.findUnique({ where: { username: 'admin' } }))!.id,
+        images: Array.isArray(images) ? images.join(',') : undefined
+      },
+      include: { course: true }
+    })
+    res.json(toClient(created))
+  } catch (err: any) {
+    res.status(500).json({ message: err.message || 'Server error' })
+  }
+})
+
+router.put('/questions/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10)
+    const { courseId, title, content, contentHTML, images, status } = req.body || {}
+    const data: any = {}
+    if (courseId) { const c = await ensureCourseByName(String(courseId)); data.courseId = c.id }
+    if (title) data.title = title
+    const text = contentHTML || content
+    if (text) data.content = text
+    if (Array.isArray(images)) data.images = images.join(',')
+    if (status) data.status = status === 'solved' ? 'ANSWERED' : 'UNANSWERED'
+    const updated = await prisma.question.update({ where: { id }, data, include: { course: true } })
+    res.json(toClient(updated))
+  } catch (err: any) {
+    if (err.code === 'P2025') return res.status(404).json({ message: 'Not found' })
+    res.status(500).json({ message: err.message || 'Server error' })
+  }
+})
+
+router.delete('/questions/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10)
+    await prisma.question.delete({ where: { id } })
+    res.json({ ok: true })
+  } catch (err: any) {
+    if (err.code === 'P2025') return res.status(404).json({ message: 'Not found' })
+    res.status(500).json({ message: err.message || 'Server error' })
+  }
 })
 
 export default router

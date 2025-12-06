@@ -1,4 +1,5 @@
-export const API_BASE = 'http://localhost:3000/api'
+export const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3000/api'
+export const API_ORIGIN = new URL(API_BASE).origin
 
 export async function apiFetch(path: string, options?: RequestInit) {
   const token = localStorage.getItem('token')
@@ -10,8 +11,25 @@ export async function apiFetch(path: string, options?: RequestInit) {
     ...(uid ? { 'X-User-Id': uid } : {})
   }
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers })
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  return res.json()
+  let data: any = null
+  try { data = await res.json() } catch {}
+  if (!res.ok) {
+    const message = (data && (data.message || data.error)) || `HTTP ${res.status}`
+    const err: any = new Error(message)
+    err.status = res.status
+    err.data = data
+    throw err
+  }
+  return data
+}
+
+export const AuthApi = {
+  register: (body: { id: string; username: string; email: string; password: string; role: 'STUDENT' | 'TEACHER' }) =>
+    apiFetch('/auth/register', { method: 'POST', body: JSON.stringify(body) }),
+  login: (body: { username: string; password: string }) =>
+    apiFetch('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
+  me: () => apiFetch('/auth/me'),
+  updateUsername: (username: string) => apiFetch('/auth/username', { method: 'PATCH', body: JSON.stringify({ username }) })
 }
 
 export const ResourcesApi = {
@@ -25,7 +43,11 @@ export const ResourcesApi = {
   },
   detail: (id: string) => apiFetch(`/resources/${id}`),
   create: (body: any) => apiFetch('/resources', { method: 'POST', body: JSON.stringify(body) }),
-  downloadLog: (id: string) => apiFetch(`/resources/${id}/downloads`, { method: 'POST' })
+  update: (id: string, body: any) => apiFetch(`/resources/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  remove: (id: string) => apiFetch(`/resources/${id}`, { method: 'DELETE' }),
+  downloadLog: (id: string) => apiFetch(`/resources/${id}/downloads`, { method: 'POST' }),
+  myDownloads: () => apiFetch('/resources/downloads/me'),
+  myUploads: () => apiFetch('/resources/me/uploads')
 }
 
 export const QaApi = {
@@ -41,6 +63,14 @@ export const QaApi = {
   },
   create: (body: any) => apiFetch('/qa/questions', { method: 'POST', body: JSON.stringify(body) }),
   detail: (id: string) => apiFetch(`/qa/questions/${id}`)
+}
+
+export const AnswersApi = {
+  listByQuestion: (id: string | number) => apiFetch(`/questions/${id}/answers`),
+  createForQuestion: (id: string | number, body: { content: string; attachments?: string | null }) =>
+    apiFetch(`/questions/${id}/answers`, { method: 'POST', body: JSON.stringify(body) }),
+  detail: (id: string | number) => apiFetch(`/answers/${id}`),
+  remove: (id: string | number) => apiFetch(`/answers/${id}`, { method: 'DELETE' })
 }
 
 export const NotiApi = {

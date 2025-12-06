@@ -2,20 +2,22 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../db';
+import { requireAuth } from '../middleware/auth';
 
 const router = Router();
 
 // User Registration (Student/Teacher)
 router.post('/register', async (req, res) => {
-  const { username, password, email, role } = req.body as {
+  const { id, username, password, email, role } = req.body as {
+    id?: string;
     username?: string;
     password?: string;
     email?: string;
     role?: 'STUDENT' | 'TEACHER' | 'ADMIN';
   };
 
-  if (!username || !password || !email) {
-    return res.status(400).json({ message: 'Username, password, and email are required' });
+  if (!id || !username || !password || !email) {
+    return res.status(400).json({ message: 'Id, username, password, and email are required' });
   }
 
   if (role === 'ADMIN') {
@@ -27,7 +29,7 @@ router.post('/register', async (req, res) => {
   try {
     const existingUser = await prisma.user.findFirst({
       where: {
-        OR: [{ username }, { email }],
+        OR: [{ id }, { username }, { email }],
       },
     });
 
@@ -39,7 +41,9 @@ router.post('/register', async (req, res) => {
 
     const user = await prisma.user.create({
       data: {
+        id,
         username,
+        fullName: userRole === 'TEACHER' ? username : undefined,
         password: hashedPassword,
         email,
         role: userRole,
@@ -60,7 +64,10 @@ router.post('/login', async (req, res) => {
   }
 
   try {
-    const user = await prisma.user.findUnique({ where: { username } });
+    let user = await prisma.user.findUnique({ where: { id: username } });
+    if (!user) {
+      user = await prisma.user.findUnique({ where: { username } });
+    }
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
@@ -90,13 +97,13 @@ router.get('/me', async (req, res) => {
     const secret = process.env.JWT_SECRET || 'dev-secret';
     const decoded = jwt.verify(token, secret) as jwt.JwtPayload | string;
     const payload = typeof decoded === 'string' ? {} : decoded;
-    const sub = typeof payload.sub === 'string' ? parseInt(payload.sub, 10) : (payload.sub as number | undefined);
-    if (!sub || Number.isNaN(sub)) {
+    const sub = typeof payload.sub === 'string' ? payload.sub : String(payload.sub || '');
+    if (!sub) {
       return res.status(401).json({ message: 'Invalid token payload' });
     }
     const user = await prisma.user.findUnique({
       where: { id: sub },
-      select: { id: true, username: true, role: true, email: true, avatar: true, title: true },
+      select: { id: true, username: true, fullName: true, role: true, email: true, avatar: true, title: true },
     });
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -106,5 +113,23 @@ router.get('/me', async (req, res) => {
     res.status(401).json({ message: 'Invalid token' });
   }
 });
+
+// Update username (students only)
+router.patch('/username', requireAuth, async (req, res) => {
+  try {
+    const uid = (req as any).userId as string
+    const { username } = req.body as { username?: string }
+    if (!username || !username.trim()) return res.status(400).json({ message: 'Username required' })
+    const user = await prisma.user.findUnique({ where: { id: uid } })
+    if (!user) return res.status(404).json({ message: 'User not found' })
+    if (user.role !== 'STUDENT') return res.status(403).json({ message: 'Only students can update username' })
+    const exists = await prisma.user.findUnique({ where: { username } })
+    if (exists && exists.id !== uid) return res.status(400).json({ message: 'Username already exists' })
+    const updated = await prisma.user.update({ where: { id: uid }, data: { username } })
+    res.json({ user: { id: updated.id, username: updated.username, role: updated.role, email: updated.email, avatar: updated.avatar, title: updated.title } })
+  } catch (err: any) {
+    res.status(500).json({ message: err.message || 'Server error' })
+  }
+})
 
 export default router;

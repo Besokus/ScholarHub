@@ -1,29 +1,44 @@
 import { Router } from 'express'
+import prisma from '../db'
 
 const router = Router()
 
-type Noti = { id: string; questionId: string; title: string; createdAt: number; read: boolean }
-
-let unread: Noti[] = [
-  { id: 'n1', questionId: 'q1', title: '你的问题有新回答', createdAt: Date.now(), read: false }
-]
-
-router.get('/', (req, res) => {
-  const type = String(req.query.type || 'answer')
-  const status = String(req.query.status || 'unread')
-  const list = status === 'unread' ? unread : []
-  res.json({ items: list })
+router.get('/', async (req, res) => {
+  try {
+    const type = String(req.query.type || 'answer')
+    const status = String(req.query.status || 'unread')
+    const uid = (req as any).userId || ''
+    const where: any = { type }
+    if (uid) where.userId = uid
+    if (status === 'unread') where.read = false
+    const items = await prisma.notification.findMany({ where, orderBy: { id: 'desc' } })
+    res.json({ items })
+  } catch (err: any) {
+    res.status(500).json({ message: err.message || 'Server error' })
+  }
 })
 
-router.post('/:id/read', (req, res) => {
-  const id = req.params.id
-  unread = unread.filter(n => n.id !== id)
-  res.json({ ok: true })
+router.post('/:id/read', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10)
+    await prisma.notification.update({ where: { id }, data: { read: true } })
+    res.json({ ok: true })
+  } catch (err: any) {
+    if (err.code === 'P2025') return res.status(404).json({ message: 'Not found' })
+    res.status(500).json({ message: err.message || 'Server error' })
+  }
 })
 
-router.post('/read-all', (_req, res) => {
-  unread = []
-  res.json({ ok: true })
+router.post('/read-all', async (req, res) => {
+  try {
+    const uid = (req as any).userId || ''
+    const where: any = {}
+    if (uid) where.userId = uid
+    await prisma.notification.updateMany({ where, data: { read: true } })
+    res.json({ ok: true })
+  } catch (err: any) {
+    res.status(500).json({ message: err.message || 'Server error' })
+  }
 })
 
 export default router

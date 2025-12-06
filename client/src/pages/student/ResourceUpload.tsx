@@ -1,29 +1,38 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import PageHeader from '../../components/common/PageHeader'
 import Card from '../../components/common/Card'
 import { ResourcesApi } from '../../services/api'
+import { CoursesApi } from '../../services/courses'
 import { UploadsApi } from '../../services/uploads'
 
 const types = ['PDF', 'JPG', 'PNG', 'ZIP', 'RAR']
-const courses = ['数据结构', '线性代数', '大学英语']
 
 export default function ResourceUpload() {
   const { show } = useToast()
   const [title, setTitle] = useState('')
   const [summary, setSummary] = useState('')
-  const [course, setCourse] = useState(courses[0])
+  const [course, setCourse] = useState('')
+  const [courses, setCourses] = useState<string[]>([])
   const [file, setFile] = useState<File | null>(null)
   const [msg, setMsg] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const validate = () => {
     if (!title || title.length > 100) return '标题需填写且不超过100字'
     if (!summary || summary.length > 500) return '简介需填写且不超过500字'
+    if (!course) return '请选择课程'
     if (!file) return '请选择文件'
     const ext = file.name.split('.').pop()?.toUpperCase()
     if (!ext || !types.includes(ext)) return '文件类型不支持'
     if (file.size > 50 * 1024 * 1024) return '文件大小超过50MB'
     return ''
   }
+  useEffect(() => {
+    CoursesApi.list().then(d => {
+      const arr = (d.items || []).map((c: any) => c.name)
+      setCourses(arr)
+      if (arr.length) setCourse(arr[0])
+    }).catch(() => {})
+  }, [])
   const submit = async () => {
     const err = validate()
     if (err) { setMsg(err); return }

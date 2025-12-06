@@ -10,6 +10,9 @@ import prisma from './db';
 import bcrypt from 'bcryptjs';
 import path from 'path';
 import uploadsRouter from './routes/uploads';
+import { registerSwagger } from './swagger';
+import answersRouter from './routes/answers';
+import { authOptional } from './middleware/auth';
 
 dotenv.config();
 
@@ -19,13 +22,16 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+app.use(authOptional);
 
 app.use('/api/auth', authRouter);
 app.use('/api/resources', resourcesRouter);
 app.use('/api/qa', qaRouter);
+app.use('/api', answersRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/courses', coursesRouter);
 app.use('/api/uploads', uploadsRouter);
+registerSwagger(app);
 
 app.get('/', (req, res) => {
   res.send('Hello from ULEP Server!');
@@ -49,6 +55,7 @@ async function bootstrapAdmin() {
       const hashed = await bcrypt.hash(defaultPassword, 10);
       await prisma.user.create({
         data: {
+          id: username,
           username,
           password: hashed,
           email: process.env.ADMIN_EMAIL || 'admin@example.com',

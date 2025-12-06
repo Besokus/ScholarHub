@@ -24,18 +24,24 @@ const db_1 = __importDefault(require("./db"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const path_1 = __importDefault(require("path"));
 const uploads_1 = __importDefault(require("./routes/uploads"));
+const swagger_1 = require("./swagger");
+const answers_1 = __importDefault(require("./routes/answers"));
+const auth_2 = require("./middleware/auth");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const port = process.env.PORT || 3000;
 app.use((0, cors_1.default)());
 app.use(express_1.default.json());
 app.use('/uploads', express_1.default.static(path_1.default.join(process.cwd(), 'uploads')));
+app.use(auth_2.authOptional);
 app.use('/api/auth', auth_1.default);
 app.use('/api/resources', resources_1.default);
 app.use('/api/qa', qa_1.default);
+app.use('/api', answers_1.default);
 app.use('/api/notifications', notifications_1.default);
 app.use('/api/courses', courses_1.default);
 app.use('/api/uploads', uploads_1.default);
+(0, swagger_1.registerSwagger)(app);
 app.get('/', (req, res) => {
     res.send('Hello from ULEP Server!');
 });
@@ -58,6 +64,7 @@ function bootstrapAdmin() {
                 const hashed = yield bcryptjs_1.default.hash(defaultPassword, 10);
                 yield db_1.default.user.create({
                     data: {
+                        id: username,
                         username,
                         password: hashed,
                         email: process.env.ADMIN_EMAIL || 'admin@example.com',
