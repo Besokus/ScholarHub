@@ -3,7 +3,7 @@ package main
 import (
     "log"
     "os"
-    "time"
+    "github.com/joho/godotenv"
     "github.com/gin-gonic/gin"
     "gorm.io/driver/postgres"
     "gorm.io/gorm"
@@ -11,6 +11,7 @@ import (
 )
 
 func main() {
+    loadEnv()
     dsn := os.Getenv("DATABASE_URL")
     if dsn == "" {
         log.Fatal("DATABASE_URL missing")
@@ -39,7 +40,15 @@ func (s *httpServer) run() {
 type serverRunner struct{ engine *gin.Engine; addr string }
 
 func (s *serverRunner) start() {
-    go func() { _ = s.engine.Run(s.addr) }()
-    time.Sleep(100 * time.Millisecond)
+    _ = s.engine.Run(s.addr)
 }
 
+func loadEnv() {
+    paths := []string{"../server/.env", "../../server/.env", "server/.env", ".env"}
+    for _, p := range paths {
+        if _, err := os.Stat(p); err == nil {
+            _ = godotenv.Load(p)
+            break
+        }
+    }
+}
