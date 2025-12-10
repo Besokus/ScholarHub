@@ -1,0 +1,92 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated/client"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       String  @id @default(cuid())
+  username String  @unique
+  fullName String?
+  password String
+  role     String  @default("STUDENT")
+  avatar   String?
+  email    String  @unique
+  title    String?
+
+  courses       Course[]
+  resources     Resource[]
+  questions     Question[]
+  answers       Answer[]
+  notifications Notification[]
+}
+
+model Course {
+  id          Int     @id @default(autoincrement())
+  name        String
+  description String?
+  department  String
+  teacherId   String
+  teacher     User    @relation(fields: [teacherId], references: [id])
+
+  resources Resource[]
+  questions Question[]
+}
+
+model Resource {
+  id            Int      @id @default(autoincrement())
+  title         String
+  description   String?
+  filePath      String
+  uploaderId    String
+  uploader      User     @relation(fields: [uploaderId], references: [id])
+  courseId      Int
+  course        Course   @relation(fields: [courseId], references: [id])
+  viewType      String   @default("PUBLIC")
+  downloadCount Int      @default(0)
+  createTime    DateTime @default(now())
+}
+
+model Question {
+  id         Int      @id @default(autoincrement())
+  title      String
+  content    String
+  studentId  String
+  student    User     @relation(fields: [studentId], references: [id])
+  courseId   Int
+  course     Course   @relation(fields: [courseId], references: [id])
+  status     String   @default("UNANSWERED")
+  createTime DateTime @default(now())
+  images     String?
+
+  answers Answer[]
+}
+
+model Answer {
+  id          Int      @id @default(autoincrement())
+  questionId  Int
+  question    Question @relation(fields: [questionId], references: [id])
+  teacherId   String
+  teacher     User     @relation(fields: [teacherId], references: [id])
+  content     String
+  attachments String?
+  createTime  DateTime @default(now())
+}
+
+model Notification {
+  id         Int      @id @default(autoincrement())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  questionId Int?
+  answerId   Int?
+  type       String
+  read       Boolean  @default(false)
+  createTime DateTime @default(now())
+}

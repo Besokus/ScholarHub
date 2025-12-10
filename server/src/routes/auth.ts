@@ -2,6 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../db';
+import fs from 'fs';
 import { requireAuth } from '../middleware/auth';
 
 const router = Router();
@@ -16,7 +17,8 @@ router.post('/register', async (req, res) => {
     role?: 'STUDENT' | 'TEACHER' | 'ADMIN';
   };
 
-  if (!id || !username || !password || !email) {
+  const idTrim = String(id || '').trim()
+  if (!idTrim || !username || !password || !email) {
     return res.status(400).json({ message: 'Id, username, password, and email are required' });
   }
 
@@ -27,11 +29,10 @@ router.post('/register', async (req, res) => {
   const userRole = role === 'TEACHER' ? 'TEACHER' : 'STUDENT';
 
   try {
-    const existingUser = await prisma.user.findFirst({
-      where: {
-        OR: [{ id }, { username }, { email }],
-      },
-    });
+    console.log('register', JSON.stringify({ id, username, email, role }))
+    const ors: any[] = [{ username }, { email }]
+    if (id) ors.push({ id })
+    const existingUser = await prisma.user.findFirst({ where: { OR: ors } })
 
     if (existingUser) {
       return res.status(400).json({ message: 'Username or email already exists' });
@@ -39,20 +40,29 @@ router.post('/register', async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await prisma.user.create({
-      data: {
-        id,
-        username,
-        fullName: userRole === 'TEACHER' ? username : undefined,
-        password: hashedPassword,
-        email,
-        role: userRole,
-      },
-    });
+    const data = {
+      id: idTrim,
+      username,
+      fullName: userRole === 'TEACHER' ? username : undefined,
+      password: hashedPassword,
+      email,
+      role: userRole,
+    }
+    console.log('register.data', JSON.stringify(data))
+    try { fs.appendFileSync('register.log', `[REQ] ${new Date().toISOString()} ${JSON.stringify({ body: { id, username, email, role }, data })}\n`) } catch {}
+    const user = await prisma.user.create({ data })
+    try { fs.appendFileSync('register.log', `[OK ] ${new Date().toISOString()} ${JSON.stringify({ userId: user.id })}\n`) } catch {}
 
     res.status(201).json({ message: 'User created successfully', userId: user.id, role: userRole });
-  } catch (error) {
-    res.status(500).json({ message: 'Error creating user', error });
+  } catch (error: any) {
+    try { fs.appendFileSync('register.log', `[ERR] ${new Date().toISOString()} ${JSON.stringify({ code: error?.code, meta: error?.meta, message: error?.message })}\n`) } catch {}
+    if (error?.code === 'P2002') {
+      return res.status(400).json({ message: 'User already exists', target: error?.meta?.target });
+    }
+    if (error?.code === 'P2011') {
+      return res.status(400).json({ message: 'Invalid id', id: idTrim });
+    }
+    res.status(500).json({ message: 'Error creating user', error, id: idTrim });
   }
 });
 
@@ -64,15 +74,18 @@ router.post('/login', async (req, res) => {
   }
 
   try {
-    let user = await prisma.user.findUnique({ where: { id: username } });
-    if (!user) {
-      user = await prisma.user.findUnique({ where: { username } });
-    }
+    const account = String(username).trim();
+    const user = await prisma.user.findFirst({ where: { OR: [{ username: account }, { id: account }, { email: account }] } });
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    const valid = await bcrypt.compare(password, user.password);
+    let valid = false;
+    try {
+      valid = await bcrypt.compare(password, user.password);
+    } catch {
+      valid = false;
+    }
     if (!valid) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }

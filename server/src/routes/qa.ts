@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import prisma from '../db'
+import { requireAuth } from '../middleware/auth'
 
 const router = Router()
 
@@ -19,10 +20,7 @@ function toClient(q: any) {
   }
 }
 
-async function ensureCourseByName(name: string) {
-  const admin = await prisma.user.findUnique({ where: { username: 'admin' } })
-  const tUser = admin || (await prisma.user.create({ data: { id: `teacher_${Date.now()}`, username: `teacher_${Date.now()}`, password: 'nopass', role: 'TEACHER', email: `t${Date.now()}@example.com` } }))
-  const teacherId = tUser.id
+async function ensureCourseByName(name: string, teacherId: string) {
   let course = await prisma.course.findFirst({ where: { name } })
   if (!course) course = await prisma.course.create({ data: { name, department: '通识', teacherId } })
   return course
@@ -67,19 +65,19 @@ router.get('/questions/:id', async (req, res) => {
   }
 })
 
-router.post('/questions', async (req, res) => {
+router.post('/questions', requireAuth, async (req, res) => {
   try {
     const { courseId, title, content, contentHTML, images } = req.body || {}
     const text = contentHTML || content
     if (!courseId || !title || !text) return res.status(400).json({ message: 'Invalid' })
-    const studentId = (req as any).userId || undefined
-    const course = await ensureCourseByName(String(courseId))
+    const studentId = (req as any).userId as string
+    const course = await ensureCourseByName(String(courseId), studentId)
     const created = await prisma.question.create({
       data: {
         courseId: course.id,
         title,
         content: text,
-        studentId: studentId || (await prisma.user.findUnique({ where: { username: 'admin' } }))!.id,
+        studentId: studentId,
         images: Array.isArray(images) ? images.join(',') : undefined
       },
       include: { course: true }
@@ -95,7 +93,7 @@ router.put('/questions/:id', async (req, res) => {
     const id = parseInt(req.params.id, 10)
     const { courseId, title, content, contentHTML, images, status } = req.body || {}
     const data: any = {}
-    if (courseId) { const c = await ensureCourseByName(String(courseId)); data.courseId = c.id }
+  if (courseId) { const c = await ensureCourseByName(String(courseId), (req as any).userId || 'admin'); data.courseId = c.id }
     if (title) data.title = title
     const text = contentHTML || content
     if (text) data.content = text

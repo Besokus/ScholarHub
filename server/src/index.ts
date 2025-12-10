@@ -13,6 +13,7 @@ import uploadsRouter from './routes/uploads';
 import { registerSwagger } from './swagger';
 import answersRouter from './routes/answers';
 import { authOptional } from './middleware/auth';
+import fs from 'fs';
 
 dotenv.config();
 
@@ -23,6 +24,14 @@ app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 app.use(authOptional);
+app.use((req, _res, next) => {
+  console.log('REQ', req.method, req.url)
+  try {
+    const entry = { t: new Date().toISOString(), m: req.method, u: req.url, h: req.headers, b: (req as any).body };
+    fs.appendFileSync('req.log', JSON.stringify(entry) + '\n');
+  } catch {}
+  next();
+});
 
 app.use('/api/auth', authRouter);
 app.use('/api/resources', resourcesRouter);

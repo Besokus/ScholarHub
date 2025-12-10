@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import prisma from '../db'
+import { requireAuth } from '../middleware/auth'
 
 const router = Router()
 
@@ -25,15 +26,13 @@ router.get('/:id', async (req, res) => {
   }
 })
 
-router.post('/', async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
   try {
     const { name, description, department, teacherId } = req.body || {}
     if (!name) return res.status(400).json({ message: 'Invalid' })
     let tId: string = String(teacherId || '')
     if (!tId) {
-      const admin = await prisma.user.findUnique({ where: { username: 'admin' } })
-      const tUser = admin || (await prisma.user.create({ data: { id: `teacher_${Date.now()}`, username: `teacher_${Date.now()}`, password: 'nopass', role: 'TEACHER', email: `t${Date.now()}@example.com` } }))
-      tId = tUser.id
+      tId = (req as any).userId as string
     }
     const created = await prisma.course.create({ data: { name, description, department, teacherId: tId } })
     res.json(toClient(created))

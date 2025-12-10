@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import prisma from '../db'
+import { requireAuth } from '../middleware/auth'
 
 const router = Router()
 
@@ -17,12 +18,12 @@ router.get('/questions/:id/answers', async (req, res) => {
   }
 })
 
-router.post('/questions/:id/answers', async (req, res) => {
+router.post('/questions/:id/answers', requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10)
     const { content, attachments } = req.body || {}
     if (!content) return res.status(400).json({ message: 'Invalid' })
-    const teacherId = (req as any).userId || (await prisma.user.findUnique({ where: { username: 'admin' } }))!.id
+    const teacherId = (req as any).userId as string
     const created = await prisma.answer.create({ data: { questionId: id, teacherId, content, attachments } })
     const q = await prisma.question.findUnique({ where: { id } })
     if (q?.studentId) {

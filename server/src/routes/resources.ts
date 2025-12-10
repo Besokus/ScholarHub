@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import prisma from '../db'
+import { requireAuth } from '../middleware/auth'
 
 const router = Router()
 
@@ -16,13 +17,10 @@ function toClientShape(r: any) {
   }
 }
 
-async function ensureCourseByName(name: string) {
-  const admin = await prisma.user.findUnique({ where: { username: 'admin' } })
-  const tUser = admin || (await prisma.user.create({ data: { id: `teacher_${Date.now()}`, username: `teacher_${Date.now()}`, password: 'nopass', role: 'TEACHER', email: `t${Date.now()}@example.com` } }))
-  const teacherId = tUser.id
+async function ensureCourseByName(name: string, teacherId: string) {
   let course = await prisma.course.findFirst({ where: { name } })
   if (!course) {
-    course = await prisma.course.create({ data: { name, department: '通识', teacherId } })
+    course = await prisma.course.create({ data: { name, department: 'ͨʶ', teacherId } })
   }
   return course
 }
@@ -61,18 +59,18 @@ router.get('/:id', async (req, res) => {
   }
 })
 
-router.post('/', async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
   try {
     const { title, summary, courseId, fileUrl } = req.body || {}
     if (!title || !summary || !courseId || !fileUrl) return res.status(400).json({ message: 'Invalid' })
-    const uploaderId = (req as any).userId || undefined
-    const course = await ensureCourseByName(String(courseId))
+    const uploaderId = (req as any).userId as string
+    const course = await ensureCourseByName(String(courseId), uploaderId)
     const created = await prisma.resource.create({
       data: {
         title,
         description: summary,
         filePath: fileUrl,
-        uploaderId: uploaderId || (await prisma.user.findUnique({ where: { username: 'admin' } }))!.id,
+        uploaderId: uploaderId,
         courseId: course.id,
         viewType: 'PUBLIC'
       },
@@ -84,7 +82,7 @@ router.post('/', async (req, res) => {
   }
 })
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10)
     const { title, summary, courseId, fileUrl } = req.body || {}
@@ -93,7 +91,7 @@ router.put('/:id', async (req, res) => {
     if (summary) data.description = summary
     if (fileUrl) data.filePath = fileUrl
     if (courseId && courseId !== 'all') {
-      const course = await ensureCourseByName(String(courseId))
+      const course = await ensureCourseByName(String(courseId), (req as any).userId as string)
       data.courseId = course.id
     }
     const updated = await prisma.resource.update({ where: { id }, data, include: { course: true } })
@@ -138,3 +136,4 @@ router.get('/me/uploads', async (req, res) => {
 })
 
 export default router
+
