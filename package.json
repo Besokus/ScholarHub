@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/Besokus/ScholarHub#readme",
   "devDependencies": {
+    "nodemon": "^3.1.11",
     "vite": "^7.2.4"
   }
 }
