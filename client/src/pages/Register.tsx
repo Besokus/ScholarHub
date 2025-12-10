@@ -26,7 +26,7 @@ const Register: React.FC = () => {
       const name = role === 'TEACHER' ? realName.trim() : username.trim();
       await AuthApi.register({ id, username: name, email, password, role });
       setMessage({ type: 'success', text: '注册成功！即将跳转登录页' });
-      setTimeout(() => navigate('/login'), 1200);
+      setTimeout(() => navigate('/login'), 500);
     } catch (err: any) {
       const serverMsg = err?.data?.message
       const text = serverMsg || err?.message || '注册失败，请稍后重试'
