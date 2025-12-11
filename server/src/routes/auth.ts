@@ -4,8 +4,11 @@ import jwt from 'jsonwebtoken';
 import prisma from '../db';
 import fs from 'fs';
 import { requireAuth } from '../middleware/auth';
+import { incrWithTTL } from '../cache';
 
 const router = Router();
+const RATE_LIMIT_WINDOW = 10 * 60;
+const RATE_LIMIT_MAX = 10;
 
 // User Registration (Student/Teacher)
 router.post('/register', async (req, res) => {
@@ -20,6 +23,22 @@ router.post('/register', async (req, res) => {
   const idTrim = String(id || '').trim()
   if (!idTrim || !username || !password || !email) {
     return res.status(400).json({ message: 'Id, username, password, and email are required' });
+  }
+
+  const uname = String(username).trim();
+  const emailStr = String(email).trim();
+  const passStr = String(password);
+  if (!/^[A-Za-z0-9_\-\.]{3,64}$/.test(uname)) {
+    return res.status(400).json({ message: 'Invalid username' });
+  }
+  if (!/^[A-Za-z0-9_\-]{3,64}$/.test(idTrim)) {
+    return res.status(400).json({ message: 'Invalid id' });
+  }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailStr)) {
+    return res.status(400).json({ message: 'Invalid email' });
+  }
+  if (passStr.length < 8 || !/[A-Za-z]/.test(passStr) || !/[0-9]/.test(passStr)) {
+    return res.status(400).json({ message: 'Weak password' });
   }
 
   if (role === 'ADMIN') {
@@ -38,14 +57,14 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'Username or email already exists' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(passStr, 12);
 
     const data = {
       id: idTrim,
-      username,
+      username: uname,
       fullName: userRole === 'TEACHER' ? username : undefined,
       password: hashedPassword,
-      email,
+      email: emailStr,
       role: userRole,
     }
     console.log('register.data', JSON.stringify(data))
@@ -74,6 +93,12 @@ router.post('/login', async (req, res) => {
   }
 
   try {
+    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '';
+    const key = `login:${ip}:${String(username).trim()}`;
+    const count = await incrWithTTL(key, RATE_LIMIT_WINDOW);
+    if (count > RATE_LIMIT_MAX) {
+      return res.status(429).json({ message: 'Too many attempts' });
+    }
     const account = String(username).trim();
     const user = await prisma.user.findFirst({ where: { OR: [{ username: account }, { id: account }, { email: account }] } });
     if (!user) {

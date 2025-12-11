@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { requireAuth } from '../middleware/auth'
 import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
@@ -31,13 +32,13 @@ const fileFilter: multer.Options['fileFilter'] = (_req, file, cb) => {
 const imagesUpload = multer({ storage, fileFilter, limits: { fileSize: 2 * 1024 * 1024 } })
 const filesUpload = multer({ storage, fileFilter, limits: { fileSize: 50 * 1024 * 1024 } })
 
-router.post('/images', imagesUpload.array('images', 3), (req, res) => {
+router.post('/images', requireAuth, imagesUpload.array('images', 3), (req, res) => {
   const files = (req.files as Express.Multer.File[]) || []
   const urls = files.map(f => ({ url: `/uploads/${path.basename(f.path)}`, size: f.size }))
   res.json({ urls })
 })
 
-router.post('/files', filesUpload.single('file'), (req, res) => {
+router.post('/files', requireAuth, filesUpload.single('file'), (req, res) => {
   const f = req.file
   if (!f) return res.status(400).json({ message: 'No file' })
   const url = `/uploads/${path.basename(f.path)}`

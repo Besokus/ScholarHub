@@ -14,20 +14,26 @@ import { registerSwagger } from './swagger';
 import answersRouter from './routes/answers';
 import { authOptional } from './middleware/auth';
 import fs from 'fs';
+import { redis } from './cache';
 
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.use(cors());
+const allowed = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean)
+const corsOptions = { origin: allowed.length ? allowed : true, credentials: true, optionsSuccessStatus: 204 }
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 app.use(authOptional);
 app.use((req, _res, next) => {
-  console.log('REQ', req.method, req.url)
   try {
-    const entry = { t: new Date().toISOString(), m: req.method, u: req.url, h: req.headers, b: (req as any).body };
+    const headers: any = { ...req.headers }
+    if (headers.authorization) headers.authorization = 'Bearer ***'
+    const body = { ...(req as any).body }
+    if (body && body.password) body.password = '***'
+    const entry = { t: new Date().toISOString(), m: req.method, u: req.url, h: headers, b: body };
     fs.appendFileSync('req.log', JSON.stringify(entry) + '\n');
   } catch {}
   next();
@@ -46,8 +52,20 @@ app.get('/', (req, res) => {
   res.send('Hello from ULEP Server!');
 });
 
+app.get('/api/health/redis', async (_req, res) => {
+  try {
+    const r = redis ? await redis.ping() : 'PONG'
+    res.json({ ok: true, mode: redis ? 'redis' : 'memory', ping: r })
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: String(e?.message || e) })
+  }
+});
+
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
+  if ((process.env.NODE_ENV || '').toLowerCase() === 'production' && (process.env.JWT_SECRET || 'dev-secret') === 'dev-secret') {
+    console.warn('Unsafe JWT_SECRET in production');
+  }
   if (process.env.DATABASE_URL) {
     void bootstrapAdmin();
   } else {

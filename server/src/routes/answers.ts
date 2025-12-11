@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import prisma from '../db'
 import { requireAuth } from '../middleware/auth'
+import { delByPrefix } from '../cache'
 
 const router = Router()
 
@@ -28,6 +29,7 @@ router.post('/questions/:id/answers', requireAuth, async (req, res) => {
     const q = await prisma.question.findUnique({ where: { id } })
     if (q?.studentId) {
       await prisma.notification.create({ data: { userId: q.studentId, questionId: id, answerId: created.id, type: 'answer' } })
+      await delByPrefix('noti:list:')
     }
     res.json(toClient(created))
   } catch (err: any) {

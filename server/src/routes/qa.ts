@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import prisma from '../db'
 import { requireAuth } from '../middleware/auth'
+import { cacheGet, cacheSet, delByPrefix } from '../cache'
 
 const router = Router()
 
@@ -44,11 +45,16 @@ router.get('/questions', async (req, res) => {
     if (status === 'unanswered') where.status = 'UNANSWERED'
     if (my === '1' && userId) where.studentId = userId
     const orderBy = sort === 'hot' ? { downloadCount: 'desc' } as any : { createTime: 'desc' }
+    const cacheKey = `qa:list:${JSON.stringify({ courseName, sort, status, my, page, pageSize })}`
+    const cached = await cacheGet(cacheKey)
+    if (cached) return res.json(JSON.parse(cached))
     const [items, total] = await Promise.all([
       prisma.question.findMany({ where, orderBy, include: { course: true }, skip: (page - 1) * pageSize, take: pageSize }),
       prisma.question.count({ where })
     ])
-    res.json({ items: items.map(toClient), total })
+    const payload = { items: items.map(toClient), total }
+    await cacheSet(cacheKey, JSON.stringify(payload), 60)
+    res.json(payload)
   } catch (err: any) {
     res.status(500).json({ message: err.message || 'Server error' })
   }
@@ -82,6 +88,7 @@ router.post('/questions', requireAuth, async (req, res) => {
       },
       include: { course: true }
     })
+    await delByPrefix('qa:list:')
     res.json(toClient(created))
   } catch (err: any) {
     res.status(500).json({ message: err.message || 'Server error' })
@@ -100,6 +107,7 @@ router.put('/questions/:id', async (req, res) => {
     if (Array.isArray(images)) data.images = images.join(',')
     if (status) data.status = status === 'solved' ? 'ANSWERED' : 'UNANSWERED'
     const updated = await prisma.question.update({ where: { id }, data, include: { course: true } })
+    await delByPrefix('qa:list:')
     res.json(toClient(updated))
   } catch (err: any) {
     if (err.code === 'P2025') return res.status(404).json({ message: 'Not found' })
@@ -111,6 +119,7 @@ router.delete('/questions/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10)
     await prisma.question.delete({ where: { id } })
+    await delByPrefix('qa:list:')
     res.json({ ok: true })
   } catch (err: any) {
     if (err.code === 'P2025') return res.status(404).json({ message: 'Not found' })

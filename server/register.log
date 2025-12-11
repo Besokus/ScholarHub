@@ -16,3 +16,9 @@
 [OK ] 2025-12-10T14:52:16.043Z {"userId":"FIX_FLOW_20251210225215760"}
 [REQ] 2025-12-10T14:57:33.789Z {"body":{"id":"2235051228","username":"小王","email":"yp636402@126.com","role":"STUDENT"},"data":{"id":"2235051228","username":"小王","password":"$2b$10$os197k5qRqmff7rCKk9HRuOWavdTlY8yLvxZomJE30FeiOk89eYBu","email":"yp636402@126.com","role":"STUDENT"}}
 [OK ] 2025-12-10T14:57:33.802Z {"userId":"2235051228"}
+[REQ] 2025-12-10T15:38:19.491Z {"body":{"id":"100006","username":"欧广宇","email":"ouguangyu@usst.com","role":"TEACHER"},"data":{"id":"100006","username":"欧广宇","fullName":"欧广宇","password":"$2b$10$oMVZyQBQFK5jEJ1Hu5Z.feW2fiD/HDc75M2IwqVJfO/UExi4/SW7O","email":"ouguangyu@usst.com","role":"TEACHER"}}
+[OK ] 2025-12-10T15:38:19.509Z {"userId":"100006"}
+[REQ] 2025-12-11T03:00:08.113Z {"body":{"id":"RL_TEST_20251211110007739","username":"RL_TEST_20251211110007739","email":"RL_TEST_20251211110007739@example.com","role":"STUDENT"},"data":{"id":"RL_TEST_20251211110007739","username":"RL_TEST_20251211110007739","password":"$2b$12$lihYrV7.0t0S.0GoAqgpcuQKMYgRaCC97v8kb5j0F3GTY9DS9LGrW","email":"RL_TEST_20251211110007739@example.com","role":"STUDENT"}}
+[OK ] 2025-12-11T03:00:08.129Z {"userId":"RL_TEST_20251211110007739"}
+[REQ] 2025-12-11T03:06:21.217Z {"body":{"id":"REDIS_CACHE_20251211110620955","username":"REDIS_CACHE_20251211110620955","email":"REDIS_CACHE_20251211110620955@example.com","role":"STUDENT"},"data":{"id":"REDIS_CACHE_20251211110620955","username":"REDIS_CACHE_20251211110620955","password":"$2b$12$5i68VWV6SQWN/pVhCVP0p.ODSHdEWhKfUUJEWJzbSA/UGKFScSyne","email":"REDIS_CACHE_20251211110620955@example.com","role":"STUDENT"}}
+[OK ] 2025-12-11T03:06:21.221Z {"userId":"REDIS_CACHE_20251211110620955"}
