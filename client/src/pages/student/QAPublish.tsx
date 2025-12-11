@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import PageHeader from '../../components/common/PageHeader'
 import Card from '../../components/common/Card'
 import RichText from '../../components/editor/RichText'
+import ImageUploader from '../../components/common/ImageUploader'
 import { UploadsApi } from '../../services/uploads'
 import { QaApi } from '../../services/api'
 import { useNavigate } from 'react-router-dom'
@@ -31,10 +32,12 @@ export default function QAPublish() {
     try {
       let uploaded: string[] = []
       if (images.length) {
-        const up = await UploadsApi.uploadImageBatch(images.slice(0,3))
+        const up = await UploadsApi.uploadImageBatch(images)
         uploaded = (up.urls || []).map((u: any) => u.url)
       }
       const q = await QaApi.create({ courseId: course, title, contentHTML: content, images: uploaded })
+      // 清除草稿
+      localStorage.removeItem('qa_publish_draft')
       setMsg('发布成功')
       navigate(`/student/qa/${q.id}`)
     } catch {
@@ -61,15 +64,11 @@ export default function QAPublish() {
             {courses.map(c => (<option key={c} value={c}>{c}</option>))}
           </select>
           <div className="md:col-span-2">
-            <RichText value={content} onChange={setContent} maxLength={2000} />
+            <RichText value={content} onChange={setContent} maxLength={2000} storageKey="qa_publish_draft" />
           </div>
           <div className="md:col-span-2">
-            <input id="qa-images" className="hidden" type="file" multiple accept="image/png,image/jpeg" onChange={e => setImages(Array.from(e.target.files || []).slice(0,3))} />
-            <label htmlFor="qa-images" className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg cursor-pointer hover:bg-indigo-500 active:scale-95 transition">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2"/></svg>
-              选择图片
-            </label>
-            {!!images.length && <span className="ml-3 text-sm text-gray-600">已选择 {images.length} 张</span>}
+            <label className="block text-sm font-medium text-gray-700 mb-2">上传图片 (最多9张)</label>
+            <ImageUploader images={images} onChange={setImages} maxCount={9} />
           </div>
         </div>
         <div className="mt-4 flex items-center gap-3">
