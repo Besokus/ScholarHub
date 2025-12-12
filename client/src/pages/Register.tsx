@@ -102,7 +102,7 @@ const Register: React.FC = () => {
           </motion.div>
 
           <div className="relative z-10 text-xs text-slate-500">
-            © 2024 ScholarHub. Join us today.
+            © 2025 ScholarHub. Join us today.
           </div>
         </div>
 

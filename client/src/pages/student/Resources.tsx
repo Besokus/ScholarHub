@@ -1,37 +1,92 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import PageHeader from '../../components/common/PageHeader'
-import Card from '../../components/common/Card'
-import SearchBar from '../../components/common/SearchBar'
+import { motion, AnimatePresence } from 'framer-motion'
+import { 
+  Search, Upload, FileText, Image as ImageIcon, FileCode, 
+  FileVideo, FileArchive, FolderOpen, Download, 
+  Filter, Eye, File, Folder, ChevronRight, BarChart3, Clock, 
+  Database, Sparkles, ArrowRight, Zap, Activity
+} from 'lucide-react'
 import Pagination from '../../components/common/Pagination'
 import TreeView from '../../components/common/TreeView'
 import { ResourcesApi } from '../../services/api'
 import { API_ORIGIN } from '../../services/api'
 import { CoursesApi } from '../../services/courses'
-import Skeleton from '../../components/common/Skeleton'
 
-type Resource = { id: string; title: string; course: string; tag: string; fileUrl?: string }
+// --- UI Components (Skeleton & Icon) ---
+const SkeletonCard = () => (
+  <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm animate-pulse flex flex-col h-[180px]">
+    <div className="flex items-start gap-3 mb-4">
+      <div className="w-10 h-10 bg-slate-100 rounded-xl shrink-0" />
+      <div className="flex-1 space-y-2 pt-1">
+        <div className="h-4 bg-slate-100 rounded w-3/4" />
+        <div className="h-3 bg-slate-50 rounded w-1/2" />
+      </div>
+    </div>
+    <div className="mt-auto pt-4 border-t border-slate-50 flex gap-2">
+      <div className="h-8 flex-1 bg-slate-50 rounded-lg" />
+      <div className="h-8 flex-1 bg-slate-50 rounded-lg" />
+    </div>
+  </div>
+)
 
-const data: Resource[] = []
+const FileIcon = ({ title }: { title: string }) => {
+  const t = title.toLowerCase()
+  let Icon = File
+  let color = "text-slate-400"
+  let bg = "bg-slate-100"
 
-const tags = ['全部', '练习', '笔记', '答案']
-const initialTree = [ { id: 'all', name: '全部课程', children: [] } ]
+  if (t.includes('pdf')) { Icon = FileText; color = "text-rose-500"; bg = "bg-rose-50" }
+  else if (t.includes('ppt') || t.includes('pptx')) { Icon = FileText; color = "text-orange-500"; bg = "bg-orange-50" }
+  else if (t.includes('doc') || t.includes('docx')) { Icon = FileText; color = "text-blue-500"; bg = "bg-blue-50" }
+  else if (t.includes('zip') || t.includes('rar') || t.includes('7z')) { Icon = FileArchive; color = "text-yellow-600"; bg = "bg-yellow-50" }
+  else if (t.includes('png') || t.includes('jpg')) { Icon = ImageIcon; color = "text-purple-500"; bg = "bg-purple-50" }
+  else if (t.includes('cpp') || t.includes('java') || t.includes('py') || t.includes('js')) { Icon = FileCode; color = "text-emerald-600"; bg = "bg-emerald-50" }
+  else if (t.includes('mp4')) { Icon = FileVideo; color = "text-sky-600"; bg = "bg-sky-50" }
+
+  return (
+    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${bg} ${color} shrink-0 shadow-sm`}>
+      <Icon size={20} strokeWidth={2} />
+    </div>
+  )
+}
+
+// --- Mock Data for Activity Ticker ---
+const ACTIVITIES = [
+  "张同学 刚刚上传了《高等数学笔记》",
+  "李同学 下载了《数据结构期末试卷》",
+  "今日新增资源 12 份，活跃用户 45 人",
+  "王老师 更新了《操作系统》课件"
+]
 
 export default function Resources() {
+  // --- State ---
   const [filter, setFilter] = useState('全部')
   const [keyword, setKeyword] = useState('')
   const [courseId, setCourseId] = useState('all')
   const [page, setPage] = useState(1)
   const pageSize = 20
-  const [remote, setRemote] = useState<Resource[]>([])
-  const [tree, setTree] = useState<any[]>(initialTree)
+  const [remote, setRemote] = useState<any[]>([])
+  const [tree, setTree] = useState<any[]>([{ id: 'all', name: '全部课程', children: [] }])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  
+  // Activity Ticker State
+  const [activityIndex, setActivityIndex] = useState(0)
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActivityIndex((prev) => (prev + 1) % ACTIVITIES.length)
+    }, 4000)
+    return () => clearInterval(timer)
+  }, [])
+
   useEffect(() => {
     CoursesApi.list().then(d => {
       const children = (d.items || []).map((c: any) => ({ id: c.id, name: c.name }))
       setTree([{ id: 'all', name: '全部课程', children }])
     }).catch(() => {})
+    
     const load = async () => {
       try {
         setLoading(true)
@@ -46,63 +101,282 @@ export default function Resources() {
     }
     load()
   }, [keyword, courseId, page, pageSize])
+
   const filtered = useMemo(() => {
-    return (remote.length ? remote : data).filter(r => {
+    return (remote).filter(r => {
       const byTag = filter === '全部' ? true : r.tag === filter
       const byCourse = courseId === 'all' ? true : r.course === courseId
       const byKeyword = keyword ? r.title.toLowerCase().includes(keyword.toLowerCase()) : true
       return byTag && byCourse && byKeyword
     })
   }, [filter, courseId, keyword, remote])
+
   const list = filtered.slice((page - 1) * pageSize, page * pageSize)
+  const tags = ['全部', '练习', '笔记', '答案', '课件']
+
+  // Animations
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { staggerChildren: 0.05 } }
+  }
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: { y: 0, opacity: 1 }
+  }
+
   return (
-    <div>
-      <PageHeader title="资源中心" subtitle="课程资源与下载" />
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div>
-          <TreeView data={tree} onSelect={id => { setCourseId(id); setPage(1) }} current={courseId} />
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-screen bg-transparent">
+      
+      {/* --- 1. Header & Hero Section (重构布局) --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-10 items-stretch">
+        
+        {/* 左侧：标题与动态信息 (8 cols) */}
+        <div className="lg:col-span-8 flex flex-col justify-center">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-2 text-sm text-slate-500 font-medium mb-3">
+            <span className="flex items-center gap-1"><Database size={14}/> 知识库</span>
+            <ChevronRight size={14} className="opacity-50"/>
+            <span className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">资源列表</span>
+          </div>
+          
+          {/* Title */}
+          <div className="flex items-center gap-4 mb-4">
+            <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">
+              资源中心
+            </h1>
+            <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-500 text-xs font-bold tracking-wide border border-slate-200">
+              {filtered.length} ITEMS
+            </span>
+          </div>
+
+          {/* Description & Live Activity Ticker */}
+          <div className="space-y-4">
+            <p className="text-slate-500 max-w-xl text-base leading-relaxed">
+              这里汇聚了全校师生的智慧结晶。您可以按课程浏览、搜索特定资料，或上传您的优质笔记。
+            </p>
+            
+            {/* 增加活动感的动态条 */}
+            <div className="flex items-center gap-3 text-sm">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-100 shadow-sm">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span className="font-bold text-xs uppercase tracking-wider">Live</span>
+              </div>
+              <div className="h-4 w-px bg-slate-200"></div>
+              <div className="relative h-6 w-full max-w-md overflow-hidden">
+                <AnimatePresence mode='wait'>
+                  <motion.div
+                    key={activityIndex}
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ y: -20, opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="absolute inset-0 flex items-center text-slate-600 truncate"
+                  >
+                    <Activity size={14} className="mr-2 text-indigo-500 shrink-0"/>
+                    {ACTIVITIES[activityIndex]}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="md:col-span-3">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              {tags.map(t => (
-                <button
-                  key={t}
-                  onClick={() => { setFilter(t); setPage(1) }}
-                  className={`px-3 py-1 rounded-full text-sm transition transform hover:scale-105 active:scale-95 ${filter === t ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+
+        {/* 右侧：贡献者 Hero Card (4 cols) - 移动至此并美化 */}
+        <div className="lg:col-span-4">
+           <div className="relative h-full min-h-[160px] p-6 rounded-3xl bg-slate-900 text-white shadow-xl overflow-hidden group flex flex-col justify-between">
+              {/* 动态背景装饰 */}
+              <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/20 rounded-full blur-[60px] -mr-10 -mt-10 group-hover:bg-indigo-400/30 transition-colors duration-700"></div>
+              <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-500/10 rounded-full blur-[40px] -ml-10 -mb-10"></div>
+              
+              {/* 卡片内容 */}
+              <div className="relative z-10">
+                 <div className="flex items-start justify-between mb-2">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 backdrop-blur-md border border-white/10 text-xs font-bold text-indigo-200 uppercase tracking-wider shadow-inner">
+                      <Sparkles size={12} className="text-yellow-300 fill-yellow-300" />
+                      Contributor Plan
+                    </div>
+                    {/* 小图标装饰 */}
+                    <div className="p-2 bg-indigo-500/20 rounded-full border border-white/5">
+                       <Zap size={18} className="text-yellow-300" fill="currentColor"/>
+                    </div>
+                 </div>
+                 
+                 <h3 className="text-xl font-bold leading-tight mt-3 mb-1">
+                   分享你的笔记
+                 </h3>
+                 <p className="text-sm text-indigo-200/70 font-medium">帮助更多同学，获取社区积分奖励。</p>
+              </div>
+              
+              <div className="relative z-10 mt-6">
+                <Link 
+                  to="/student/resources/upload" 
+                  className="flex items-center justify-between w-full px-4 py-3 bg-white hover:bg-indigo-50 text-indigo-900 rounded-xl text-sm font-bold transition-all shadow-lg group/btn"
                 >
-                  {t}
-                </button>
-              ))}
+                  <span className="flex items-center gap-2">
+                    <Upload size={16} /> 上传新资源
+                  </span>
+                  <ArrowRight size={16} className="group-hover/btn:translate-x-1 transition-transform text-indigo-500"/>
+                </Link>
+              </div>
+           </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        {/* --- 左侧边栏: 纯净目录 (Sticky) --- */}
+        <div className="hidden lg:block lg:col-span-3 sticky top-6 z-10">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col h-[calc(100vh-140px)] max-h-[600px] transition-all hover:shadow-md">
+            <div className="p-4 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between backdrop-blur-sm">
+              <div className="flex items-center gap-2 font-bold text-slate-700">
+                <FolderOpen size={18} className="text-indigo-600" />
+                <span>课程目录</span>
+              </div>
+              <span className="text-[10px] bg-white border border-slate-200 text-slate-500 px-2 py-0.5 rounded-md font-mono">
+                ROOT
+              </span>
             </div>
-            <SearchBar onSearch={({ keyword }) => { setKeyword(keyword); setPage(1) }} />
-            <Link to="/student/resources/upload" className="px-3 py-2 bg-indigo-600 text-white rounded-lg">上传资源</Link>
+            
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
+              <TreeView 
+                data={tree} 
+                onSelect={id => { setCourseId(id); setPage(1) }} 
+                current={courseId} 
+              />
+            </div>
           </div>
-          {loading && (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              <Skeleton className="h-24" />
-              <Skeleton className="h-24" />
-              <Skeleton className="h-24" />
-            </div>
-          )}
-          {error && <div className="text-sm text-red-600">{error}</div>}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl-grid-cols-3 md:xl:grid-cols-3 gap-6">
-            {list.map(r => (
-              <Card key={r.id} className="p-6">
-                <div className="text-lg font-semibold text-gray-800">{r.title}</div>
-                <div className="text-sm text-gray-500 mt-1">{r.course}</div>
-                <div className="mt-4">
-                  <Link to={`/student/resources/${r.id}`} className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm mr-2">详情</Link>
-                  {r.fileUrl ? (
-                    <a href={`${API_ORIGIN}${r.fileUrl}`} target="_blank" rel="noreferrer" className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm">下载</a>
-                  ) : (
-                    <button disabled className="px-3 py-2 bg-gray-300 text-gray-600 rounded-lg text-sm cursor-not-allowed">无文件</button>
-                  )}
+        </div>
+
+        {/* --- 右侧内容区 (9 cols) --- */}
+        <div className="lg:col-span-9 space-y-6">
+          
+          {/* 筛选工具栏 (Sticky) */}
+          <div className="bg-white rounded-2xl p-2 shadow-sm border border-slate-100 flex flex-col md:flex-row items-center justify-between gap-3 sticky top-2 z-20 backdrop-blur-xl bg-white/90">
+             {/* Tags */}
+             <div className="flex items-center p-1 bg-slate-100/50 rounded-xl overflow-x-auto w-full md:w-auto scrollbar-hide">
+               {tags.map(t => (
+                 <button
+                   key={t}
+                   onClick={() => { setFilter(t); setPage(1) }}
+                   className={`
+                     relative px-4 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap z-10
+                     ${filter === t ? 'text-indigo-600 bg-white shadow-sm ring-1 ring-black/5' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}
+                   `}
+                 >
+                   {filter === t && <motion.div layoutId="activeTab" className="absolute inset-0 bg-white rounded-lg shadow-sm -z-10" />}
+                   {t}
+                 </button>
+               ))}
+             </div>
+
+             {/* Search */}
+             <div className="relative w-full md:w-64 group">
+               <input 
+                 type="text" 
+                 placeholder="搜索资源..." 
+                 className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-transparent focus:bg-white focus:border-indigo-500 rounded-xl text-sm transition-all outline-none"
+                 value={keyword}
+                 onChange={e => { setKeyword(e.target.value); setPage(1) }}
+               />
+               <Search className="absolute left-3 top-2.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={16} />
+             </div>
+          </div>
+
+          {/* Grid 内容 */}
+          <div className="min-h-[400px]">
+            {error && (
+              <div className="bg-rose-50 text-rose-600 p-4 rounded-xl flex items-center gap-2 mb-4 border border-rose-100">
+                <Filter size={18}/> {error}
+              </div>
+            )}
+            
+            {loading ? (
+               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                 {[1,2,3,4,5,6].map(i => <SkeletonCard key={i} />)}
+               </div>
+            ) : list.length > 0 ? (
+              <motion.div 
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5"
+              >
+                <AnimatePresence mode='popLayout'>
+                  {list.map(r => (
+                    <motion.div 
+                      key={r.id} 
+                      layout
+                      variants={itemVariants}
+                      whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                      className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-md transition-all group flex flex-col h-full relative"
+                    >
+                      {/* 上半部分：Info */}
+                      <div className="flex items-start gap-3 mb-3">
+                        <FileIcon title={r.title} />
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-slate-800 font-bold text-sm leading-snug line-clamp-2 group-hover:text-indigo-600 transition-colors" title={r.title}>
+                            {r.title}
+                          </h4>
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-500 truncate max-w-full border border-slate-200">
+                              <Folder size={10} className="mr-1"/> {r.course}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 下半部分：Actions */}
+                      <div className="mt-auto pt-3 border-t border-slate-50 flex gap-2">
+                        <Link 
+                          to={`/student/resources/${r.id}`} 
+                          className="flex-1 h-9 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-colors group/btn"
+                        >
+                          <Eye size={14} className="group-hover/btn:scale-110 transition-transform"/> 详情
+                        </Link>
+                        {r.fileUrl ? (
+                          <a 
+                            href={`${API_ORIGIN}${r.fileUrl}`} 
+                            target="_blank" 
+                            rel="noreferrer" 
+                            className="flex-1 h-9 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1 shadow-sm shadow-indigo-200 transition-colors group/btn"
+                          >
+                            <Download size={14} className="group-hover/btn:translate-y-0.5 transition-transform"/> 下载
+                          </a>
+                        ) : (
+                          <button disabled className="flex-1 h-9 bg-slate-100 text-slate-400 rounded-lg text-xs font-semibold cursor-not-allowed">
+                            无文件
+                          </button>
+                        )}
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </motion.div>
+            ) : (
+              // Empty State
+              <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-dashed border-slate-200">
+                <div className="bg-slate-50 p-4 rounded-full mb-3 ring-1 ring-slate-100">
+                   <FolderOpen size={32} className="text-slate-300" />
                 </div>
-              </Card>
-            ))}
+                <h3 className="text-slate-900 font-medium">没有找到相关资源</h3>
+                <p className="text-slate-500 text-sm mt-1 mb-4">尝试切换课程或更改搜索关键词</p>
+                <button 
+                  onClick={() => {setFilter('全部'); setKeyword(''); setCourseId('all')}}
+                  className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg text-sm font-semibold hover:bg-indigo-100 transition-colors"
+                >
+                  清除所有筛选
+                </button>
+              </div>
+            )}
           </div>
-          <Pagination page={page} pageSize={pageSize} total={filtered.length} onChange={setPage} />
+
+          <div className="flex justify-center pt-2 pb-8">
+             <Pagination page={page} pageSize={pageSize} total={filtered.length} onChange={setPage} />
+          </div>
+
         </div>
       </div>
     </div>

@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion'; // 核心动画库
-import { User, Lock, ArrowRight, Loader2, AlertCircle, CheckCircle2, GraduationCap, BookOpen, Sparkles } from 'lucide-react';
+import { motion } from 'framer-motion'; 
+import { 
+  User, Lock, ArrowRight, Loader2, AlertCircle, CheckCircle2, 
+  GraduationCap, BookOpen, Sparkles, Github, ExternalLink 
+} from 'lucide-react';
 import { AuthApi } from '../services/api';
 
 import bgImage from '../assets/images/usst_campus.jpg';
+import usstLogo from '../assets/images/usst_logo.jpg';
 
 const Login: React.FC = () => {
   const [username, setUsername] = useState('');
@@ -187,10 +191,24 @@ const Login: React.FC = () => {
           </form>
         </motion.div>
 
-        {/* 底部版权信息 */}
-        <div className="absolute bottom-6 text-xs text-indigo-400/60">
-          © 2024 ScholarHub. 为上海理工大学学子打造。
+        {/* === 3. 底部 GitHub 链接 === */}
+        <div className="absolute bottom-8 w-full flex flex-col md:flex-row items-center justify-center gap-4 text-xs text-slate-600">
+           <span>© 2025 ScholarHub USST</span>
+           
+           <span className="hidden md:inline w-px h-3 bg-slate-700"></span>
+           
+           <a 
+             href="https://github.com/Besokus/ScholarHub" 
+             target="_blank" 
+             rel="noopener noreferrer"
+             className="flex items-center gap-1.5 text-slate-500 hover:text-white transition-colors group cursor-pointer"
+           >
+             <Github size={14} className="group-hover:scale-110 transition-transform"/>
+             <span>Star on GitHub</span>
+             <ExternalLink size={10} className="opacity-0 group-hover:opacity-100 transition-opacity -translate-y-0.5" />
+           </a>
         </div>
+
       </div>
     </div>
   );

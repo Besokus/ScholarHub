@@ -9,16 +9,18 @@ const lowlight = createLowlight(common)
 
 interface RichTextProps {
   value: string
-  onChange: (html: string) => void
+  onChange?: (html: string) => void
   maxLength?: number
   storageKey?: string // For auto-save
+  readOnly?: boolean
 }
 
-export default function RichText({ value, onChange, maxLength = 2000, storageKey }: RichTextProps) {
+export default function RichText({ value, onChange, maxLength = 2000, storageKey, readOnly = false }: RichTextProps) {
   const [showPreview, setShowPreview] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
 
   const editor = useEditor({
+    editable: !readOnly,
     extensions: [
       StarterKit.configure({
         codeBlock: false, // We use lowlight
@@ -31,10 +33,11 @@ export default function RichText({ value, onChange, maxLength = 2000, storageKey
     content: value,
     editorProps: {
       attributes: {
-        class: 'prose prose-sm sm:prose-base max-w-none focus:outline-none min-h-[200px] p-4',
+        class: `prose prose-sm sm:prose-base max-w-none focus:outline-none ${readOnly ? '' : 'min-h-[200px] p-4'}`,
       },
     },
     onUpdate: ({ editor }) => {
+      if (readOnly || !onChange) return
       const html = editor.getHTML()
       const text = editor.getText()
       
@@ -49,24 +52,28 @@ export default function RichText({ value, onChange, maxLength = 2000, storageKey
 
   // Load draft if available and value is empty (initial load)
   useEffect(() => {
-    if (storageKey && !isLoaded && editor) {
+    if (!readOnly && storageKey && !isLoaded && editor) {
       const draft = localStorage.getItem(storageKey)
       if (draft && (!value || value === '<p></p>')) {
         editor.commands.setContent(draft)
-        onChange(draft)
+        if (onChange) onChange(draft)
       }
       setIsLoaded(true)
     }
-  }, [editor, storageKey, isLoaded, value])
+  }, [editor, storageKey, isLoaded, value, readOnly, onChange])
 
   // Update editor content if value changes externally (e.g. reset)
   useEffect(() => {
-    if (editor && value === '' && editor.getText() !== '') {
-         editor.commands.clearContent()
+    if (editor && value !== editor.getHTML()) {
+         editor.commands.setContent(value)
     }
   }, [value, editor])
 
   if (!editor) return null
+
+  if (readOnly) {
+      return <EditorContent editor={editor} />
+  }
 
   const ToolbarButton = ({ onClick, isActive, children, title }: any) => (
     <button
