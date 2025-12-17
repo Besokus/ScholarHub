@@ -87,7 +87,7 @@ export default function ResourceDetail() {
   const handleOnlineOpen = (e: React.MouseEvent) => {
     if (['ZIP', 'RAR', '7Z'].includes(meta.type)) {
       e.preventDefault()
-      show('压缩包不支持在线预览，请直接下载', 'error')
+      show('该资源不支持在线查看，请直接下载', 'error')
     }
   }
 

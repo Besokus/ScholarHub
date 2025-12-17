@@ -372,7 +372,7 @@ export default function ResourceUpload() {
               </label>
               {/* min-h-[350px] 保证编辑器不会太短，flex-1 让它自适应填充剩余空间 */}
               <div className="flex-1 min-h-[350px] border border-slate-200 rounded-2xl overflow-hidden focus-within:ring-4 focus-within:ring-indigo-500/10 focus-within:border-indigo-500 transition-all flex flex-col bg-slate-50/30">
-                <RichText value={summary} onChange={setSummary} maxLength={2000} className="h-full" />
+                <RichText value={summary} onChange={setSummary} maxLength={2000} className = "h-full" />
               </div>
             </div>
 
