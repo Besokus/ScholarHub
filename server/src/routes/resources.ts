@@ -1,6 +1,8 @@
 import { Router } from 'express'
 import prisma from '../db'
 import { requireAuth } from '../middleware/auth'
+import path from 'path'
+import fs from 'fs'
 
 const router = Router()
 
@@ -10,19 +12,49 @@ function toClientShape(r: any) {
     title: r.title,
     summary: r.description || '',
     courseId: r.course?.name || String(r.courseId),
-    type: 'FILE',
-    size: '',
+    type: r.fileType || 'FILE',
+    size: r.fileSize || '未知',
     downloadCount: r.downloadCount || 0,
     fileUrl: r.filePath ? (r.filePath.startsWith('/uploads') ? r.filePath : `/uploads/${r.filePath}`) : undefined
   }
 }
 
 async function ensureCourseByName(name: string, teacherId: string) {
+  // VALIDATION: pure numeric names are not allowed
+  if (/^\d+$/.test(name)) {
+    throw new Error('Course name cannot be purely numeric')
+  }
+
+  console.log(`[Resources] ensureCourseByName: ${name}`)
   let course = await prisma.course.findFirst({ where: { name } })
   if (!course) {
-    course = await prisma.course.create({ data: { name, department: 'ͨʶ', teacherId } })
+    console.log(`[Resources] Creating new course: ${name}`)
+    // Use 'General' as default department
+    course = await prisma.course.create({ data: { name, department: 'General', teacherId } })
   }
   return course
+}
+
+async function resolveCourseId(input: string | number, teacherId: string): Promise<number> {
+  console.log(`[Resources] resolveCourseId input: ${input} (${typeof input})`)
+  
+  const idNum = Number(input)
+  // If it is a valid number, treat it STRICTLY as an ID.
+  if (!isNaN(idNum) && idNum > 0) {
+    const exists = await prisma.course.findUnique({ where: { id: idNum } })
+    if (exists) {
+        return exists.id
+    } else {
+        // ID passed but not found. Do NOT fall back to creating a course named "123".
+        console.warn(`[Resources] Course ID ${idNum} not found.`)
+        throw new Error(`Course with ID ${idNum} not found`)
+    }
+  }
+
+  const name = String(input).trim()
+  if (!name) throw new Error('Course name/id is required')
+  
+  return (await ensureCourseByName(name, teacherId)).id
 }
 
 router.get('/', async (req, res) => {
@@ -48,6 +80,36 @@ router.get('/', async (req, res) => {
   }
 })
 
+// New download endpoint
+router.get('/:id/download', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10)
+    const r = await prisma.resource.findUnique({ where: { id } })
+    if (!r || !r.filePath) return res.status(404).json({ message: 'Not found' })
+
+    // Increment count
+    await prisma.resource.update({ where: { id }, data: { downloadCount: { increment: 1 } } })
+
+    // Construct absolute path
+    let fileName = path.basename(r.filePath)
+    const absPath = path.join(process.cwd(), 'uploads', fileName)
+    
+    if (!fs.existsSync(absPath)) {
+        console.error(`File not found: ${absPath}`)
+        return res.status(404).json({ message: 'File not found on server' })
+    }
+    
+    // Set filename for download (use resource title + extension)
+    const ext = path.extname(fileName)
+    const downloadName = `${r.title}${ext}`
+    
+    res.download(absPath, downloadName)
+  } catch (err: any) {
+    console.error('Download error:', err)
+    res.status(500).json({ message: err.message || 'Server error' })
+  }
+})
+
 router.get('/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10)
@@ -61,17 +123,21 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', requireAuth, async (req, res) => {
   try {
-    const { title, summary, courseId, fileUrl } = req.body || {}
+    const { title, summary, courseId, fileUrl, type, size } = req.body || {}
     if (!title || !summary || !courseId || !fileUrl) return res.status(400).json({ message: 'Invalid' })
+    
     const uploaderId = (req as any).userId as string
-    const course = await ensureCourseByName(String(courseId), uploaderId)
+    const finalCourseId = await resolveCourseId(courseId, uploaderId)
+    
     const created = await prisma.resource.create({
       data: {
         title,
         description: summary,
         filePath: fileUrl,
+        fileType: type || 'FILE',
+        fileSize: size || '未知',
         uploaderId: uploaderId,
-        courseId: course.id,
+        courseId: finalCourseId,
         viewType: 'PUBLIC'
       },
       include: { course: true }
@@ -136,4 +202,3 @@ router.get('/me/uploads', async (req, res) => {
 })
 
 export default router
-
