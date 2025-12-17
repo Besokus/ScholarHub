@@ -149,10 +149,11 @@ exports.Prisma.ResourceScalarFieldEnum = {
   uploaderId: 'uploaderId',
   courseId: 'courseId',
   viewType: 'viewType',
+  downloadCount: 'downloadCount',
+  createTime: 'createTime',
   fileSize: 'fileSize',
   fileType: 'fileType',
-  downloadCount: 'downloadCount',
-  createTime: 'createTime'
+  viewCount: 'viewCount'
 };
 
 exports.Prisma.QuestionScalarFieldEnum = {
@@ -176,13 +177,13 @@ exports.Prisma.AnswerScalarFieldEnum = {
 };
 
 exports.Prisma.NotificationScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  questionId: 'questionId',
-  answerId: 'answerId',
   type: 'type',
+  questionId: 'questionId',
+  userId: 'userId',
   read: 'read',
-  createTime: 'createTime'
+  createTime: 'createTime',
+  answerId: 'answerId',
+  id: 'id'
 };
 
 exports.Prisma.SortOrder = {

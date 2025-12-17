@@ -7,6 +7,13 @@ import fs from 'fs'
 const router = Router()
 
 function toClientShape(r: any) {
+  const date = new Date(r.createTime)
+  const formattedDate = date.getFullYear() + '-' +
+    String(date.getMonth() + 1).padStart(2, '0') + '-' +
+    String(date.getDate()).padStart(2, '0') + ' ' +
+    String(date.getHours()).padStart(2, '0') + ':' +
+    String(date.getMinutes()).padStart(2, '0')
+
   return {
     id: r.id,
     title: r.title,
@@ -15,7 +22,10 @@ function toClientShape(r: any) {
     type: r.fileType || 'FILE',
     size: r.fileSize || '未知',
     downloadCount: r.downloadCount || 0,
-    fileUrl: r.filePath ? (r.filePath.startsWith('/uploads') ? r.filePath : `/uploads/${r.filePath}`) : undefined
+    viewCount: r.viewCount || 0,
+    fileUrl: r.filePath ? (r.filePath.startsWith('/uploads') ? r.filePath : `/uploads/${r.filePath}`) : undefined,
+    uploaderName: r.uploader?.fullName || r.uploader?.username || '未知用户',
+    createdAt: formattedDate
   }
 }
 
@@ -71,7 +81,7 @@ router.get('/', async (req, res) => {
       else where.courseId = -1
     }
     const [items, total] = await Promise.all([
-      prisma.resource.findMany({ where, include: { course: true }, orderBy: { id: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
+      prisma.resource.findMany({ where, include: { course: true, uploader: true }, orderBy: { id: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
       prisma.resource.count({ where })
     ])
     res.json({ items: items.map(toClientShape), total })
@@ -113,10 +123,14 @@ router.get('/:id/download', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10)
-    const r = await prisma.resource.findUnique({ where: { id }, include: { course: true } })
-    if (!r) return res.status(404).json({ message: 'Not found' })
+    const r = await prisma.resource.update({ 
+      where: { id }, 
+      data: { viewCount: { increment: 1 } },
+      include: { course: true, uploader: true } 
+    })
     res.json(toClientShape(r))
   } catch (err: any) {
+    if (err.code === 'P2025') return res.status(404).json({ message: 'Not found' })
     res.status(500).json({ message: err.message || 'Server error' })
   }
 })
@@ -140,7 +154,7 @@ router.post('/', requireAuth, async (req, res) => {
         courseId: finalCourseId,
         viewType: 'PUBLIC'
       },
-      include: { course: true }
+      include: { course: true, uploader: true }
     })
     res.json(toClientShape(created))
   } catch (err: any) {
@@ -160,7 +174,7 @@ router.put('/:id', requireAuth, async (req, res) => {
       const course = await ensureCourseByName(String(courseId), (req as any).userId as string)
       data.courseId = course.id
     }
-    const updated = await prisma.resource.update({ where: { id }, data, include: { course: true } })
+    const updated = await prisma.resource.update({ where: { id }, data, include: { course: true, uploader: true } })
     res.json(toClientShape(updated))
   } catch (err: any) {
     if (err.code === 'P2025') return res.status(404).json({ message: 'Not found' })
@@ -194,7 +208,7 @@ router.get('/me/uploads', async (req, res) => {
   try {
     const uid = parseInt((req.header('X-User-Id') || '').trim() || '0', 10)
     const userId = (req as any).userId
-    const list = await prisma.resource.findMany({ where: userId ? { uploaderId: userId } : {}, include: { course: true }, orderBy: { id: 'desc' } })
+    const list = await prisma.resource.findMany({ where: userId ? { uploaderId: userId } : {}, include: { course: true, uploader: true }, orderBy: { id: 'desc' } })
     res.json({ items: list.map(toClientShape) })
   } catch (err: any) {
     res.status(500).json({ message: err.message || 'Server error' })

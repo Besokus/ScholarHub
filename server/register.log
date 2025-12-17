@@ -22,3 +22,13 @@
 [OK ] 2025-12-11T03:00:08.129Z {"userId":"RL_TEST_20251211110007739"}
 [REQ] 2025-12-11T03:06:21.217Z {"body":{"id":"REDIS_CACHE_20251211110620955","username":"REDIS_CACHE_20251211110620955","email":"REDIS_CACHE_20251211110620955@example.com","role":"STUDENT"},"data":{"id":"REDIS_CACHE_20251211110620955","username":"REDIS_CACHE_20251211110620955","password":"$2b$12$5i68VWV6SQWN/pVhCVP0p.ODSHdEWhKfUUJEWJzbSA/UGKFScSyne","email":"REDIS_CACHE_20251211110620955@example.com","role":"STUDENT"}}
 [OK ] 2025-12-11T03:06:21.221Z {"userId":"REDIS_CACHE_20251211110620955"}
+[REQ] 2025-12-17T05:05:37.355Z {"body":{"id":"u1765947936759","username":"u1765947936759","email":"u1765947936759@test.com","role":"TEACHER"},"data":{"id":"u1765947936759","username":"u1765947936759","fullName":"u1765947936759","password":"$2b$12$xcZprUBpVQYo.GhVh0WnnuOCSD8CGHaj49I4bBsQvZIq.p46ocJ9u","email":"u1765947936759@test.com","role":"TEACHER"}}
+[OK ] 2025-12-17T05:05:37.367Z {"userId":"u1765947936759"}
+[REQ] 2025-12-17T05:08:40.577Z {"body":{"id":"u1765948120306","username":"u1765948120306","email":"u1765948120306@test.com","role":"TEACHER"},"data":{"id":"u1765948120306","username":"u1765948120306","fullName":"u1765948120306","password":"$2b$12$eI1u2LCooT/ON9.kPp6IveMDiLoLbJ1rZ/Ko1NTmNhNAmwQuN65p6","email":"u1765948120306@test.com","role":"TEACHER"}}
+[OK ] 2025-12-17T05:08:40.580Z {"userId":"u1765948120306"}
+[REQ] 2025-12-17T05:16:51.554Z {"body":{"id":"u1765948611266","username":"u1765948611266","email":"u1765948611266@test.com","role":"TEACHER"},"data":{"id":"u1765948611266","username":"u1765948611266","fullName":"u1765948611266","password":"$2b$12$UdavtM0hUKoQNPIxgV/1muL08qjg1/w4Ey/1YVF5kon8Rn0oeiWta","email":"u1765948611266@test.com","role":"TEACHER"}}
+[OK ] 2025-12-17T05:16:51.558Z {"userId":"u1765948611266"}
+[REQ] 2025-12-17T05:22:51.201Z {"body":{"id":"u1765948970917","username":"u1765948970917","email":"u1765948970917@test.com","role":"TEACHER"},"data":{"id":"u1765948970917","username":"u1765948970917","fullName":"u1765948970917","password":"$2b$12$bDQNoIVzlzcQ6j/39xq4Aum1xI/Imc7TNS2gellJHCnKNTnXOkpcW","email":"u1765948970917@test.com","role":"TEACHER"}}
+[OK ] 2025-12-17T05:22:51.208Z {"userId":"u1765948970917"}
+[REQ] 2025-12-17T06:15:29.181Z {"body":{"id":"u1765952128833","username":"u1765952128833","email":"u1765952128833@test.com","role":"TEACHER"},"data":{"id":"u1765952128833","username":"u1765952128833","fullName":"u1765952128833","password":"$2b$12$7vJUArMX2ySZFbiNzRl3c.gbNiZyhgUmAsad9Ag5bpONPCRTaCv1K","email":"u1765952128833@test.com","role":"TEACHER"}}
+[OK ] 2025-12-17T06:15:29.195Z {"userId":"u1765952128833"}

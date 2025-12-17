@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
   output   = "./generated/client"
@@ -12,32 +9,30 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  username  String   @unique
-  fullName  String?  @map("fullname")
-  password  String
-  role      String   @default("STUDENT")
-  avatar    String?
-  email     String   @unique
-  title     String?
-
-  courses   Course[]
-  resources Resource[]
-  questions Question[]
-  answers   Answer[]
+  id            String         @id @default(cuid())
+  username      String         @unique
+  fullName      String?        @map("fullname")
+  password      String
+  role          String         @default("STUDENT")
+  avatar        String?
+  email         String         @unique
+  title         String?
+  answers       Answer[]
+  courses       Course[]
   notifications Notification[]
+  questions     Question[]
+  resources     Resource[]
 }
 
 model Course {
-  id          Int      @id @default(autoincrement())
+  id          Int        @id @default(autoincrement())
   name        String
   description String?
   department  String
   teacherId   String
-  teacher     User     @relation(fields: [teacherId], references: [id])
-
-  resources   Resource[]
+  teacher     User       @relation(fields: [teacherId], references: [id])
   questions   Question[]
+  resources   Resource[]
 }
 
 model Resource {
@@ -46,14 +41,15 @@ model Resource {
   description   String?
   filePath      String
   uploaderId    String
-  uploader      User     @relation(fields: [uploaderId], references: [id])
   courseId      Int
-  course        Course   @relation(fields: [courseId], references: [id])
   viewType      String   @default("PUBLIC")
-  fileSize      String?
-  fileType      String?
   downloadCount Int      @default(0)
   createTime    DateTime @default(now())
+  fileSize      String?
+  fileType      String?
+  viewCount     Int      @default(0) @map("viewcount")
+  course        Course   @relation(fields: [courseId], references: [id])
+  uploader      User     @relation(fields: [uploaderId], references: [id])
 }
 
 model Question {
@@ -61,35 +57,33 @@ model Question {
   title      String
   content    String
   studentId  String
-  student    User     @relation(fields: [studentId], references: [id])
   courseId   Int
-  course     Course   @relation(fields: [courseId], references: [id])
   status     String   @default("UNANSWERED")
   createTime DateTime @default(now())
   images     String?
-
   answers    Answer[]
+  course     Course   @relation(fields: [courseId], references: [id])
+  student    User     @relation(fields: [studentId], references: [id])
 }
 
 model Answer {
   id          Int      @id @default(autoincrement())
   questionId  Int
-  question    Question @relation(fields: [questionId], references: [id])
   teacherId   String
-  teacher     User     @relation(fields: [teacherId], references: [id])
   content     String
   attachments String?
   createTime  DateTime @default(now())
+  question    Question @relation(fields: [questionId], references: [id])
+  teacher     User     @relation(fields: [teacherId], references: [id])
 }
 
 model Notification {
-  id          Int      @id @default(autoincrement())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  questionId  Int?
-  answerId    Int?
-  type        String
-  read        Boolean  @default(false)
-  createTime  DateTime @default(now())
+  type       String
+  questionId Int?
+  userId     String
+  read       Boolean  @default(false)
+  createTime DateTime @default(now())
+  answerId   Int?
+  id         Int      @id @default(autoincrement())
+  user       User     @relation(fields: [userId], references: [id])
 }
-
