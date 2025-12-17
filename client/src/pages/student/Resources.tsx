@@ -11,6 +11,7 @@ import Pagination from '../../components/common/Pagination'
 import TreeView from '../../components/common/TreeView'
 import { ResourcesApi, API_ORIGIN } from '../../services/api'
 import { CoursesApi } from '../../services/courses'
+import { useToast } from '../../components/common/Toast'
 
 // --- 1. 配置课程分类与关键词映射 ---
 const COURSE_CATEGORIES = [
@@ -87,6 +88,7 @@ const guessTag = (fileName: string, type: string) => {
 }
 
 export default function Resources() {
+  const { show } = useToast()
   // --- State ---
   const [filter, setFilter] = useState('全部')
   const [keyword, setKeyword] = useState('')
@@ -179,6 +181,19 @@ export default function Resources() {
     }
     load()
   }, [keyword, courseId, page, pageSize])
+
+  const handleDownload = (e: React.MouseEvent, id: number, fileUrl: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!id || !fileUrl) return
+    const link = document.createElement('a')
+    link.href = `${API_ORIGIN}/api/resources/${id}/download`
+    link.target = '_blank'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    show('开始下载...', 'success')
+  }
 
   // --- 关键修复：添加 missing 'filtered' definition ---
   const filtered = useMemo(() => {
@@ -409,14 +424,12 @@ export default function Resources() {
                           <Eye size={14} className="group-hover/btn:scale-110 transition-transform"/> 详情
                         </Link>
                         {r.fileUrl ? (
-                          <a 
-                            href={`${API_ORIGIN}${r.fileUrl}`} 
-                            target="_blank" 
-                            rel="noreferrer" 
-                            className="flex-1 h-9 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1 shadow-sm shadow-indigo-200 transition-colors group/btn"
+                          <button 
+                            onClick={(e) => handleDownload(e, r.id, r.fileUrl)}
+                            className="relative z-10 flex-1 h-9 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1 shadow-sm shadow-indigo-200 transition-colors group/btn"
                           >
                             <Download size={14} className="group-hover/btn:translate-y-0.5 transition-transform"/> 下载
-                          </a>
+                          </button>
                         ) : (
                           <button disabled className="flex-1 h-9 bg-slate-100 text-slate-400 rounded-lg text-xs font-semibold cursor-not-allowed">
                             无文件
