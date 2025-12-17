@@ -55,7 +55,7 @@ export default function QA() {
   const [list, setList] = useState<QAItem[]>([])
   const [sort, setSort] = useState<'latest' | 'hot' | 'unanswered'>('latest')
   const [page, setPage] = useState(1)
-  const pageSize = 15
+  const pageSize = 20
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -183,7 +183,7 @@ export default function QA() {
                   {pageList.map(i => (
                     <motion.div key={i.id} layout variants={itemVariants}>
                       <Link to={`/student/qa/${i.id}`} className="block group">
-                        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-indigo-100 transition-all duration-300 relative overflow-hidden">
+                        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-indigo-100 transition-all duration-300 relative overflow-hidden">
                           
                           {/* 装饰：左侧状态条 */}
                           <div className={`absolute left-0 top-0 bottom-0 w-1 ${i.status === 'open' ? 'bg-amber-400' : 'bg-emerald-400'}`} />
@@ -211,7 +211,7 @@ export default function QA() {
 
                               {/* Content Preview */}
                               <div className="mt-3 relative">
-                                <div className="text-sm text-slate-600 leading-relaxed max-h-[4.5em] overflow-hidden">
+                                <div className="text-sm text-slate-600 leading-relaxed max-h-[3em] overflow-hidden">
                                   {/* RichText Wrapper: 禁用点击，纯展示 */}
                                   <div className="pointer-events-none opacity-80 mix-blend-multiply">
                                     <RichText value={i.contentHTML || i.content} readOnly />
@@ -222,7 +222,7 @@ export default function QA() {
                               </div>
 
                               {/* Footer: Tags & Stats */}
-                              <div className="mt-4 flex items-center justify-between pt-4 border-t border-slate-50">
+                              <div className="mt-4 flex items-center justify-between pt-3 border-t border-slate-50">
                                 <div className="flex items-center gap-3">
                                   <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium 
                                     ${i.status === 'open' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}

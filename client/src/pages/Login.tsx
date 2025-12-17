@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion'; 
 import { 
@@ -7,8 +7,11 @@ import {
 } from 'lucide-react';
 import { AuthApi } from '../services/api';
 
-import bgImage from '../assets/images/usst_campus.jpg';
-import usstLogo from '../assets/images/usst_logo.jpg';
+import LoginPage1 from '../assets/images/Login1.jpg';
+import LoginPage2 from '../assets/images/Login2.jpg';
+import LoginPage3 from '../assets/images/Login3.jpg';
+import LoginPage4 from '../assets/images/Login4.jpg';
+
 
 const Login: React.FC = () => {
   const [username, setUsername] = useState('');
@@ -16,6 +19,33 @@ const Login: React.FC = () => {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+
+  const images = useMemo(() => [
+    LoginPage1,
+    LoginPage2,
+    LoginPage3,
+    LoginPage4
+  ], [])
+  const [index, setIndex] = useState(0)
+  const [paused, setPaused] = useState(false)
+  const [loaded, setLoaded] = useState<boolean[]>(() => Array(images.length).fill(false))
+  const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches
+
+  useEffect(() => {
+    if (paused) return
+    if (isMobile) return
+    const timer = setInterval(() => {
+      setIndex(prev => (prev + 1) % images.length)
+    }, 5000)
+    return () => clearInterval(timer)
+  }, [paused, isMobile, images.length])
+
+  useEffect(() => {
+    const next = (index + 1) % images.length
+    const img = new Image()
+    img.src = images[next]
+    img.onload = () => setLoaded(prev => { const n = [...prev]; n[next] = true; return n })
+  }, [index, images])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,17 +74,24 @@ const Login: React.FC = () => {
     <div className="min-h-screen w-full flex overflow-hidden bg-slate-900">
       
       {/* === 1. 左侧背景墙 (上海理工大学图片) === */}
-      <div className="hidden lg:block lg:w-2/3 relative">
-        {/* 图片层 */}
-        <img 
-          src={bgImage} 
-          alt="Shanghai University of Science and Technology" 
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-        {/* 渐变遮罩层：确保文字清晰可见，并营造学术氛围 */}
+      <div className="hidden lg:block lg:w-2/3 relative" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+        {images.map((src, i) => (
+          <img
+            key={i}
+            src={src}
+            alt="ScholarHub Background"
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${index === i ? 'opacity-100' : 'opacity-0'}`}
+            loading="lazy"
+            onLoad={() => setLoaded(prev => { const n = [...prev]; n[i] = true; return n })}
+          />
+        ))}
+        {!loaded[index] && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Loader2 className="h-10 w-10 text-indigo-300 animate-spin" />
+          </div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-r from-indigo-900/90 to-slate-900/50" />
 
-        {/* 左侧内容：品牌宣传 */}
         <div className="relative z-10 h-full flex flex-col justify-center px-20 text-white">
           <motion.div 
              initial={{ opacity: 0, x: -30 }}
@@ -88,6 +125,16 @@ const Login: React.FC = () => {
                </div>
              </div>
           </motion.div>
+          <div className="absolute bottom-10 left-20 flex items-center gap-2">
+            {images.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setIndex(i)}
+                className={`h-2.5 w-2.5 rounded-full transition-all ${index === i ? 'bg-indigo-400 w-4' : 'bg-white/40 hover:bg-white/70'}`}
+                aria-label={`slide-${i+1}`}
+              />
+            ))}
+          </div>
         </div>
       </div>
 

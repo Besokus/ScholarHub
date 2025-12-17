@@ -13,7 +13,7 @@ import RichText from '../../components/editor/RichText'
 // --- 类型定义 ---
 interface ResourceMeta {
   title: string;
-  uploader: { name: string; id?: string };
+  uploader: { name: string };
   size: string;
   type: string;
   summary: string;
@@ -63,12 +63,12 @@ export default function ResourceDetail() {
         const r = await ResourcesApi.detail(id)
         setMeta({ 
           title: r.title, 
-          uploader: r.uploader || { name: '未知用户' }, 
+          uploader: { name: r.uploaderName || '未知用户' }, 
           size: r.size || '未知', 
           type: (r.type || 'FILE').toUpperCase(), 
           summary: r.summary, 
           fileUrl: r.fileUrl || '',
-          createTime: r.createTime,
+          createTime: r.createdAt || r.createTime,
           viewCount: r.viewCount || 0
         })
         setCount(r.downloadCount || 0)
@@ -96,7 +96,7 @@ export default function ResourceDetail() {
   }
 
   const handleOnlineOpen = (e: React.MouseEvent) => {
-    if (['ZIP', 'RAR', '7Z'].includes(meta.type)) {
+    if (['ZIP', 'RAR', '7Z','PPT','PPTX'].includes(meta.type)) {
       e.preventDefault()
       show('该资源不支持在线查看，请直接下载', 'error')
     }
@@ -109,7 +109,16 @@ export default function ResourceDetail() {
 
   const formatDate = (ts: string | number) => {
     if (!ts) return '-'
-    return new Date(ts).toLocaleDateString()
+    const s = String(ts)
+    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(s)) return s
+    const d = new Date(ts)
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const yyyy = d.getFullYear()
+    const mm = pad(d.getMonth() + 1)
+    const dd = pad(d.getDate())
+    const hh = pad(d.getHours())
+    const mi = pad(d.getMinutes())
+    return `${yyyy}-${mm}-${dd} ${hh}:${mi}`
   }
 
   // 获取样式配置
@@ -248,14 +257,14 @@ export default function ResourceDetail() {
           {/* 2. Metadata Grid */}
           <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
              <h4 className="text-sm font-bold text-slate-800 mb-4 px-1">基本信息</h4>
-             <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                
                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
                  <div className="text-slate-400 mb-1"><User size={16}/></div>
-                 <div className="text-[10px] text-slate-400 uppercase font-bold">Uploader</div>
-                 <div className="font-semibold text-slate-700 text-sm truncate" title={meta.uploader.name}>
-                   {meta.uploader.name}
-                 </div>
+                <div className="text-[10px] text-slate-400 uppercase font-bold">UpLoader</div>
+                <div className="font-semibold text-slate-700 text-sm truncate" title={meta.uploader.name}>
+                  {meta.uploader.name}
+                </div>
                </div>
 
                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
@@ -268,10 +277,10 @@ export default function ResourceDetail() {
 
                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
                  <div className="text-slate-400 mb-1"><Clock size={16}/></div>
-                 <div className="text-[10px] text-slate-400 uppercase font-bold">Date</div>
-                 <div className="font-semibold text-slate-700 text-sm">
-                   {formatDate(meta.createTime)}
-                 </div>
+                <div className="text-[10px] text-slate-400 uppercase font-bold">Date</div>
+                <div className="font-semibold text-slate-700 text-sm">
+                  {formatDate(meta.createTime)}
+                </div>
                </div>
 
                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">

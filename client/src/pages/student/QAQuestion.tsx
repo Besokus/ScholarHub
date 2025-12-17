@@ -7,6 +7,7 @@ import {
   MoreHorizontal, Share2, ShieldAlert, FileText, X, Eye
 } from 'lucide-react'
 import { QaApi, AnswersApi, API_ORIGIN } from '../../services/api'
+import { useToast } from '../../components/common/Toast'
 import RichText from '../../components/editor/RichText'
 
 // --- 辅助组件：头像占位符 ---
@@ -33,6 +34,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 export default function QAQuestion() {
   const { questionId } = useParams()
   const navigate = useNavigate()
+  const { show } = useToast()
   
   // Data States
   const [q, setQ] = useState<any>(null)
@@ -83,6 +85,31 @@ export default function QAQuestion() {
     }
   }
 
+  const handleShare = async () => {
+    try {
+      const url = `${window.location.origin}/student/qa/${questionId}`
+      const title = q?.title || '问题详情'
+      const nav: any = navigator
+      if (nav && typeof nav.share === 'function') {
+        await nav.share({ title, url })
+        show('分享成功', 'success')
+      } else if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        await navigator.clipboard.writeText(url)
+        show('链接已复制', 'success')
+      } else {
+        const ta = document.createElement('textarea')
+        ta.value = url
+        document.body.appendChild(ta)
+        ta.select()
+        document.execCommand('copy')
+        document.body.removeChild(ta)
+        show('链接已复制', 'success')
+      }
+    } catch {
+      show('分享失败，请重试', 'error')
+    }
+  }
+
   // --- Loading Skeleton ---
   if (loading || !q) {
     return (
@@ -119,7 +146,7 @@ export default function QAQuestion() {
             {q.title}
           </h1>
           <div className="flex items-center gap-2 shrink-0">
-             <button className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors"><Share2 size={20} /></button>
+             <button onClick={handleShare} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors"><Share2 size={20} /></button>
              <button className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors"><MoreHorizontal size={20} /></button>
           </div>
         </div>

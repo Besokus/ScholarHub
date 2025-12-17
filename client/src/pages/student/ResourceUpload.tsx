@@ -156,6 +156,12 @@ export default function ResourceUpload() {
       show('发布成功', 'success')
       setTitle(''); setSummary(''); removeFile()
       // 不重置 courseId
+      // 跳转逻辑：成功后导航至资源列表页，确保先触发成功提示
+      setTimeout(() => {
+        try {
+          navigate('/student/resources', { replace: true })
+        } catch {}
+      }, 500)
     } catch {
       setMsg('发布失败'); show('发布失败', 'error')
     } finally {

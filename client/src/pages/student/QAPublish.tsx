@@ -11,6 +11,7 @@ import ImageUploader from '../../components/common/ImageUploader'
 import { UploadsApi } from '../../services/uploads'
 import { QaApi } from '../../services/api'
 import { CoursesApi } from '../../services/courses'
+import { useToast } from '../../components/common/Toast'
 
 export default function QAPublish() {
   // --- 原始逻辑状态 ---
@@ -22,6 +23,7 @@ export default function QAPublish() {
   const [msg, setMsg] = useState('')
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
+  const { show } = useToast()
 
   // --- 逻辑保持不变 ---
   const validate = () => {
@@ -44,9 +46,16 @@ export default function QAPublish() {
       const q = await QaApi.create({ courseId: course, title, contentHTML: content, images: uploaded })
       localStorage.removeItem('qa_publish_draft')
       setMsg('发布成功')
-      navigate(`/student/qa/${q.id}`)
+      show('发布成功', 'success')
+      // 跳转逻辑：成功后导航至问答列表页，确保先触发成功提示
+      setTimeout(() => {
+        try {
+          navigate('/student/qa', { replace: true })
+        } catch {}
+      }, 500)
     } catch {
       setMsg('发布失败，请重试')
+      show('发布失败，请重试', 'error')
     } finally {
       setLoading(false)
     }

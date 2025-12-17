@@ -76,15 +76,36 @@ const ACTIVITIES = [
   "今日新增资源 12 份，活跃用户 65+ 人"
 ]
 
+const RESOURCE_TAGS = ['全部', '课件', '真题', '作业', '代码', '答案', '笔记', '教材', '其他']
+
 // 辅助函数：根据文件名或类型简单的推断 Tag
-const guessTag = (fileName: string, type: string) => {
-    const name = fileName.toLowerCase();
-    const t = (type || '').toUpperCase();
-    if (t === 'PPT' || t === 'PPTX' || name.includes('课件')) return '课件';
-    if (name.includes('试卷') || name.includes('答案') || name.includes('考试')) return '答案';
-    if (name.includes('练习') || name.includes('作业')) return '练习';
-    if (t === 'PDF' || name.includes('笔记')) return '笔记';
-    return '其他'; // 默认归类
+const guessTag = (fileName: string, fileExt: string): string => {
+  const name = fileName.toLowerCase().trim()
+  const ext = (fileExt || '').toLowerCase().replace('.', '')
+  
+  // 1. 代码 (Code) - Priority High because extension is strong indicator
+  const codeExts = ['c', 'cpp', 'java', 'py', 'js', 'ts', 'go', 'rs', 'html', 'css', 'sql', 'sh', 'json', 'xml', 'yaml']
+  if (codeExts.includes(ext) || name.includes('代码') || name.includes('源码') || name.includes('project') || name.includes('demo')) return '代码'
+  
+  // 2. 答案 (Answer/Solution)
+  if (name.includes('答案') || name.includes('解析') || name.includes('题解') || name.includes('参考') || name.includes('key') || name.includes('solution')) return '答案'
+  
+  // 3. 真题 (Exam Paper)
+  if (name.includes('期末') || name.includes('期中') || name.includes('试卷') || name.includes('真题') || name.includes('考试') || name.includes('exam') || name.includes('test')) return '真题'
+  
+  // 4. 作业 (Assignment/Homework)
+  if (name.includes('作业') || name.includes('实验') || name.includes('习题') || name.includes('练习') || name.includes('homework') || name.includes('lab') || name.includes('assignment')) return '作业'
+  
+  // 5. 笔记 (Notes)
+  if (name.includes('笔记') || name.includes('复习') || name.includes('总结') || name.includes('提纲') || name.includes('note') || name.includes('summary')) return '笔记'
+  
+  // 6. 教材 (Textbook/Book)
+  if (name.includes('教材') || name.includes('书籍') || name.includes('课本') || name.includes('电子书') || name.includes('book') || name.includes('textbook') || name.includes('tutorial')) return '教材'
+  
+  // 7. 课件 (Courseware/Slides)
+  if (['ppt', 'pptx', 'key'].includes(ext) || name.includes('课件') || name.includes('讲义') || name.includes('幻灯片') || name.includes('ppt') || name.includes('slide') || name.includes('chapter') || (name.includes('第') && (name.includes('章') || name.includes('讲')))) return '课件'
+  
+  return '其他'
 }
 
 export default function Resources() {
@@ -203,7 +224,6 @@ export default function Resources() {
 
   // 分页截取逻辑
   const list = filtered.slice((page - 1) * pageSize, page * pageSize)
-  const tags = ['全部', '练习', '笔记', '答案', '课件']
 
   // Animations
   const containerVariants = {
@@ -341,17 +361,17 @@ export default function Resources() {
           {/* 筛选工具栏 */}
           <div className="bg-white rounded-2xl p-2 shadow-sm border border-slate-100 flex flex-col md:flex-row items-center justify-between gap-3 sticky top-2 z-20 backdrop-blur-xl bg-white/90">
              {/* Tags */}
-             <div className="flex items-center p-1 bg-slate-100/50 rounded-xl overflow-x-auto w-full md:w-auto scrollbar-hide">
-               {tags.map(t => (
+             <div className="flex items-center p-1.5 bg-slate-100/80 backdrop-blur-sm rounded-2xl overflow-x-auto w-full md:w-auto scrollbar-hide">
+               {RESOURCE_TAGS.map(t => (
                  <button
                    key={t}
                    onClick={() => { setFilter(t); setPage(1) }}
                    className={`
-                     relative px-4 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap z-10
+                     relative px-5 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap z-10
                      ${filter === t ? 'text-indigo-600 bg-white shadow-sm ring-1 ring-black/5' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}
                    `}
                  >
-                   {filter === t && <motion.div layoutId="activeTab" className="absolute inset-0 bg-white rounded-lg shadow-sm -z-10" />}
+                   {filter === t && <motion.div layoutId="activeTab" className="absolute inset-0 bg-white rounded-xl shadow-sm -z-10" />}
                    {t}
                  </button>
                ))}
