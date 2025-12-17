@@ -40,6 +40,7 @@ type Resource struct {
 	Course        *Course   `gorm:"foreignKey:CourseID;references:ID" json:"course,omitempty"`
 	ViewType      string    `gorm:"column:viewType" json:"viewType"`
 	DownloadCount int       `gorm:"column:downloadCount" json:"downloadCount"`
+	ViewCount     int       `gorm:"column:viewcount;default:0" json:"viewCount"`
 	CreateTime    time.Time `gorm:"column:createTime;autoCreateTime" json:"createTime"`
 
 	// 【修改 3】增加 json 标签，否则前端传来的 size 和 type 无法存入
