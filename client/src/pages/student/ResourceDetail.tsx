@@ -19,6 +19,7 @@ interface ResourceMeta {
   summary: string;
   fileUrl: string;
   createTime: string;
+  viewCount: number;
 }
 
 // --- 颜色映射 ---
@@ -44,12 +45,19 @@ export default function ResourceDetail() {
   const [loading, setLoading] = useState(true)
   const [meta, setMeta] = useState<ResourceMeta>({ 
     title: '', uploader: { name: '' }, size: '', type: '', 
-    summary: '', fileUrl: '', createTime: '' 
+    summary: '', fileUrl: '', createTime: '', viewCount: 0 
   })
+
+  // 防止 StrictMode 下重复请求导致 viewCount +2
+  const loadedId = React.useRef<string | null>(null)
 
   useEffect(() => {
     const load = async () => {
       if (!id) return
+      // 如果已经加载过该 ID，则跳过（解决 StrictMode 双次调用问题）
+      if (loadedId.current === id) return
+      loadedId.current = id
+
       try {
         setLoading(true)
         const r = await ResourcesApi.detail(id)
@@ -60,11 +68,14 @@ export default function ResourceDetail() {
           type: (r.type || 'FILE').toUpperCase(), 
           summary: r.summary, 
           fileUrl: r.fileUrl || '',
-          createTime: r.createTime
+          createTime: r.createTime,
+          viewCount: r.viewCount || 0
         })
         setCount(r.downloadCount || 0)
       } catch {
         show('资源加载失败', 'error')
+        // 如果失败，允许重试
+        loadedId.current = null
       } finally {
         setLoading(false)
       }
@@ -267,8 +278,7 @@ export default function ResourceDetail() {
                  <div className="text-slate-400 mb-1"><Eye size={16}/></div>
                  <div className="text-[10px] text-slate-400 uppercase font-bold">Views</div>
                  <div className="font-semibold text-slate-700 text-sm">
-                   {/* 模拟浏览量，通常比下载量多 */}
-                   {count * 3 + 12}
+                   {meta.viewCount}
                  </div>
                </div>
 
