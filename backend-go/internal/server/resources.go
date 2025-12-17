@@ -48,6 +48,11 @@ func (rc *ResourcesController) Detail(c *gin.Context) {
 		c.JSON(http.StatusNotFound, respErr(1006, "not_found"))
 		return
 	}
+
+	// 增加浏览量 +1
+	rc.db.Model(&r).Update("viewcount", r.ViewCount+1)
+	r.ViewCount++ // 更新内存中的值以便返回最新数据
+
 	c.JSON(http.StatusOK, respOk(r))
 }
 
