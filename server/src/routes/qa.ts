@@ -17,7 +17,9 @@ function toClient(q: any) {
     status: q.status === 'ANSWERED' ? 'solved' : 'open',
     hot: 0,
     createdAt: new Date(q.createTime).getTime(),
-    createdById: q.studentId ? String(q.studentId) : undefined
+    createdById: q.studentId ? String(q.studentId) : undefined,
+    askerName: q.student?.username || null,
+    askerAvatar: q.student?.avatar || null
   }
 }
 
@@ -49,7 +51,7 @@ router.get('/questions', async (req, res) => {
     const cached = await cacheGet(cacheKey)
     if (cached) return res.json(JSON.parse(cached))
     const [items, total] = await Promise.all([
-      prisma.question.findMany({ where, orderBy, include: { course: true }, skip: (page - 1) * pageSize, take: pageSize }),
+      prisma.question.findMany({ where, orderBy, include: { course: true, student: true }, skip: (page - 1) * pageSize, take: pageSize }),
       prisma.question.count({ where })
     ])
     const payload = { items: items.map(toClient), total }
@@ -63,7 +65,7 @@ router.get('/questions', async (req, res) => {
 router.get('/questions/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10)
-    const q = await prisma.question.findUnique({ where: { id }, include: { course: true } })
+    const q = await prisma.question.findUnique({ where: { id }, include: { course: true, student: true } })
     if (!q) return res.status(404).json({ message: 'Not found' })
     res.json(toClient(q))
   } catch (err: any) {
@@ -95,7 +97,7 @@ router.post('/questions', requireAuth, async (req, res) => {
   }
 })
 
-router.put('/questions/:id', async (req, res) => {
+router.put('/questions/:id', requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10)
     const { courseId, title, content, contentHTML, images, status } = req.body || {}
@@ -106,7 +108,14 @@ router.put('/questions/:id', async (req, res) => {
     if (text) data.content = text
     if (Array.isArray(images)) data.images = images.join(',')
     if (status) data.status = status === 'solved' ? 'ANSWERED' : 'UNANSWERED'
-    const updated = await prisma.question.update({ where: { id }, data, include: { course: true } })
+    const before = await prisma.question.findUnique({ where: { id } })
+    const updated = await prisma.question.update({ where: { id }, data, include: { course: true, student: true } })
+    if (status && before && before.status !== updated.status) {
+      try {
+        const entry = { ts: Date.now(), id, user: (req as any).userId || 'unknown', from: before.status, to: updated.status }
+        require('fs').appendFileSync('status.log', `${new Date().toISOString()} ${JSON.stringify(entry)}\n`)
+      } catch {}
+    }
     await delByPrefix('qa:list:')
     res.json(toClient(updated))
   } catch (err: any) {
@@ -115,7 +124,7 @@ router.put('/questions/:id', async (req, res) => {
   }
 })
 
-router.delete('/questions/:id', async (req, res) => {
+router.delete('/questions/:id', requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10)
     await prisma.question.delete({ where: { id } })

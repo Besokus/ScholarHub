@@ -28,7 +28,14 @@ app.use(cors(corsOptions));
 app.use(express.json());
 const uploadsPath = path.join(process.cwd(), 'uploads')
 console.log('Serving uploads from:', uploadsPath)
-app.use('/uploads', express.static(uploadsPath));
+app.use('/uploads', (req, res, next) => {
+  try {
+    const ref = String(req.headers.referer || '')
+    const ok = !ref || (Array.isArray(allowed) && allowed.length ? allowed.some(o => ref.startsWith(o)) : true)
+    if (!ok) return res.status(403).send('Forbidden')
+  } catch {}
+  next()
+}, express.static(uploadsPath));
 app.use(authOptional);
 app.use((req, _res, next) => {
   try {
