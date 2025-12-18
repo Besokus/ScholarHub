@@ -4,11 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { 
   MessageCircle, User, Clock, CheckCircle2, HelpCircle, 
   ChevronRight, ArrowLeft, Send, Image as ImageIcon, 
-  MoreHorizontal, Share2, ShieldAlert
+  MoreHorizontal, Share2, ShieldAlert, FileText, X, Eye
 } from 'lucide-react'
 import { QaApi, AnswersApi, API_ORIGIN } from '../../services/api'
 import RichText from '../../components/editor/RichText'
-import { useToast } from '../../components/common/Toast' // 假设你有这个 Hook，如果没有可移除
 
 // --- 辅助组件：头像占位符 ---
 const Avatar = ({ name, role }: { name: string, role?: string }) => {
@@ -34,14 +33,16 @@ const StatusBadge = ({ status }: { status: string }) => {
 export default function QAQuestion() {
   const { questionId } = useParams()
   const navigate = useNavigate()
-  // const { show } = useToast() // 可选
   
-  // States
+  // Data States
   const [q, setQ] = useState<any>(null)
   const [answers, setAnswers] = useState<any[]>([])
   const [content, setContent] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [loading, setLoading] = useState(true)
+  
+  // Preview State (New Feature)
+  const [preview, setPreview] = useState<{ url: string, type: 'image' | 'pdf' } | null>(null)
   
   const role = typeof window !== 'undefined' ? localStorage.getItem('role') : null
 
@@ -73,12 +74,9 @@ export default function QAQuestion() {
     try {
       await AnswersApi.createForQuestion(questionId, { content })
       setContent('')
-      // Refresh answers
       const d = await AnswersApi.listByQuestion(questionId)
       setAnswers(d.items || [])
-      // Optional: show('发布成功', 'success')
     } catch {
-      // Optional: show('发布失败', 'error')
       alert('发布失败，请重试')
     } finally {
       setSubmitting(false)
@@ -116,7 +114,6 @@ export default function QAQuestion() {
           <span className="text-indigo-600">问题详情</span>
         </div>
         
-        {/* Title Area */}
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
           <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 leading-tight">
             {q.title}
@@ -127,7 +124,6 @@ export default function QAQuestion() {
           </div>
         </div>
 
-        {/* Meta Row */}
         <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 pb-6 border-b border-slate-200">
           <StatusBadge status={q.status} />
           <span className="flex items-center gap-1.5">
@@ -153,23 +149,49 @@ export default function QAQuestion() {
               <RichText value={q.contentHTML || q.content} readOnly />
             </div>
 
-            {/* Image Grid */}
+            {/* --- Attachments Grid (Modified for Preview) --- */}
             {q.images && q.images.length > 0 && (
-              <div className="mt-6 grid grid-cols-2 md:grid-cols-3 gap-3">
-                {q.images.map((src: string, i: number) => {
-                  const abs = /^https?:\/\//.test(src) ? src : `${API_ORIGIN}${src}`
-                  return (
-                    <div key={i} className="group relative aspect-video rounded-xl overflow-hidden bg-slate-100 border border-slate-200 cursor-zoom-in">
-                      <img src={abs} alt={`attachment-${i}`} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                    </div>
-                  )
-                })}
+              <div className="mt-8 pt-6 border-t border-slate-50">
+                <h4 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+                  <ImageIcon size={16} className="text-indigo-500"/> 附件预览
+                </h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {q.images.map((src: string, i: number) => {
+                    const abs = /^https?:\/\//.test(src) ? src : `${API_ORIGIN}${src}`
+                    const isPdf = src.toLowerCase().endsWith('.pdf')
+                    const type = isPdf ? 'pdf' : 'image'
+
+                    return (
+                      <motion.div 
+                        key={i} 
+                        whileHover={{ y: -4 }}
+                        onClick={() => setPreview({ url: abs, type })}
+                        className="group relative aspect-square rounded-2xl overflow-hidden bg-slate-50 border border-slate-200 cursor-pointer shadow-sm hover:shadow-md transition-all"
+                      >
+                        {isPdf ? (
+                          <div className="flex flex-col items-center justify-center h-full text-slate-400 group-hover:text-rose-500 transition-colors">
+                            <FileText size={32} />
+                            <span className="text-[10px] font-bold mt-2 uppercase tracking-wide">PDF Document</span>
+                          </div>
+                        ) : (
+                          <img src={abs} alt={`attachment-${i}`} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                        )}
+                        
+                        {/* Hover Overlay Icon */}
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
+                          <div className="bg-white/90 p-2 rounded-full shadow-lg">
+                            <Eye size={16} className="text-slate-700"/>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )
+                  })}
+                </div>
               </div>
             )}
           </div>
 
-          {/* 2. Answer List */}
+          {/* 2. Answer List (保持不变) */}
           <div className="space-y-6">
             <div className="flex items-center justify-between px-2">
               <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
@@ -188,11 +210,7 @@ export default function QAQuestion() {
                     transition={{ delay: index * 0.1 }}
                     className={`bg-white p-6 rounded-2xl border shadow-sm relative overflow-hidden ${a.responderRole === 'TEACHER' ? 'border-indigo-200 ring-1 ring-indigo-50' : 'border-slate-100'}`}
                   >
-                    {/* Teacher Highlight Strip */}
-                    {a.responderRole === 'TEACHER' && (
-                      <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />
-                    )}
-
+                    {a.responderRole === 'TEACHER' && <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />}
                     <div className="flex items-start gap-4">
                       <Avatar name={a.responderName} role={a.responderRole} />
                       <div className="flex-1 min-w-0">
@@ -205,10 +223,7 @@ export default function QAQuestion() {
                           </div>
                           <span className="text-xs text-slate-400">{new Date(a.createTime || Date.now()).toLocaleDateString()}</span>
                         </div>
-                        
-                        <div className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap">
-                          {a.content}
-                        </div>
+                        <div className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap">{a.content}</div>
                       </div>
                     </div>
                   </motion.div>
@@ -224,27 +239,18 @@ export default function QAQuestion() {
             </AnimatePresence>
           </div>
 
-          {/* 3. Reply Editor (Only for Teachers/Admins based on original logic) */}
+          {/* 3. Reply Editor (保持不变) */}
           {(role === 'TEACHER' || role === 'ADMIN') && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="bg-white rounded-2xl p-6 shadow-lg shadow-indigo-100/50 border border-slate-100 sticky bottom-6 z-20"
-            >
-              <h4 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-                <User size={18} className="text-indigo-500"/> 撰写回答
-              </h4>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white rounded-2xl p-6 shadow-lg shadow-indigo-100/50 border border-slate-100 sticky bottom-6 z-20">
+              <h4 className="font-bold text-slate-800 mb-3 flex items-center gap-2"><User size={18} className="text-indigo-500"/> 撰写回答</h4>
               <div className="relative group">
                 <textarea 
-                  value={content} 
-                  onChange={e => setContent(e.target.value)} 
-                  rows={4} 
+                  value={content} onChange={e => setContent(e.target.value)} rows={4} 
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all resize-none text-slate-700"
                   placeholder="请输入您的专业解答..." 
                 />
                 <button 
-                  onClick={submit} 
-                  disabled={submitting || !content.trim()}
+                  onClick={submit} disabled={submitting || !content.trim()}
                   className="absolute bottom-3 right-3 flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-bold transition-all shadow-md"
                 >
                   {submitting ? '发布中...' : <><Send size={14} /> 发布</>}
@@ -256,8 +262,6 @@ export default function QAQuestion() {
 
         {/* --- Sidebar (Right) --- */}
         <div className="lg:col-span-4 space-y-6">
-          
-          {/* Status Card */}
           <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
              <h4 className="font-bold text-slate-800 mb-4 text-sm uppercase tracking-wider">Information</h4>
              <div className="space-y-4">
@@ -269,8 +273,6 @@ export default function QAQuestion() {
                  <span className="text-xs text-slate-500">当前状态</span>
                  <StatusBadge status={q.status} />
                </div>
-               
-               {/* 社区规范提示 */}
                <div className="mt-4 p-4 bg-amber-50 border border-amber-100 rounded-xl flex gap-3">
                  <ShieldAlert className="text-amber-500 shrink-0" size={20} />
                  <div className="text-xs text-amber-800 leading-relaxed">
@@ -280,9 +282,53 @@ export default function QAQuestion() {
                </div>
              </div>
           </div>
-
         </div>
       </div>
+
+      {/* --- Preview Modal (Lightbox) --- */}
+      <AnimatePresence>
+        {preview && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 md:p-8"
+            onClick={() => setPreview(null)} // Click background to close
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative w-full h-full max-w-5xl max-h-[90vh] bg-transparent flex flex-col items-center justify-center"
+              onClick={e => e.stopPropagation()} // Prevent click propagation
+            >
+              {/* Close Button */}
+              <button 
+                onClick={() => setPreview(null)} 
+                className="absolute -top-12 right-0 p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+              >
+                <X size={24} />
+              </button>
+
+              {/* Content */}
+              <div className="w-full h-full flex items-center justify-center overflow-hidden rounded-xl shadow-2xl">
+                {preview.type === 'image' ? (
+                  <img src={preview.url} alt="Full Preview" className="max-w-full max-h-full object-contain bg-black" />
+                ) : (
+                  <iframe 
+                    src={preview.url} 
+                    title="PDF Preview" 
+                    className="w-full h-full bg-white"
+                    frameBorder="0"
+                    
+                  />
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
   )
 }

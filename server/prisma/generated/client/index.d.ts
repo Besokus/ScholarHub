@@ -3539,6 +3539,8 @@ export namespace Prisma {
     uploaderId: string | null
     courseId: number | null
     viewType: string | null
+    fileSize: string | null
+    fileType: string | null
     downloadCount: number | null
     createTime: Date | null
   }
@@ -3551,6 +3553,8 @@ export namespace Prisma {
     uploaderId: string | null
     courseId: number | null
     viewType: string | null
+    fileSize: string | null
+    fileType: string | null
     downloadCount: number | null
     createTime: Date | null
   }
@@ -3563,6 +3567,8 @@ export namespace Prisma {
     uploaderId: number
     courseId: number
     viewType: number
+    fileSize: number
+    fileType: number
     downloadCount: number
     createTime: number
     _all: number
@@ -3589,6 +3595,8 @@ export namespace Prisma {
     uploaderId?: true
     courseId?: true
     viewType?: true
+    fileSize?: true
+    fileType?: true
     downloadCount?: true
     createTime?: true
   }
@@ -3601,6 +3609,8 @@ export namespace Prisma {
     uploaderId?: true
     courseId?: true
     viewType?: true
+    fileSize?: true
+    fileType?: true
     downloadCount?: true
     createTime?: true
   }
@@ -3613,6 +3623,8 @@ export namespace Prisma {
     uploaderId?: true
     courseId?: true
     viewType?: true
+    fileSize?: true
+    fileType?: true
     downloadCount?: true
     createTime?: true
     _all?: true
@@ -3712,6 +3724,8 @@ export namespace Prisma {
     uploaderId: string
     courseId: number
     viewType: string
+    fileSize: string | null
+    fileType: string | null
     downloadCount: number
     createTime: Date
     _count: ResourceCountAggregateOutputType | null
@@ -3743,6 +3757,8 @@ export namespace Prisma {
     uploaderId?: boolean
     courseId?: boolean
     viewType?: boolean
+    fileSize?: boolean
+    fileType?: boolean
     downloadCount?: boolean
     createTime?: boolean
     uploader?: boolean | UserDefaultArgs<ExtArgs>
@@ -3757,6 +3773,8 @@ export namespace Prisma {
     uploaderId?: boolean
     courseId?: boolean
     viewType?: boolean
+    fileSize?: boolean
+    fileType?: boolean
     downloadCount?: boolean
     createTime?: boolean
     uploader?: boolean | UserDefaultArgs<ExtArgs>
@@ -3771,6 +3789,8 @@ export namespace Prisma {
     uploaderId?: boolean
     courseId?: boolean
     viewType?: boolean
+    fileSize?: boolean
+    fileType?: boolean
     downloadCount?: boolean
     createTime?: boolean
   }
@@ -3798,6 +3818,8 @@ export namespace Prisma {
       uploaderId: string
       courseId: number
       viewType: string
+      fileSize: string | null
+      fileType: string | null
       downloadCount: number
       createTime: Date
     }, ExtArgs["result"]["resource"]>
@@ -4202,6 +4224,8 @@ export namespace Prisma {
     readonly uploaderId: FieldRef<"Resource", 'String'>
     readonly courseId: FieldRef<"Resource", 'Int'>
     readonly viewType: FieldRef<"Resource", 'String'>
+    readonly fileSize: FieldRef<"Resource", 'String'>
+    readonly fileType: FieldRef<"Resource", 'String'>
     readonly downloadCount: FieldRef<"Resource", 'Int'>
     readonly createTime: FieldRef<"Resource", 'DateTime'>
   }
@@ -7610,6 +7634,8 @@ export namespace Prisma {
     uploaderId: 'uploaderId',
     courseId: 'courseId',
     viewType: 'viewType',
+    fileSize: 'fileSize',
+    fileType: 'fileType',
     downloadCount: 'downloadCount',
     createTime: 'createTime'
   };
@@ -7907,6 +7933,8 @@ export namespace Prisma {
     uploaderId?: StringFilter<"Resource"> | string
     courseId?: IntFilter<"Resource"> | number
     viewType?: StringFilter<"Resource"> | string
+    fileSize?: StringNullableFilter<"Resource"> | string | null
+    fileType?: StringNullableFilter<"Resource"> | string | null
     downloadCount?: IntFilter<"Resource"> | number
     createTime?: DateTimeFilter<"Resource"> | Date | string
     uploader?: XOR<UserRelationFilter, UserWhereInput>
@@ -7921,6 +7949,8 @@ export namespace Prisma {
     uploaderId?: SortOrder
     courseId?: SortOrder
     viewType?: SortOrder
+    fileSize?: SortOrderInput | SortOrder
+    fileType?: SortOrderInput | SortOrder
     downloadCount?: SortOrder
     createTime?: SortOrder
     uploader?: UserOrderByWithRelationInput
@@ -7938,6 +7968,8 @@ export namespace Prisma {
     uploaderId?: StringFilter<"Resource"> | string
     courseId?: IntFilter<"Resource"> | number
     viewType?: StringFilter<"Resource"> | string
+    fileSize?: StringNullableFilter<"Resource"> | string | null
+    fileType?: StringNullableFilter<"Resource"> | string | null
     downloadCount?: IntFilter<"Resource"> | number
     createTime?: DateTimeFilter<"Resource"> | Date | string
     uploader?: XOR<UserRelationFilter, UserWhereInput>
@@ -7952,6 +7984,8 @@ export namespace Prisma {
     uploaderId?: SortOrder
     courseId?: SortOrder
     viewType?: SortOrder
+    fileSize?: SortOrderInput | SortOrder
+    fileType?: SortOrderInput | SortOrder
     downloadCount?: SortOrder
     createTime?: SortOrder
     _count?: ResourceCountOrderByAggregateInput
@@ -7972,6 +8006,8 @@ export namespace Prisma {
     uploaderId?: StringWithAggregatesFilter<"Resource"> | string
     courseId?: IntWithAggregatesFilter<"Resource"> | number
     viewType?: StringWithAggregatesFilter<"Resource"> | string
+    fileSize?: StringNullableWithAggregatesFilter<"Resource"> | string | null
+    fileType?: StringNullableWithAggregatesFilter<"Resource"> | string | null
     downloadCount?: IntWithAggregatesFilter<"Resource"> | number
     createTime?: DateTimeWithAggregatesFilter<"Resource"> | Date | string
   }
@@ -8348,6 +8384,8 @@ export namespace Prisma {
     description?: string | null
     filePath: string
     viewType?: string
+    fileSize?: string | null
+    fileType?: string | null
     downloadCount?: number
     createTime?: Date | string
     uploader: UserCreateNestedOneWithoutResourcesInput
@@ -8362,6 +8400,8 @@ export namespace Prisma {
     uploaderId: string
     courseId: number
     viewType?: string
+    fileSize?: string | null
+    fileType?: string | null
     downloadCount?: number
     createTime?: Date | string
   }
@@ -8371,6 +8411,8 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     filePath?: StringFieldUpdateOperationsInput | string
     viewType?: StringFieldUpdateOperationsInput | string
+    fileSize?: NullableStringFieldUpdateOperationsInput | string | null
+    fileType?: NullableStringFieldUpdateOperationsInput | string | null
     downloadCount?: IntFieldUpdateOperationsInput | number
     createTime?: DateTimeFieldUpdateOperationsInput | Date | string
     uploader?: UserUpdateOneRequiredWithoutResourcesNestedInput
@@ -8385,6 +8427,8 @@ export namespace Prisma {
     uploaderId?: StringFieldUpdateOperationsInput | string
     courseId?: IntFieldUpdateOperationsInput | number
     viewType?: StringFieldUpdateOperationsInput | string
+    fileSize?: NullableStringFieldUpdateOperationsInput | string | null
+    fileType?: NullableStringFieldUpdateOperationsInput | string | null
     downloadCount?: IntFieldUpdateOperationsInput | number
     createTime?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -8397,6 +8441,8 @@ export namespace Prisma {
     uploaderId: string
     courseId: number
     viewType?: string
+    fileSize?: string | null
+    fileType?: string | null
     downloadCount?: number
     createTime?: Date | string
   }
@@ -8406,6 +8452,8 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     filePath?: StringFieldUpdateOperationsInput | string
     viewType?: StringFieldUpdateOperationsInput | string
+    fileSize?: NullableStringFieldUpdateOperationsInput | string | null
+    fileType?: NullableStringFieldUpdateOperationsInput | string | null
     downloadCount?: IntFieldUpdateOperationsInput | number
     createTime?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -8418,6 +8466,8 @@ export namespace Prisma {
     uploaderId?: StringFieldUpdateOperationsInput | string
     courseId?: IntFieldUpdateOperationsInput | number
     viewType?: StringFieldUpdateOperationsInput | string
+    fileSize?: NullableStringFieldUpdateOperationsInput | string | null
+    fileType?: NullableStringFieldUpdateOperationsInput | string | null
     downloadCount?: IntFieldUpdateOperationsInput | number
     createTime?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -8864,6 +8914,8 @@ export namespace Prisma {
     uploaderId?: SortOrder
     courseId?: SortOrder
     viewType?: SortOrder
+    fileSize?: SortOrder
+    fileType?: SortOrder
     downloadCount?: SortOrder
     createTime?: SortOrder
   }
@@ -8882,6 +8934,8 @@ export namespace Prisma {
     uploaderId?: SortOrder
     courseId?: SortOrder
     viewType?: SortOrder
+    fileSize?: SortOrder
+    fileType?: SortOrder
     downloadCount?: SortOrder
     createTime?: SortOrder
   }
@@ -8894,6 +8948,8 @@ export namespace Prisma {
     uploaderId?: SortOrder
     courseId?: SortOrder
     viewType?: SortOrder
+    fileSize?: SortOrder
+    fileType?: SortOrder
     downloadCount?: SortOrder
     createTime?: SortOrder
   }
@@ -9773,6 +9829,8 @@ export namespace Prisma {
     description?: string | null
     filePath: string
     viewType?: string
+    fileSize?: string | null
+    fileType?: string | null
     downloadCount?: number
     createTime?: Date | string
     course: CourseCreateNestedOneWithoutResourcesInput
@@ -9785,6 +9843,8 @@ export namespace Prisma {
     filePath: string
     courseId: number
     viewType?: string
+    fileSize?: string | null
+    fileType?: string | null
     downloadCount?: number
     createTime?: Date | string
   }
@@ -9936,6 +9996,8 @@ export namespace Prisma {
     uploaderId?: StringFilter<"Resource"> | string
     courseId?: IntFilter<"Resource"> | number
     viewType?: StringFilter<"Resource"> | string
+    fileSize?: StringNullableFilter<"Resource"> | string | null
+    fileType?: StringNullableFilter<"Resource"> | string | null
     downloadCount?: IntFilter<"Resource"> | number
     createTime?: DateTimeFilter<"Resource"> | Date | string
   }
@@ -10067,6 +10129,8 @@ export namespace Prisma {
     description?: string | null
     filePath: string
     viewType?: string
+    fileSize?: string | null
+    fileType?: string | null
     downloadCount?: number
     createTime?: Date | string
     uploader: UserCreateNestedOneWithoutResourcesInput
@@ -10079,6 +10143,8 @@ export namespace Prisma {
     filePath: string
     uploaderId: string
     viewType?: string
+    fileSize?: string | null
+    fileType?: string | null
     downloadCount?: number
     createTime?: Date | string
   }
@@ -10714,6 +10780,8 @@ export namespace Prisma {
     filePath: string
     courseId: number
     viewType?: string
+    fileSize?: string | null
+    fileType?: string | null
     downloadCount?: number
     createTime?: Date | string
   }
@@ -10774,6 +10842,8 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     filePath?: StringFieldUpdateOperationsInput | string
     viewType?: StringFieldUpdateOperationsInput | string
+    fileSize?: NullableStringFieldUpdateOperationsInput | string | null
+    fileType?: NullableStringFieldUpdateOperationsInput | string | null
     downloadCount?: IntFieldUpdateOperationsInput | number
     createTime?: DateTimeFieldUpdateOperationsInput | Date | string
     course?: CourseUpdateOneRequiredWithoutResourcesNestedInput
@@ -10786,6 +10856,8 @@ export namespace Prisma {
     filePath?: StringFieldUpdateOperationsInput | string
     courseId?: IntFieldUpdateOperationsInput | number
     viewType?: StringFieldUpdateOperationsInput | string
+    fileSize?: NullableStringFieldUpdateOperationsInput | string | null
+    fileType?: NullableStringFieldUpdateOperationsInput | string | null
     downloadCount?: IntFieldUpdateOperationsInput | number
     createTime?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -10797,6 +10869,8 @@ export namespace Prisma {
     filePath?: StringFieldUpdateOperationsInput | string
     courseId?: IntFieldUpdateOperationsInput | number
     viewType?: StringFieldUpdateOperationsInput | string
+    fileSize?: NullableStringFieldUpdateOperationsInput | string | null
+    fileType?: NullableStringFieldUpdateOperationsInput | string | null
     downloadCount?: IntFieldUpdateOperationsInput | number
     createTime?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -10888,6 +10962,8 @@ export namespace Prisma {
     filePath: string
     uploaderId: string
     viewType?: string
+    fileSize?: string | null
+    fileType?: string | null
     downloadCount?: number
     createTime?: Date | string
   }
@@ -10907,6 +10983,8 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     filePath?: StringFieldUpdateOperationsInput | string
     viewType?: StringFieldUpdateOperationsInput | string
+    fileSize?: NullableStringFieldUpdateOperationsInput | string | null
+    fileType?: NullableStringFieldUpdateOperationsInput | string | null
     downloadCount?: IntFieldUpdateOperationsInput | number
     createTime?: DateTimeFieldUpdateOperationsInput | Date | string
     uploader?: UserUpdateOneRequiredWithoutResourcesNestedInput
@@ -10919,6 +10997,8 @@ export namespace Prisma {
     filePath?: StringFieldUpdateOperationsInput | string
     uploaderId?: StringFieldUpdateOperationsInput | string
     viewType?: StringFieldUpdateOperationsInput | string
+    fileSize?: NullableStringFieldUpdateOperationsInput | string | null
+    fileType?: NullableStringFieldUpdateOperationsInput | string | null
     downloadCount?: IntFieldUpdateOperationsInput | number
     createTime?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -10930,6 +11010,8 @@ export namespace Prisma {
     filePath?: StringFieldUpdateOperationsInput | string
     uploaderId?: StringFieldUpdateOperationsInput | string
     viewType?: StringFieldUpdateOperationsInput | string
+    fileSize?: NullableStringFieldUpdateOperationsInput | string | null
+    fileType?: NullableStringFieldUpdateOperationsInput | string | null
     downloadCount?: IntFieldUpdateOperationsInput | number
     createTime?: DateTimeFieldUpdateOperationsInput | Date | string
   }

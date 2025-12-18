@@ -149,6 +149,8 @@ exports.Prisma.ResourceScalarFieldEnum = {
   uploaderId: 'uploaderId',
   courseId: 'courseId',
   viewType: 'viewType',
+  fileSize: 'fileSize',
+  fileType: 'fileType',
   downloadCount: 'downloadCount',
   createTime: 'createTime'
 };

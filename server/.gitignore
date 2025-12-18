@@ -2,4 +2,19 @@ node_modules
 # Keep environment variables out of version control
 .env
 
+# Archives / large files
+*.zip
+*.rar
+*.7z
+
+# Runtime / uploads
+server/uploads/
+server/req.log
+*.log
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
+
 /generated/prisma

@@ -13,8 +13,6 @@ services:
       - uploads:/data/uploads
   db:
     image: postgres:14
-    profiles:
-      - with-db
     environment:
       - POSTGRES_USER=${PGUSER}
       - POSTGRES_PASSWORD=${PGPASSWORD}
@@ -23,6 +21,11 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    command: ["redis-server","--appendonly","yes"]
 volumes:
   uploads:
   pgdata:

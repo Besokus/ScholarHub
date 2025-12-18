@@ -31,7 +31,7 @@ export const AuthApi = {
   me: () => apiFetch('/auth/me'),
   updateUsername: (username: string) => apiFetch('/auth/username', { method: 'PATCH', body: JSON.stringify({ username }) })
 }
-
+ 
 export const ResourcesApi = {
   list: (params: { q?: string; courseId?: string; page?: number; pageSize?: number }) => {
     const q = new URLSearchParams()

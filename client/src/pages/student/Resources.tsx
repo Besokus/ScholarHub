@@ -5,13 +5,30 @@ import {
   Search, Upload, FileText, Image as ImageIcon, FileCode, 
   FileVideo, FileArchive, FolderOpen, Download, 
   Filter, Eye, File, Folder, ChevronRight, BarChart3, Clock, 
-  Database, Sparkles, ArrowRight, Zap, Activity
+  Database, Sparkles, ArrowRight, Zap, Activity, Book, Layers
 } from 'lucide-react'
 import Pagination from '../../components/common/Pagination'
 import TreeView from '../../components/common/TreeView'
-import { ResourcesApi } from '../../services/api'
-import { API_ORIGIN } from '../../services/api'
+import { ResourcesApi, API_ORIGIN } from '../../services/api'
 import { CoursesApi } from '../../services/courses'
+
+// --- 1. 配置课程分类与关键词映射 ---
+const COURSE_CATEGORIES = [
+  { name: "思想政治", keywords: ["毛泽东", "思修", "近代史", "马克思", "形势与政策", "党"] },
+  { name: "体育与健康", keywords: ["体育", "篮球", "足球", "羽毛球", "健康", "运动","击剑"] },
+  { name: "艺术与人文素养", keywords: ["艺术", "音乐", "美术", "鉴赏", "语文", "写作", "英语", "日语", "德语", "历史", "文化"] },
+  { name: "数学", keywords: ["高数", "高等数学", "线性代数", "概率论", "统计", "微积分", "复变函数"] },
+  { name: "物理", keywords: ["大学物理", "大物", "力学", "电磁学", "光学", "热学", "量子"] },
+  { name: "化学", keywords: ["化学", "有机", "无机", "分析化学"] },
+  { name: "程序设计基础", keywords: ["C语言", "C++", "Java", "Python", "程序设计", "编程", "Go", "Rust"] },
+  { name: "计算机理论", keywords: ["数据结构", "算法", "离散", "操作系统", "组成原理", "网络", "体系结构", "编译"] },
+  { name: "软件工程与开发", keywords: ["软件工程", "数据库", "Web", "前端", "后端", "移动应用", "测试", "设计模式"] },
+  { name: "电路与硬件基础", keywords: ["电路", "模电", "数电", "电子", "微机", "单片机", "嵌入式", "EDA"] },
+  { name: "信号与控制", keywords: ["信号", "系统", "控制", "通信", "数字信号"] },
+  { name: "机械与材料", keywords: ["机械", "制图", "工程图学", "材料", "力学"] },
+  { name: "经济与管理类课程", keywords: ["经济", "管理", "会计", "金融", "市场", "营销"] },
+  { name: "生命科学与医药", keywords: ["生物", "医学", "生理", "解剖", "药理"] },
+]
 
 // --- UI Components (Skeleton & Icon) ---
 const SkeletonCard = () => (
@@ -55,9 +72,19 @@ const FileIcon = ({ title }: { title: string }) => {
 const ACTIVITIES = [
   "张同学 刚刚上传了《高等数学笔记》",
   "李同学 下载了《数据结构期末试卷》",
-  "今日新增资源 12 份，活跃用户 45 人",
-  "王老师 更新了《操作系统》课件"
+  "今日新增资源 12 份，活跃用户 65+ 人"
 ]
+
+// 辅助函数：根据文件名或类型简单的推断 Tag
+const guessTag = (fileName: string, type: string) => {
+    const name = fileName.toLowerCase();
+    const t = (type || '').toUpperCase();
+    if (t === 'PPT' || t === 'PPTX' || name.includes('课件')) return '课件';
+    if (name.includes('试卷') || name.includes('答案') || name.includes('考试')) return '答案';
+    if (name.includes('练习') || name.includes('作业')) return '练习';
+    if (t === 'PDF' || name.includes('笔记')) return '笔记';
+    return '其他'; // 默认归类
+}
 
 export default function Resources() {
   // --- State ---
@@ -67,13 +94,15 @@ export default function Resources() {
   const [page, setPage] = useState(1)
   const pageSize = 20
   const [remote, setRemote] = useState<any[]>([])
-  const [tree, setTree] = useState<any[]>([{ id: 'all', name: '全部课程', children: [] }])
+  const [tree, setTree] = useState<any[]>([]) 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  
-  // Activity Ticker State
   const [activityIndex, setActivityIndex] = useState(0)
 
+  // 用于存储 "ID -> 课程名称" 的映射表
+  const [courseMap, setCourseMap] = useState<Record<string, string>>({})
+
+  // --- Effects ---
   useEffect(() => {
     const timer = setInterval(() => {
       setActivityIndex((prev) => (prev + 1) % ACTIVITIES.length)
@@ -81,18 +110,67 @@ export default function Resources() {
     return () => clearInterval(timer)
   }, [])
 
+  // 1. 获取课程并构建分类树
   useEffect(() => {
     CoursesApi.list().then(d => {
-      const children = (d.items || []).map((c: any) => ({ id: c.id, name: c.name }))
-      setTree([{ id: 'all', name: '全部课程', children }])
+      const allCourses = d.items || []
+      
+      // 构建 ID 到 Name 的映射字典
+      const map: Record<string, string> = {}
+      allCourses.forEach((c: any) => {
+        map[c.id] = c.name
+      })
+      setCourseMap(map)
+      
+      // 构建分类树结构
+      const categorizedTree = COURSE_CATEGORIES.map((cat, index) => {
+         const subCourses = allCourses.filter((course: any) => 
+          cat.keywords.some(k => course.name.includes(k))
+        ).map((c: any) => ({ 
+          id: c.id, 
+          name: c.name,
+          isLeaf: true 
+        }))
+        return {
+          id: `cat-${index}`, 
+          name: cat.name, 
+          children: subCourses, 
+          isCategory: true
+        }
+      })
+
+      // 找出未分类的课程
+      const categorizedIds = new Set(categorizedTree.flatMap(cat => cat.children.map((c: any) => c.id)))
+      const otherCourses = allCourses.filter((c: any) => !categorizedIds.has(c.id))
+        .map((c: any) => ({ id: c.id, name: c.name, isLeaf: true }))
+
+      if (otherCourses.length > 0) {
+        categorizedTree.push({ id: 'cat-others', name: '其他通识课程', children: otherCourses, isCategory: true } as any)
+      }
+      setTree([{ id: 'all', name: '全部课程资源', children: categorizedTree, isOpen: true }])
+
     }).catch(() => {})
-    
+  }, [])
+
+  // 2. 加载资源列表
+  useEffect(() => {
     const load = async () => {
       try {
         setLoading(true)
         setError('')
-        const res = await ResourcesApi.list({ q: keyword, courseId, page, pageSize })
-        setRemote(res.items.map((x: any) => ({ id: x.id, title: x.title, course: x.courseId, tag: '全部', fileUrl: x.fileUrl })))
+        const queryCourseId = courseId.startsWith('cat-') || courseId === 'all' ? 'all' : courseId
+        
+        const res = await ResourcesApi.list({ q: keyword, courseId: queryCourseId, page, pageSize })
+        
+        // 映射数据
+        setRemote(res.items.map((x: any) => ({ 
+          id: x.id, 
+          title: x.title, 
+          course: x.courseId, 
+          // 优化点：简单推断 tag，而不是全写死成 '全部'
+          tag: guessTag(x.title, x.type), 
+          fileUrl: x.fileUrl 
+        })))
       } catch {
         setError('加载失败')
       } finally {
@@ -102,15 +180,13 @@ export default function Resources() {
     load()
   }, [keyword, courseId, page, pageSize])
 
+  // --- 关键修复：添加 missing 'filtered' definition ---
   const filtered = useMemo(() => {
-    return (remote).filter(r => {
-      const byTag = filter === '全部' ? true : r.tag === filter
-      const byCourse = courseId === 'all' ? true : r.course === courseId
-      const byKeyword = keyword ? r.title.toLowerCase().includes(keyword.toLowerCase()) : true
-      return byTag && byCourse && byKeyword
-    })
-  }, [filter, courseId, keyword, remote])
+    if (filter === '全部') return remote
+    return remote.filter(item => item.tag === filter)
+  }, [remote, filter])
 
+  // 分页截取逻辑
   const list = filtered.slice((page - 1) * pageSize, page * pageSize)
   const tags = ['全部', '练习', '笔记', '答案', '课件']
 
@@ -127,19 +203,17 @@ export default function Resources() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-screen bg-transparent">
       
-      {/* --- 1. Header & Hero Section (重构布局) --- */}
+      {/* --- 1. Header & Hero Section --- */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-10 items-stretch">
         
         {/* 左侧：标题与动态信息 (8 cols) */}
         <div className="lg:col-span-8 flex flex-col justify-center">
-          {/* Breadcrumb */}
           <div className="flex items-center gap-2 text-sm text-slate-500 font-medium mb-3">
             <span className="flex items-center gap-1"><Database size={14}/> 知识库</span>
             <ChevronRight size={14} className="opacity-50"/>
             <span className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">资源列表</span>
           </div>
           
-          {/* Title */}
           <div className="flex items-center gap-4 mb-4">
             <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">
               资源中心
@@ -149,13 +223,12 @@ export default function Resources() {
             </span>
           </div>
 
-          {/* Description & Live Activity Ticker */}
           <div className="space-y-4">
             <p className="text-slate-500 max-w-xl text-base leading-relaxed">
-              这里汇聚了全校师生的智慧结晶。您可以按课程浏览、搜索特定资料，或上传您的优质笔记。
+              这里汇聚了全校师生的智慧结晶。您可以按左侧的<b>课程分类</b>浏览，或直接搜索特定资料。
             </p>
             
-            {/* 增加活动感的动态条 */}
+            {/* Live Activity Ticker */}
             <div className="flex items-center gap-3 text-sm">
               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-100 shadow-sm">
                 <span className="relative flex h-2 w-2">
@@ -184,40 +257,29 @@ export default function Resources() {
           </div>
         </div>
 
-        {/* 右侧：贡献者 Hero Card (4 cols) - 移动至此并美化 */}
+        {/* 右侧：贡献者 Hero Card (4 cols) */}
         <div className="lg:col-span-4">
            <div className="relative h-full min-h-[160px] p-6 rounded-3xl bg-slate-900 text-white shadow-xl overflow-hidden group flex flex-col justify-between">
-              {/* 动态背景装饰 */}
               <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/20 rounded-full blur-[60px] -mr-10 -mt-10 group-hover:bg-indigo-400/30 transition-colors duration-700"></div>
               <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-500/10 rounded-full blur-[40px] -ml-10 -mb-10"></div>
               
-              {/* 卡片内容 */}
               <div className="relative z-10">
                  <div className="flex items-start justify-between mb-2">
                     <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 backdrop-blur-md border border-white/10 text-xs font-bold text-indigo-200 uppercase tracking-wider shadow-inner">
                       <Sparkles size={12} className="text-yellow-300 fill-yellow-300" />
                       Contributor Plan
                     </div>
-                    {/* 小图标装饰 */}
                     <div className="p-2 bg-indigo-500/20 rounded-full border border-white/5">
                        <Zap size={18} className="text-yellow-300" fill="currentColor"/>
                     </div>
                  </div>
-                 
-                 <h3 className="text-xl font-bold leading-tight mt-3 mb-1">
-                   分享你的笔记
-                 </h3>
+                 <h3 className="text-xl font-bold leading-tight mt-3 mb-1">分享你的笔记</h3>
                  <p className="text-sm text-indigo-200/70 font-medium">帮助更多同学，获取社区积分奖励。</p>
               </div>
               
               <div className="relative z-10 mt-6">
-                <Link 
-                  to="/student/resources/upload" 
-                  className="flex items-center justify-between w-full px-4 py-3 bg-white hover:bg-indigo-50 text-indigo-900 rounded-xl text-sm font-bold transition-all shadow-lg group/btn"
-                >
-                  <span className="flex items-center gap-2">
-                    <Upload size={16} /> 上传新资源
-                  </span>
+                <Link to="/student/resources/upload" className="flex items-center justify-between w-full px-4 py-3 bg-white hover:bg-indigo-50 text-indigo-900 rounded-xl text-sm font-bold transition-all shadow-lg group/btn">
+                  <span className="flex items-center gap-2"><Upload size={16} /> 上传新资源</span>
                   <ArrowRight size={16} className="group-hover/btn:translate-x-1 transition-transform text-indigo-500"/>
                 </Link>
               </div>
@@ -227,25 +289,33 @@ export default function Resources() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
-        {/* --- 左侧边栏: 纯净目录 (Sticky) --- */}
+        {/* --- 左侧边栏: 分类目录 (Sticky) --- */}
         <div className="hidden lg:block lg:col-span-3 sticky top-6 z-10">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col h-[calc(100vh-140px)] max-h-[600px] transition-all hover:shadow-md">
-            <div className="p-4 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between backdrop-blur-sm">
-              <div className="flex items-center gap-2 font-bold text-slate-700">
-                <FolderOpen size={18} className="text-indigo-600" />
-                <span>课程目录</span>
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col h-[calc(100vh-140px)] max-h-[650px] transition-all hover:shadow-md">
+            
+            {/* Sidebar Header */}
+            <div className="p-4 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between backdrop-blur-sm">
+              <div className="flex items-center gap-2 font-bold text-slate-800">
+                <Layers size={18} className="text-indigo-600" />
+                <span>课程导航</span>
               </div>
-              <span className="text-[10px] bg-white border border-slate-200 text-slate-500 px-2 py-0.5 rounded-md font-mono">
-                ROOT
+              <span className="text-[10px] bg-white border border-slate-200 text-slate-500 px-2 py-0.5 rounded-md font-mono shadow-sm">
+                NAV
               </span>
             </div>
             
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
+            {/* Tree View Container */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-2 bg-white">
               <TreeView 
                 data={tree} 
                 onSelect={id => { setCourseId(id); setPage(1) }} 
                 current={courseId} 
               />
+            </div>
+            
+            {/* Sidebar Footer Hint */}
+            <div className="p-3 bg-slate-50 border-t border-slate-100 text-center">
+              <p className="text-[10px] text-slate-400">选择分类展开课程</p>
             </div>
           </div>
         </div>
@@ -253,7 +323,7 @@ export default function Resources() {
         {/* --- 右侧内容区 (9 cols) --- */}
         <div className="lg:col-span-9 space-y-6">
           
-          {/* 筛选工具栏 (Sticky) */}
+          {/* 筛选工具栏 */}
           <div className="bg-white rounded-2xl p-2 shadow-sm border border-slate-100 flex flex-col md:flex-row items-center justify-between gap-3 sticky top-2 z-20 backdrop-blur-xl bg-white/90">
              {/* Tags */}
              <div className="flex items-center p-1 bg-slate-100/50 rounded-xl overflow-x-auto w-full md:w-auto scrollbar-hide">
@@ -322,7 +392,9 @@ export default function Resources() {
                           </h4>
                           <div className="flex items-center gap-2 mt-2">
                             <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-500 truncate max-w-full border border-slate-200">
-                              <Folder size={10} className="mr-1"/> {r.course}
+                              <Folder size={10} className="mr-1"/> 
+                              {/* 使用 courseMap 进行查找，如果找不到(比如还没加载完)则显示 ID */}
+                              {courseMap[r.course] || r.course}
                             </span>
                           </div>
                         </div>

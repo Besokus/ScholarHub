@@ -25,7 +25,9 @@ const allowed = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()
 const corsOptions = { origin: allowed.length ? allowed : true, credentials: true, optionsSuccessStatus: 204 }
 app.use(cors(corsOptions));
 app.use(express.json());
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+const uploadsPath = path.join(process.cwd(), 'uploads')
+console.log('Serving uploads from:', uploadsPath)
+app.use('/uploads', express.static(uploadsPath));
 app.use(authOptional);
 app.use((req, _res, next) => {
   try {

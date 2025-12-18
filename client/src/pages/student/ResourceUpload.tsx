@@ -27,8 +27,8 @@ export default function ResourceUpload() {
   // --- 状态管理 ---
   const [title, setTitle] = useState('')
   const [summary, setSummary] = useState('')
-  const [course, setCourse] = useState('')
-  const [courses, setCourses] = useState<string[]>([])
+  const [courseId, setCourseId] = useState<number | string>('') 
+  const [courses, setCourses] = useState<{id: number, name: string}[]>([])
   const [file, setFile] = useState<File | null>(null)
   const [fileType, setFileType] = useState<string>('')
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -38,11 +38,9 @@ export default function ResourceUpload() {
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // --- 逻辑更新：文件不再是必须项 ---
   const isReady = useMemo(() => {
-    // 只要有标题和课程即可发布，文件和简介是可选的（或简介必填视需求而定，这里假设简介必填）
-    return title.length > 0 && course.length > 0 && summary.length > 0
-  }, [title, course, summary])
+    return title.length > 0 && String(courseId).length > 0 && summary.length > 0
+  }, [title, courseId, summary])
 
   const checkFileHeader = async (file: File): Promise<string> => {
     return new Promise((resolve) => {
@@ -80,17 +78,17 @@ export default function ResourceUpload() {
   const validate = () => {
     if (!title || title.length > 100) return '标题需填写且不超过100字'
     if (!summary || summary.length > 2000) return '简介需填写且不超过2000字'
-    if (!course) return '请选择课程'
-    // 移除了文件必填校验
+    if (!courseId) return '请选择课程' // 校验 ID
     if (file && file.size > 50 * 1024 * 1024) return '文件大小超过50MB'
     return ''
   }
 
+  // 【修改 3】Effect 获取课程列表，存 ID 和 Name
   useEffect(() => {
     CoursesApi.list().then(d => {
-      const arr = (d.items || []).map((c: any) => c.name)
-      setCourses(arr)
-      if (arr.length) setCourse(arr[0])
+      const list = d.items || []
+      setCourses(list)
+      if (list.length) setCourseId(list[0].id) // 默认选中第一个
     }).catch(() => {})
   }, [])
 
@@ -134,6 +132,7 @@ export default function ResourceUpload() {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
+  // 【修改 4】Submit 逻辑，发送 courseId 数字
   const submit = async () => {
     const err = validate()
     if (err) { setMsg(err); return }
@@ -144,11 +143,19 @@ export default function ResourceUpload() {
         const up = await UploadsApi.uploadFile(file)
         fileMeta = { fileUrl: up.url, type: fileType || up.type, size: formatSize(file.size) }
       }
-      await ResourcesApi.create({ title, summary, courseId: course, ...fileMeta })
+      
+      // courseId: Number(courseId)
+      await ResourcesApi.create({ 
+          title, 
+          summary, 
+          courseId: Number(courseId), 
+          ...fileMeta 
+      })
+      
       setMsg('发布成功')
       show('发布成功', 'success')
       setTitle(''); setSummary(''); removeFile()
-      // navigate('/student/resources') // 可选：跳转
+      // 不重置 courseId
     } catch {
       setMsg('发布失败'); show('发布失败', 'error')
     } finally {
@@ -256,7 +263,7 @@ export default function ResourceUpload() {
         {/* --- Left Column (33%): Settings & Optional File --- */}
         <div className="lg:col-span-4 space-y-6">
           
-          {/* Course Select */}
+          {/* Course Select 部分 */}
           <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-100">
              <label className="block text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
                <BookOpen size={18} className="text-indigo-500"/> 所属课程
@@ -264,14 +271,14 @@ export default function ResourceUpload() {
              <div className="relative group">
                 <select 
                   className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-xl text-slate-700 appearance-none cursor-pointer transition-all outline-none font-medium pr-10 hover:border-slate-300" 
-                  value={course} 
-                  onChange={e => setCourse(e.target.value)}
+                  value={courseId} 
+                  onChange={e => setCourseId(Number(e.target.value))} // 转换为数字
                 >
-                  {courses.map(c => (<option key={c} value={c}>{c}</option>))}
+                  {courses.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option> // Value 是 ID
+                  ))}
                 </select>
-                <div className="absolute top-4 right-4 text-slate-400 pointer-events-none group-hover:text-slate-600 transition-colors">
-                  <ChevronDown size={16} />
-                </div>
+                {/* ... icons ... */}
              </div>
           </div>
 
@@ -312,7 +319,7 @@ export default function ResourceUpload() {
                  </div>
                  <p className="text-sm font-bold text-slate-700 mb-1 group-hover:text-indigo-600 transition-colors">拖拽或点击上传</p>
                  <p className="text-xs text-slate-400 leading-relaxed px-4">
-                   仅在需要时上传 <br/> 支持文档/音视频/压缩包
+                   仅在需要时上传 <br/> 支持 PDF/Word/ZIP/RAR/7Z 等
                  </p>
                </div>
              ) : (

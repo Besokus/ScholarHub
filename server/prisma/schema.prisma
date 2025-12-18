@@ -50,6 +50,8 @@ model Resource {
   courseId      Int
   course        Course   @relation(fields: [courseId], references: [id])
   viewType      String   @default("PUBLIC")
+  fileSize      String?
+  fileType      String?
   downloadCount Int      @default(0)
   createTime    DateTime @default(now())
 }

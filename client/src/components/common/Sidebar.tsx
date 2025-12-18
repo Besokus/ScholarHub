@@ -123,7 +123,7 @@ export default function Sidebar() {
                 <item.icon size={20} className={`relative z-10 ${isActive ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'}`} />
                 <span className="relative z-10">{item.label}</span>
                 
-                {item.badge > 0 && (
+                {item.badge != null && item.badge > 0 && (
                   <span className="relative z-10 ml-auto bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
                     {item.badge}
                   </span>
