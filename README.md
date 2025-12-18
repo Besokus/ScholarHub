@@ -91,3 +91,37 @@ docker-compose up -d
 # 3. Access the App
 # Frontend: http://localhost:3000
 # Backend API: http://localhost:5000
+### SMTP Email Configuration (SMTP 邮件配置)
+
+To enable password reset and verification emails, configure SMTP in the environment file.
+
+1. Create `.env` in project root or server directory with:
+
+```
+SMTP_HOST=smtp.example.com
+SMTP_PORT=465
+SMTP_USER=your_account@example.com
+SMTP_PASS=your_app_password
+```
+
+2. The backend loads environment via `dotenv`. Ensure `.env` is not committed (server/.gitignore includes `.env`).
+
+3. Mail usage example (server):
+
+```ts
+import { sendMail, buildCodeTemplate } from './src/mail'
+const tpl = buildCodeTemplate('user@example.com', '123456')
+await sendMail({ to: 'user@example.com', subject: tpl.subject, text: tpl.text, html: tpl.html })
+```
+
+4. Test script:
+
+```bash
+cd server
+npx ts-node tests/send_mail_demo.ts
+```
+
+Notes:
+- Uses TLS when `SMTP_PORT=465`.
+- Logs are written to `mail.log` for auditing.
+- Retries are enabled with exponential backoff.
