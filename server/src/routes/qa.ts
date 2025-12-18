@@ -48,14 +48,22 @@ router.get('/questions', async (req, res) => {
     if (my === '1' && userId) where.studentId = userId
     const orderBy = sort === 'hot' ? { downloadCount: 'desc' } as any : { createTime: 'desc' }
     const cacheKey = `qa:list:${JSON.stringify({ courseName, sort, status, my, page, pageSize, userId: my === '1' ? userId : '' })}`
-    const cached = await cacheGet(cacheKey)
-    if (cached) return res.json(JSON.parse(cached))
+    
+    // Skip cache for "my questions" to ensure instant updates
+    if (my !== '1') {
+      const cached = await cacheGet(cacheKey)
+      if (cached) return res.json(JSON.parse(cached))
+    }
+
     const [items, total] = await Promise.all([
       prisma.question.findMany({ where, orderBy, include: { course: true, student: true }, skip: (page - 1) * pageSize, take: pageSize }),
       prisma.question.count({ where })
     ])
     const payload = { items: items.map(toClient), total }
-    await cacheSet(cacheKey, JSON.stringify(payload), 60)
+    
+    if (my !== '1') {
+      await cacheSet(cacheKey, JSON.stringify(payload), 60)
+    }
     res.json(payload)
   } catch (err: any) {
     res.status(500).json({ message: err.message || 'Server error' })
