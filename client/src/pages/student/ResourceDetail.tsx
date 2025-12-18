@@ -85,6 +85,7 @@ export default function ResourceDetail() {
 
   const handleDownload = () => {
     if (!id || !meta.fileUrl) return
+    ResourcesApi.downloadLog(String(id)).catch(() => {})
     const link = document.createElement('a')
     link.href = `${API_ORIGIN}/api/resources/${id}/download`
     link.target = '_blank'
@@ -92,6 +93,7 @@ export default function ResourceDetail() {
     link.click()
     document.body.removeChild(link)
     setCount(prev => prev + 1)
+    try { window.dispatchEvent(new CustomEvent('SH_STATS_UPDATED')) } catch {}
     show('开始下载...', 'success')
   }
 

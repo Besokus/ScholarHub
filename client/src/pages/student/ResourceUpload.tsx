@@ -154,6 +154,7 @@ export default function ResourceUpload() {
       
       setMsg('发布成功')
       show('发布成功', 'success')
+      try { window.dispatchEvent(new CustomEvent('SH_STATS_UPDATED')) } catch {}
       setTitle(''); setSummary(''); removeFile()
       // 不重置 courseId
       // 跳转逻辑：成功后导航至资源列表页，确保先触发成功提示

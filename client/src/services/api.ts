@@ -1,4 +1,4 @@
-export const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3000/api'
+export const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001/api'
 export const API_ORIGIN = new URL(API_BASE).origin
 
 export async function apiFetch(path: string, options?: RequestInit) {
@@ -10,7 +10,20 @@ export async function apiFetch(path: string, options?: RequestInit) {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(uid ? { 'X-User-Id': uid } : {})
   }
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers })
+  const ctrl = new AbortController()
+  const timeout = setTimeout(() => ctrl.abort(), 15000)
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE}${path}`, { ...options, headers, signal: ctrl.signal })
+  } catch (err: any) {
+    clearTimeout(timeout)
+    const isAbort = err && (err.name === 'AbortError' || String(err).includes('aborted'))
+    const e: any = new Error(isAbort ? 'Request timeout' : (err?.message || 'Network error'))
+    e.status = 0
+    e.data = null
+    throw e
+  }
+  clearTimeout(timeout)
   let data: any = null
   try { data = await res.json() } catch {}
   if (!res.ok) {
@@ -29,7 +42,8 @@ export const AuthApi = {
   login: (body: { username: string; password: string }) =>
     apiFetch('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
   me: () => apiFetch('/auth/me'),
-  updateUsername: (username: string) => apiFetch('/auth/username', { method: 'PATCH', body: JSON.stringify({ username }) })
+  updateUsername: (username: string) => apiFetch('/auth/username', { method: 'PATCH', body: JSON.stringify({ username }) }),
+  stats: () => apiFetch('/auth/stats')
 }
  
 export const ResourcesApi = {

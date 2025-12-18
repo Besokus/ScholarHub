@@ -7,7 +7,7 @@ import {
   CheckCircle2, Clock, Inbox, ChevronRight,
   Sun, Moon, CloudSun, Calendar
 } from 'lucide-react'
-import { QaApi, ResourcesApi, NotiApi } from '../../services/api'
+import { QaApi, ResourcesApi, NotiApi, AuthApi } from '../../services/api'
 
 // --- 动画配置 ---
 const containerVariants = {
@@ -157,6 +157,8 @@ export default function Dashboard() {
   const [myQs, setMyQs] = useState<any[]>([])
   const [uploads, setUploads] = useState<any[]>([])
   const [allRes, setAllRes] = useState<any[]>([])
+  const [myUploadsCount, setMyUploadsCount] = useState<number>(0)
+  const [myDownloadsCount, setMyDownloadsCount] = useState<number>(0)
   const [alerts, setAlerts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -178,18 +180,32 @@ export default function Dashboard() {
         const mine = (allResData.items || []).filter((r: any) => r.uploaderId === uid)
         setUploads(mine)
         setAlerts(notiData.items || [])
+        try {
+          const me = await AuthApi.me()
+          const u = me.user || {}
+          setMyUploadsCount(Number(u.uploads || 0))
+          setMyDownloadsCount(Number(u.downloads || 0))
+        } catch {}
       } finally {
         setLoading(false)
       }
     }
     fetchData()
+    const onStats = () => {
+      AuthApi.stats().then((s) => {
+        setMyUploadsCount(Number(s.uploads || 0))
+        setMyDownloadsCount(Number(s.downloads || 0))
+      }).catch(() => {})
+    }
+    window.addEventListener('SH_STATS_UPDATED', onStats)
+    return () => window.removeEventListener('SH_STATS_UPDATED', onStats)
   }, [uid])
 
   // Computed
   const contributions = useMemo(() => ({
-    count: uploads.length,
-    downloads: uploads.reduce((sum: number, r: any) => sum + (r.downloadCount || 0), 0)
-  }), [uploads])
+    count: myUploadsCount,
+    downloads: myDownloadsCount
+  }), [myUploadsCount, myDownloadsCount])
 
   const recommended = useMemo(() => {
     return (allRes || [])
