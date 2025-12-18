@@ -193,6 +193,18 @@ router.patch('/username', requireAuth, async (req, res) => {
   }
 })
 
+// Username unique check
+router.get('/username/check', async (req, res) => {
+  try {
+    const u = String(req.query.u || '').trim()
+    if (!u) return res.json({ exists: false })
+    const found = await prisma.user.findUnique({ where: { username: u } })
+    res.json({ exists: !!found })
+  } catch (err: any) {
+    res.status(500).json({ message: err.message || 'Server error' })
+  }
+})
+
 export default router;
 router.get('/stats', requireAuth, async (req, res) => {
   try {
@@ -280,3 +292,111 @@ async function incrFail(email: string) {
   const n = await incrWithTTL(`pwd:fail:${email}`, RESET_FAIL_LOCK_SEC)
   if (n >= 3) await cacheSet(`pwd:lock:${email}`, '1', RESET_FAIL_LOCK_SEC)
 }
+
+// Email format + MX check
+router.get('/email/check', requireAuth, async (req, res) => {
+  try {
+    const em = String(req.query.email || '').trim()
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!re.test(em)) return res.json({ valid: false, reason: '格式不合法' })
+    try {
+      const domain = em.split('@')[1]
+      const dns = await import('dns')
+      const p: any = (dns as any).promises
+      const mx = await p.resolveMx(domain)
+      return res.json({ valid: !!(mx && mx.length) })
+    } catch {
+      return res.json({ valid: false, reason: 'MX记录不可用' })
+    }
+  } catch (err: any) {
+    res.status(500).json({ message: err?.message || 'Server error' })
+  }
+})
+
+// Update password (self)
+router.post('/password', requireAuth, async (req, res) => {
+  try {
+    const uid = (req as any).userId as string
+    const { newPassword } = (req.body || {}) as { newPassword?: string }
+    const np = String(newPassword || '')
+    if (!np) return res.status(400).json({ message: '新密码需填写' })
+    const strong = (np.length >= 8 && /[A-Za-z]/.test(np) && /[0-9]/.test(np)) || (np.length > 12 && /[A-Z]/.test(np) && /[a-z]/.test(np) && /[0-9]/.test(np) && /[^A-Za-z0-9]/.test(np))
+    if (!strong) return res.status(400).json({ message: '密码需至少8位且包含字母与数字（更强建议含大小写和特殊符号）' })
+    const hashed = await bcrypt.hash(np, 12)
+    await prisma.user.update({ where: { id: uid }, data: { password: hashed } })
+    try { fs.appendFileSync('settings.log', `${new Date().toISOString()} ${JSON.stringify({ op:'password_update', user: uid })}\n`) } catch {}
+    res.json({ message: '密码已更新' })
+  } catch (err: any) {
+    res.status(500).json({ message: err?.message || 'Server error' })
+  }
+})
+
+// Update avatar (self)
+router.post('/avatar', requireAuth, async (req, res) => {
+  try {
+    const uid = (req as any).userId as string
+    const { avatarUrl } = (req.body || {}) as { avatarUrl?: string }
+    const url = String(avatarUrl || '').trim()
+    if (!url) return res.status(400).json({ message: '头像地址需填写' })
+    if (!/^\/uploads\//.test(url)) return res.status(400).json({ message: '非法头像地址' })
+    const user = await prisma.user.findUnique({ where: { id: uid } })
+    if (!user) return res.status(404).json({ message: 'User not found' })
+    await prisma.user.update({ where: { id: uid }, data: { avatar: url } })
+    try { fs.appendFileSync('settings.log', `${new Date().toISOString()} ${JSON.stringify({ op:'avatar_set', user: uid, url })}\n`) } catch {}
+    res.json({ message: '头像已更新', avatar: url })
+  } catch (err: any) {
+    res.status(500).json({ message: err?.message || 'Server error' })
+  }
+})
+
+// Start email change (send code to new email)
+router.post('/email', requireAuth, async (req, res) => {
+  try {
+    const uid = (req as any).userId as string
+    const { email } = (req.body || {}) as { email?: string }
+    const em = String(email || '').trim()
+    if (!em) return res.status(400).json({ message: 'Email required' })
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!re.test(em)) return res.status(400).json({ message: 'Invalid email' })
+    const exists = await prisma.user.findFirst({ where: { email: em } })
+    if (exists) return res.status(400).json({ message: '该邮箱已被使用' })
+    try {
+      const domain = em.split('@')[1]
+      const dns = await import('dns')
+      const p: any = (dns as any).promises
+      const mx = await p.resolveMx(domain)
+      if (!mx || mx.length === 0) return res.status(400).json({ message: '邮箱域名无有效MX记录' })
+    } catch {
+      return res.status(400).json({ message: '邮箱域名验证失败' })
+    }
+    await prisma.user.update({ where: { id: uid }, data: { email: em } })
+    try { fs.appendFileSync('settings.log', `${new Date().toISOString()} ${JSON.stringify({ op:'email_update', user: uid, email: em })}\n`) } catch {}
+    res.json({ message: '邮箱已更新', email: em })
+  } catch (err: any) {
+    res.status(500).json({ message: err?.message || 'Server error' })
+  }
+})
+
+// Confirm email change
+router.post('/email/confirm', requireAuth, async (req, res) => {
+  try {
+    const uid = (req as any).userId as string
+    const { code } = (req.body || {}) as { code?: string }
+    const cd = String(code || '').trim()
+    if (!/^\d{6}$/.test(cd)) return res.status(400).json({ message: '验证码错误或已过期' })
+    const cached = await cacheGet(`emailchg:${uid}`)
+    if (!cached) return res.status(400).json({ message: '验证码错误或已过期' })
+    let parsed: any = null
+    try { parsed = JSON.parse(cached) } catch {}
+    const valid = parsed && parsed.code === cd && (Date.now() - (parsed.ts || 0)) <= 600000
+    if (!valid) return res.status(400).json({ message: '验证码错误或已过期' })
+    const email = String(parsed.email || '').trim()
+    if (!email) return res.status(400).json({ message: '邮箱信息缺失' })
+    await prisma.user.update({ where: { id: uid }, data: { email } })
+    await cacheDel(`emailchg:${uid}`)
+    try { fs.appendFileSync('settings.log', `${new Date().toISOString()} ${JSON.stringify({ op:'email_update', user: uid, email })}\n`) } catch {}
+    res.json({ message: '邮箱已更新', email })
+  } catch (err: any) {
+    res.status(500).json({ message: err?.message || 'Server error' })
+  }
+})

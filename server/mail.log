@@ -1,1 +1,7 @@
 [CODE] 2025-12-18T06:00:02.544Z to=yp636402@126.com code=474665
+[SEND-ERR] 2025-12-18T11:48:48.728Z {"to":"3044196151@qq.com","subject":"ScholarHub 邮箱变更验证码","error":"SMTP config missing"}
+[SEND-ERR] 2025-12-18T11:48:49.732Z {"to":"3044196151@qq.com","subject":"ScholarHub 邮箱变更验证码","error":"SMTP config missing"}
+[SEND-ERR] 2025-12-18T11:48:51.734Z {"to":"3044196151@qq.com","subject":"ScholarHub 邮箱变更验证码","error":"SMTP config missing"}
+[SEND-ERR] 2025-12-18T11:49:59.133Z {"to":"3044196151@fafwf.com","subject":"ScholarHub 邮箱变更验证码","error":"SMTP config missing"}
+[SEND-ERR] 2025-12-18T11:50:00.143Z {"to":"3044196151@fafwf.com","subject":"ScholarHub 邮箱变更验证码","error":"SMTP config missing"}
+[SEND-ERR] 2025-12-18T11:50:02.161Z {"to":"3044196151@fafwf.com","subject":"ScholarHub 邮箱变更验证码","error":"SMTP config missing"}

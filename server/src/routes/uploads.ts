@@ -7,7 +7,10 @@ import fs from 'fs'
 const router = Router()
 
 const uploadDir = path.join(process.cwd(), 'uploads')
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir)
+const profileDir = path.join(uploadDir, 'profile')
+const questionsDir = path.join(uploadDir, 'questions')
+const resourcesDir = path.join(uploadDir, 'resources')
+for (const d of [uploadDir, profileDir, questionsDir, resourcesDir]) { if (!fs.existsSync(d)) fs.mkdirSync(d) }
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadDir),
@@ -30,6 +33,18 @@ const fileFilter: multer.Options['fileFilter'] = (_req, file, cb) => {
 
 const imagesUpload = multer({ storage, fileFilter, limits: { fileSize: 2 * 1024 * 1024 } })
 const filesUpload = multer({ storage, fileFilter, limits: { fileSize: 50 * 1024 * 1024 } })
+const avatarUpload = multer({ storage: multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, profileDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase()
+    const uid = (req as any).userId || 'user'
+    cb(null, `${uid}-${Date.now()}${ext}`)
+  }
+}), fileFilter: (req, file, cb) => {
+  const ok = ['image/jpeg','image/png','image/gif'].includes(file.mimetype)
+  if (!ok) return cb(new Error('Unsupported image type'))
+  cb(null, true)
+}, limits: { fileSize: 5 * 1024 * 1024 } })
 
 router.post('/images', requireAuth, imagesUpload.array('images', 9), (req, res) => {
   const files = (req.files as Express.Multer.File[]) || []
@@ -86,6 +101,18 @@ router.post('/files', requireAuth, filesUpload.single('file'), (req, res) => {
   } catch (err) {
     if (fs.existsSync(f.path)) fs.unlinkSync(f.path)
     res.status(500).json({ message: 'File validation failed' })
+  }
+})
+
+router.post('/avatar', requireAuth, avatarUpload.single('file'), (req, res) => {
+  const f = req.file
+  if (!f) return res.status(400).json({ message: 'No file' })
+  try {
+    const url = `/uploads/profile/${path.basename(f.path)}`
+    fs.appendFileSync('settings.log', `${new Date().toISOString()} ${JSON.stringify({ op:'avatar_upload', user:(req as any).userId, url })}\n`)
+    res.json({ url })
+  } catch (err: any) {
+    res.status(500).json({ message: err?.message || 'Server error' })
   }
 })
 
