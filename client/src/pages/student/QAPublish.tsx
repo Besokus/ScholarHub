@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { 
   Type, BookOpen, Image as ImageIcon, Send, 
@@ -9,7 +9,7 @@ import {
 import RichText from '../../components/editor/RichText'
 import ImageUploader from '../../components/common/ImageUploader'
 import { UploadsApi } from '../../services/uploads'
-import { QaApi } from '../../services/api'
+import { QaApi, API_ORIGIN } from '../../services/api'
 import { CoursesApi } from '../../services/courses'
 import { useToast } from '../../components/common/Toast'
 
@@ -20,10 +20,14 @@ export default function QAPublish() {
   const [course, setCourse] = useState('')
   const [content, setContent] = useState('')
   const [images, setImages] = useState<File[]>([])
+  const [existingUrls, setExistingUrls] = useState<string[]>([])
   const [msg, setMsg] = useState('')
   const [loading, setLoading] = useState(false)
+  const [uploadPct, setUploadPct] = useState(0)
   const navigate = useNavigate()
   const { show } = useToast()
+  const [sp] = useSearchParams()
+  const editId = sp.get('edit')
 
   // --- 逻辑保持不变 ---
   const validate = () => {
@@ -40,19 +44,30 @@ export default function QAPublish() {
     try {
       let uploaded: string[] = []
       if (images.length) {
-        const up = await UploadsApi.uploadImageBatch(images)
+        const up = await UploadsApi.uploadImageBatch(images, (p)=>setUploadPct(p))
         uploaded = (up.urls || []).map((u: any) => u.url)
       }
-      const q = await QaApi.create({ courseId: course, title, contentHTML: content, images: uploaded })
-      localStorage.removeItem('qa_publish_draft')
-      setMsg('发布成功')
-      show('发布成功', 'success')
-      // 跳转逻辑：成功后导航至问答列表页，确保先触发成功提示
-      setTimeout(() => {
+      if (editId) {
+        await QaApi.update(editId, { courseId: course, title, contentHTML: content, images: [...existingUrls, ...uploaded] })
         try {
-          navigate('/student/qa', { replace: true })
+          localStorage.removeItem(`qa_edit_${editId}`)
+          localStorage.removeItem(`qa_edit_draft_${editId}`)
+          localStorage.setItem(`qa_edit_success_${editId}`, '1')
         } catch {}
-      }, 500)
+        setMsg('更新成功')
+        show('更新成功', 'success')
+        setTimeout(() => {
+          try { navigate(`/student/qa/${editId}`, { replace: true }) } catch {}
+        }, 400)
+      } else {
+        const q = await QaApi.create({ courseId: course, title, contentHTML: content, images: uploaded })
+        localStorage.removeItem('qa_publish_draft')
+        setMsg('发布成功')
+        show('发布成功', 'success')
+        setTimeout(() => {
+          try { navigate('/student/qa', { replace: true }) } catch {}
+        }, 500)
+      }
     } catch {
       setMsg('发布失败，请重试')
       show('发布失败，请重试', 'error')
@@ -68,6 +83,23 @@ export default function QAPublish() {
     }).catch(() => {})
   }, [])
 
+  useEffect(() => {
+    if (!editId) return
+    try {
+      const raw = localStorage.getItem(`qa_edit_${editId}`)
+      if (raw) {
+        const data = JSON.parse(raw || '{}')
+        if (data.title) setTitle(data.title)
+        if (data.content) setContent(data.content)
+        if (Array.isArray(data.images)) {
+          const abs = data.images.map((src: string) => (/^https?:\/\//.test(src) ? src : `${API_ORIGIN}${src}`))
+          setExistingUrls(abs)
+        }
+        if (data.courseId) setCourse(data.courseId)
+      }
+    } catch {}
+  }, [editId])
+
   // --- 动画配置 ---
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -82,24 +114,24 @@ export default function QAPublish() {
       className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-screen"
     >
       {/* --- Header --- */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
-        <div>
-          <div className="flex items-center gap-2 text-sm text-slate-500 font-medium mb-2">
-            <span className="flex items-center gap-1"><Layers size={14}/> 问答社区</span>
-            <ChevronRight size={14} className="opacity-50"/>
-            <span className="text-indigo-600">发布问题</span>
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+            <div>
+              <div className="flex items-center gap-2 text-sm text-slate-500 font-medium mb-2">
+                <span className="flex items-center gap-1"><Layers size={14}/> 问答社区</span>
+                <ChevronRight size={14} className="opacity-50"/>
+                <span className="text-indigo-600">{editId ? '编辑问题' : '发布问题'}</span>
+              </div>
+              <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
+                {editId ? '编辑' : '提问'}
+                <span className="p-2 bg-indigo-50 rounded-xl text-indigo-600">
+                  <PenLine size={24} strokeWidth={2.5}/>
+                </span>
+              </h1>
+              <p className="mt-2 text-slate-500 max-w-xl">
+                准确描述你的问题，更容易获得同学和老师的解答。
+              </p>
+            </div>
           </div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
-            提问
-            <span className="p-2 bg-indigo-50 rounded-xl text-indigo-600">
-              <PenLine size={24} strokeWidth={2.5}/>
-            </span>
-          </h1>
-          <p className="mt-2 text-slate-500 max-w-xl">
-            准确描述你的问题，更容易获得同学和老师的解答。
-          </p>
-        </div>
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         
@@ -151,7 +183,7 @@ export default function QAPublish() {
                     value={content} 
                     onChange={setContent} 
                     maxLength={2000} 
-                    storageKey="qa_publish_draft" 
+                    storageKey={editId ? `qa_edit_draft_${editId}` : 'qa_publish_draft'} 
                   />
                </div>
                <div className="flex justify-end mt-1.5">
@@ -168,7 +200,7 @@ export default function QAPublish() {
                  补充图片 <span className="text-xs font-normal text-slate-400">(可选，最多9张)</span>
                </label>
                <div className="p-4 bg-slate-50/50 border border-dashed border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
-                  <ImageUploader images={images} onChange={setImages} maxCount={9} />
+                  <ImageUploader images={images} onChange={setImages} maxCount={9} initialUrls={existingUrls} onInitialUrlsChange={setExistingUrls} />
                </div>
             </div>
 
@@ -181,14 +213,17 @@ export default function QAPublish() {
                    </span>
                  )}
                </div>
-               <button 
-                 onClick={submit} 
-                 disabled={loading} 
-                 className="flex items-center gap-2 px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:shadow-indigo-300 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed transition-all"
-               >
-                 {loading ? <Loader2 size={18} className="animate-spin"/> : <Send size={18} />}
-                 {loading ? '发布中...' : '立即发布'}
-               </button>
+              <button 
+                onClick={submit} 
+                disabled={loading} 
+                className="flex items-center gap-2 px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:shadow-indigo-300 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed transition-all"
+              >
+                {loading ? <Loader2 size={18} className="animate-spin"/> : <Send size={18} />}
+                {loading ? (editId ? '保存中...' : '发布中...') : (editId ? '保存修改' : '立即发布')}
+              </button>
+              {loading && images.length > 0 && (
+                <span className="ml-3 text-xs text-slate-400">上传进度 {uploadPct}%</span>
+              )}
             </div>
 
           </div>

@@ -87,7 +87,9 @@ export const QaApi = {
     return apiFetch(`/qa/questions?${q.toString()}`)
   },
   create: (body: any) => apiFetch('/qa/questions', { method: 'POST', body: JSON.stringify(body) }),
-  detail: (id: string) => apiFetch(`/qa/questions/${id}`)
+  detail: (id: string | number) => apiFetch(`/qa/questions/${id}`),
+  update: (id: string | number, body: any) => apiFetch(`/qa/questions/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  remove: (id: string | number) => apiFetch(`/qa/questions/${id}`, { method: 'DELETE' })
 }
 
 export const AnswersApi = {

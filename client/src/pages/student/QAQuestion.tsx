@@ -42,6 +42,11 @@ export default function QAQuestion() {
   const [content, setContent] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [updatingStatus, setUpdatingStatus] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
+  const [editTitle, setEditTitle] = useState('')
+  const [editContent, setEditContent] = useState('')
+  const [removing, setRemoving] = useState(false)
   
   // Preview State (New Feature)
   const [preview, setPreview] = useState<{ url: string, type: 'image' | 'pdf' } | null>(null)
@@ -59,6 +64,8 @@ export default function QAQuestion() {
           AnswersApi.listByQuestion(questionId)
         ])
         setQ(qData)
+        setEditTitle(qData.title || '')
+        setEditContent(qData.content || '')
         setAnswers(ansData.items || [])
       } catch (err) {
         console.error(err)
@@ -68,6 +75,77 @@ export default function QAQuestion() {
     }
     fetchData()
   }, [questionId])
+
+  useEffect(() => {
+    if (!questionId) return
+    try {
+      const key = `qa_edit_success_${questionId}`
+      if (typeof window !== 'undefined' && localStorage.getItem(key)) {
+        localStorage.removeItem(key)
+        show('更新成功', 'success')
+      }
+    } catch {}
+  }, [questionId])
+
+  const meId = typeof window !== 'undefined' ? localStorage.getItem('id') : null
+  const isOwner = meId && q?.createdById && String(meId) === String(q.createdById)
+  const askerAvatarAbs = q?.askerAvatar ? (/^https?:\/\//.test(q.askerAvatar) ? q.askerAvatar : `${API_ORIGIN}${q.askerAvatar.startsWith('/') ? q.askerAvatar : '/' + q.askerAvatar}`) : ''
+
+  const updateStatus = async (next: 'open' | 'solved') => {
+    if (!questionId) return
+    setUpdatingStatus(true)
+    try {
+      const updated = await QaApi.update(questionId, { status: next })
+      setQ(updated)
+    } catch (e: any) {
+      alert(e?.message || '状态更新失败')
+    } finally {
+      setUpdatingStatus(false)
+    }
+  }
+
+  const startEdit = () => {
+    if (!q) return
+    try {
+      const payload = {
+        id: q.id,
+        title: q.title || '',
+        content: q.contentHTML || q.content || '',
+        images: Array.isArray(q.images) ? q.images : [],
+        courseId: q.courseId || ''
+      }
+      localStorage.setItem(`qa_edit_${q.id}`, JSON.stringify(payload))
+    } catch {}
+    navigate(`/student/qa/publish?edit=${q.id}`)
+  }
+
+  const doEdit = async () => {
+    if (!questionId) return
+    setSubmitting(true)
+    try {
+      const updated = await QaApi.update(questionId, { title: editTitle, content: editContent })
+      setQ(updated)
+      setShowEdit(false)
+    } catch (e: any) {
+      alert(e?.message || '更新失败')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const doRemove = async () => {
+    if (!questionId) return
+    if (!confirm('确定要删除该问题吗？此操作不可恢复')) return
+    setRemoving(true)
+    try {
+      await QaApi.remove(questionId)
+      navigate('/student/qa')
+    } catch (e: any) {
+      alert(e?.message || '删除失败')
+    } finally {
+      setRemoving(false)
+    }
+  }
 
   // Submit Handler
   const submit = async () => {
@@ -145,16 +223,26 @@ export default function QAQuestion() {
           <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 leading-tight">
             {q.title}
           </h1>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-3 shrink-0">
              <button onClick={handleShare} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors"><Share2 size={20} /></button>
-             <button className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors"><MoreHorizontal size={20} /></button>
+             {isOwner && (
+               <>
+                 <button onClick={startEdit} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-md hover:shadow-lg active:scale-95 transition">编辑</button>
+                 <button onClick={doRemove} disabled={removing} className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition disabled:opacity-50">{removing ? '删除中...' : '删除'}</button>
+               </>
+             )}
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 pb-6 border-b border-slate-200">
           <StatusBadge status={q.status} />
           <span className="flex items-center gap-1.5">
-            <User size={14} /> {q.askerName || '匿名同学'}
+            {askerAvatarAbs ? (
+              <img src={askerAvatarAbs} alt="头像" className="w-5 h-5 rounded-full object-cover" />
+            ) : (
+              <User size={14} />
+            )}
+            {q.askerName || '匿名同学'}
           </span>
           <span className="flex items-center gap-1.5">
             <Clock size={14} /> {new Date(q.createTime || Date.now()).toLocaleString()}
@@ -296,10 +384,23 @@ export default function QAQuestion() {
                  <span className="text-xs text-slate-500">问题 ID</span>
                  <span className="text-sm font-mono font-bold text-slate-700">#{questionId?.slice(0,8)}</span>
                </div>
-               <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
-                 <span className="text-xs text-slate-500">当前状态</span>
-                 <StatusBadge status={q.status} />
-               </div>
+              <div className="p-3 bg-slate-50 rounded-xl">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-slate-500">当前状态</span>
+                  <StatusBadge status={q.status} />
+                </div>
+                {isOwner && (
+                  <div className="flex items-center gap-4 text-sm">
+                    <label className="inline-flex items-center gap-2">
+                      <input type="radio" name="qstatus" checked={q.status==='open'} onChange={()=>updateStatus('open')} /> 待解决
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input type="radio" name="qstatus" checked={q.status==='solved'} onChange={()=>updateStatus('solved')} /> 已解决
+                    </label>
+                    {updatingStatus && <span className="text-xs text-slate-400">更新中...</span>}
+                  </div>
+                )}
+              </div>
                <div className="mt-4 p-4 bg-amber-50 border border-amber-100 rounded-xl flex gap-3">
                  <ShieldAlert className="text-amber-500 shrink-0" size={20} />
                  <div className="text-xs text-amber-800 leading-relaxed">
@@ -355,6 +456,25 @@ export default function QAQuestion() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {showEdit && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={()=>setShowEdit(false)}>
+            <motion.div initial={{ scale: 0.98 }} animate={{ scale: 1 }} exit={{ scale: 0.98 }} className="bg-white rounded-2xl w-full max-w-lg p-6" onClick={e=>e.stopPropagation()}>
+              <h4 className="font-bold text-slate-800 mb-4">编辑问题</h4>
+              <div className="space-y-3">
+                <input value={editTitle} onChange={e=>setEditTitle(e.target.value)} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" placeholder="标题" />
+                <textarea value={editContent} onChange={e=>setEditContent(e.target.value)} rows={6} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" placeholder="内容" />
+              </div>
+              <div className="mt-4 flex justify-end gap-2">
+                <button onClick={()=>setShowEdit(false)} className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm">取消</button>
+                <button onClick={doEdit} disabled={submitting} className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm">{submitting ? '保存中...' : '保存'}</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
 
     </div>
   )

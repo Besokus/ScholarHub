@@ -6,7 +6,7 @@ import {
   FileText, Calendar, ChevronDown, ChevronUp, ArrowRight,
   User, ChevronRight as ChevronRightIcon, Sparkles, CreditCard, Layout
 } from 'lucide-react'
-import { ResourcesApi, AuthApi, API_ORIGIN } from '../../services/api'
+import { ResourcesApi, AuthApi, API_ORIGIN, QaApi } from '../../services/api'
 import { useNavigate } from 'react-router-dom'
 import { UploadsApi } from '../../services/uploads'
 import { useToast } from '../../components/common/Toast'
@@ -142,6 +142,14 @@ export default function Profile() {
     if (/^https?:\/\//.test(avatar)) return avatar
     return `${API_ORIGIN}${avatar.startsWith('/') ? avatar : '/' + avatar}`
   }, [avatar])
+  const [qMy, setQMy] = useState('')
+  const [qMyDebounce, setQMyDebounce] = useState('')
+  const [qPage, setQPage] = useState(1)
+  const [qPageSize, setQPageSize] = useState(5)
+  const [myQuestions, setMyQuestions] = useState<any[]>([])
+  const [qTotal, setQTotal] = useState(0)
+  const [qLoading, setQLoading] = useState(false)
+  const [myIssues, setMyIssues] = useState<any[]>([])
 
   useEffect(() => {
     AuthApi.me().then(d => { 
@@ -157,6 +165,30 @@ export default function Profile() {
     ResourcesApi.myUploads().then(res => setMyUploads(res.items || [])).catch(() => {})
     ResourcesApi.myDownloads().then(d => setMyDownloads(d.items || [])).catch(() => {})
   }, [id])
+
+  useEffect(() => {
+    const t = setTimeout(() => setQMyDebounce(qMy.trim()), 300)
+    return () => clearTimeout(t)
+  }, [qMy])
+
+  useEffect(() => {
+    setQLoading(true)
+    QaApi.list({ my: true, page: qPage, pageSize: qPageSize, sort: qMyDebounce ? 'relevance' : 'time_desc' }).then((res: any) => {
+      const items = Array.isArray(res?.items) ? res.items : (Array.isArray(res) ? res : [])
+      setMyQuestions(items)
+      setQTotal(Number(res?.total || items.length))
+    }).catch(() => {
+      setMyQuestions([])
+      setQTotal(0)
+    }).finally(() => setQLoading(false))
+  }, [qMyDebounce, qPage, qPageSize])
+
+  useEffect(() => {
+    QaApi.list({ my: true, status: 'open', page: 1, pageSize: 10 }).then((res: any) => {
+      const items = Array.isArray(res?.items) ? res.items : (Array.isArray(res) ? res : [])
+      setMyIssues(items)
+    }).catch(() => setMyIssues([]))
+  }, [])
 
   const handleUpdateName = async () => {
     if (!newName.trim() || newName === username) return setIsEditing(false)
@@ -327,65 +359,109 @@ export default function Profile() {
           </motion.div>
         </div>
 
-        {/* --- Right Column: Activity Data (8 cols) --- */}
-        <div className="lg:col-span-8 space-y-6">
-          
-          {/* 1. My Uploads Module */}
-          <motion.div variants={itemVariants}>
-            <CollapsibleListCard 
-              title="我的上传"
-              icon={Upload}
-              iconColorClass="text-blue-500"
-              items={myUploads}
-              emptyText="暂无上传记录，快去分享你的第一份资料吧！"
-              renderItem={(item: any) => (
-                <div className="flex items-center p-3 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all cursor-pointer">
-                  <div className="bg-blue-50 text-blue-600 p-2.5 rounded-xl mr-4 shrink-0 border border-blue-100">
-                    <FileText size={18} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start">
-                      <h4 className="font-bold text-slate-800 truncate pr-2 text-sm">{item.title}</h4>
-                      <span className="text-xs text-slate-400 shrink-0 whitespace-nowrap bg-slate-50 px-1.5 py-0.5 rounded">{item.time ? new Date(item.time).toLocaleDateString() : '刚刚'}</span>
-                    </div>
-                    <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-500">
-                      <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600 font-medium">{item.courseId}</span>
-                      {item.downloads !== undefined && <span className="flex items-center gap-1"><Download size={10}/> {item.downloads}</span>}
-                    </div>
-                  </div>
-                  <div className="ml-2 text-slate-300">
-                    <ArrowRight size={16} />
-                  </div>
-                </div>
+        <div className="lg:col-span-8">
+          <div className="grid grid-cols-1 gap-4">
+            <motion.div variants={itemVariants} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <FileText size={20} className="text-indigo-500"/> 我的提问
+                </h3>
+                <input value={qMy} onChange={e=>{ setQMy(e.target.value); setQPage(1) }} placeholder="搜索我的提问" className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"/>
+              </div>
+              {qLoading ? (
+                <div className="flex items-center justify-center py-10"><div className="w-6 h-6 border-2 border-slate-300 border-t-indigo-600 rounded-full animate-spin"/></div>
+              ) : myQuestions.length > 0 ? (
+                <ul className="space-y-2">
+                  {myQuestions.map((q:any, idx:number) => (
+                    <li
+                      key={q.id || idx}
+                      className="p-3 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all cursor-pointer"
+                      onClick={() => navigate(`/student/qa/${q.id || q.questionId}`)}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center min-w-0">
+                          <h4 className="font-bold text-slate-800 truncate pr-1 text-sm">{q.title || q.content || '未命名问题'}</h4>
+                          <span
+                            className={`ml-1 rounded-full ${q?.is_resolved ? 'bg-[#4CAF50]' : 'bg-[#FFC107]'} md:w-2 md:h-2 w-[6px] h-[6px]`}
+                            title={q?.is_resolved ? '已解决' : '未解决'}
+                          />
+                        </div>
+                        <span className="text-xs text-slate-400 shrink-0 whitespace-nowrap bg-slate-50 px-1.5 py-0.5 rounded">{q.time ? new Date(q.time).toLocaleDateString() : ''}</span>
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1.5">{q.courseId || ''}</div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="text-sm text-slate-500">暂无提问记录</div>
               )}
-            />
-          </motion.div>
+              <div className="mt-4 flex items-center justify-between">
+                <div className="text-xs text-slate-400">共 {qTotal} 条</div>
+                <div className="flex items-center gap-2">
+                  <button disabled={qPage<=1} onClick={()=>setQPage(p=>Math.max(1,p-1))} className="px-2 py-1 text-sm rounded bg-white border border-slate-200 disabled:opacity-50">上一页</button>
+                  <span className="text-sm text-slate-600">{qPage}</span>
+                  <button disabled={(qPage*qPageSize)>=qTotal} onClick={()=>setQPage(p=>p+1)} className="px-2 py-1 text-sm rounded bg-white border border-slate-200 disabled:opacity-50">下一页</button>
+                </div>
+              </div>
+            </motion.div>
 
-          {/* 2. Download History Module */}
-          <motion.div variants={itemVariants}>
-            <CollapsibleListCard 
-              title="下载历史"
-              icon={Download}
-              iconColorClass="text-green-500"
-              items={myDownloads}
-              emptyText="最近没有下载任何内容"
-              renderItem={(item: any) => (
-                <div className="flex items-center p-3 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors rounded-lg group/item">
-                   <div className="mr-3 text-slate-400 bg-slate-100 p-2 rounded-full shrink-0 group-hover/item:text-green-600 group-hover/item:bg-green-50 transition-colors">
-                      <Calendar size={16} />
-                   </div>
-                   <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-                     <span className="text-sm font-medium text-slate-700 truncate" title={item.resourceId}>
-                        资源ID: <span className="font-mono text-slate-500">{item.resourceId}</span>
-                     </span>
-                     <span className="text-xs text-slate-400 flex items-center gap-1 shrink-0">
-                        {new Date(item.time).toLocaleString()}
-                     </span>
-                   </div>
-                </div>
+            <div className="md:col-span-1 space-y-6">
+              {false && (
+              <motion.div variants={itemVariants}>
+                <CollapsibleListCard 
+                  title="我的疑问"
+                  icon={Calendar}
+                  iconColorClass="text-rose-500"
+                  items={myIssues}
+                  emptyText="暂时没有未解决的问题"
+                  renderItem={(item: any) => (
+                    <div className="flex items-center p-3 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all">
+                      <div className="mr-3 text-slate-400 bg-slate-100 p-2 rounded-full shrink-0">
+                        <Calendar size={16} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start">
+                          <h4 className="font-bold text-slate-800 truncate pr-2 text-sm">{item.title || '未命名问题'}</h4>
+                          <span className="text-xs text-slate-400 shrink-0 whitespace-nowrap bg-slate-50 px-1.5 py-0.5 rounded">{item.time ? new Date(item.time).toLocaleDateString() : ''}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                />
+              </motion.div>
               )}
-            />
-          </motion.div>
+
+              <motion.div variants={itemVariants}>
+                <CollapsibleListCard 
+                  title="我的上传"
+                  icon={Upload}
+                  iconColorClass="text-blue-500"
+                  items={myUploads}
+                  emptyText="暂无上传记录，快去分享你的第一份资料吧！"
+                  renderItem={(item: any) => (
+                    <div className="flex items-center p-3 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all cursor-pointer">
+                      <div className="bg-blue-50 text-blue-600 p-2.5 rounded-xl mr-4 shrink-0 border border-blue-100">
+                        <FileText size={18} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start">
+                          <h4 className="font-bold text-slate-800 truncate pr-2 text-sm">{item.title}</h4>
+                          <span className="text-xs text-slate-400 shrink-0 whitespace-nowrap bg-slate-50 px-1.5 py-0.5 rounded">{item.time ? new Date(item.time).toLocaleDateString() : '刚刚'}</span>
+                        </div>
+                        <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-500">
+                          <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600 font-medium">{item.courseId}</span>
+                          {item.downloads !== undefined && <span className="flex items中心 gap-1"><Download size={10}/> {item.downloads}</span>}
+                        </div>
+                      </div>
+                      <div className="ml-2 text-slate-300">
+                        <ArrowRight size={16} />
+                      </div>
+                    </div>
+                  )}
+                />
+              </motion.div>
+            </div>
+          </div>
 
           {showSettings && (
             <motion.div variants={itemVariants} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">

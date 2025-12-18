@@ -6,11 +6,14 @@ interface ImageUploaderProps {
   images: File[]
   onChange: (files: File[]) => void
   maxCount?: number
+  initialUrls?: string[]
+  onInitialUrlsChange?: (urls: string[]) => void
 }
 
-export default function ImageUploader({ images, onChange, maxCount = 9 }: ImageUploaderProps) {
+export default function ImageUploader({ images, onChange, maxCount = 9, initialUrls = [], onInitialUrlsChange }: ImageUploaderProps) {
   const [previews, setPreviews] = useState<string[]>([])
   const [viewIndex, setViewIndex] = useState<number | null>(null)
+  const [viewSource, setViewSource] = useState<'initial' | 'new' | null>(null)
   const [scale, setScale] = useState(1)
   const [rotate, setRotate] = useState(0)
 
@@ -23,8 +26,10 @@ export default function ImageUploader({ images, onChange, maxCount = 9 }: ImageU
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     if (!files.length) return
-    
-    const newImages = [...images, ...files].slice(0, maxCount)
+    const existingCount = (initialUrls?.length || 0) + images.length
+    const allow = Math.max(0, maxCount - existingCount)
+    const append = files.slice(0, allow)
+    const newImages = [...images, ...append]
     onChange(newImages)
     e.target.value = ''
   }
@@ -47,7 +52,14 @@ export default function ImageUploader({ images, onChange, maxCount = 9 }: ImageU
     onChange(newImages)
   }
 
-  const openPreview = (index: number) => {
+  const openPreviewInitial = (index: number) => {
+    setViewSource('initial')
+    setViewIndex(index)
+    setScale(1)
+    setRotate(0)
+  }
+  const openPreviewNew = (index: number) => {
+    setViewSource('new')
     setViewIndex(index)
     setScale(1)
     setRotate(0)
@@ -60,13 +72,37 @@ export default function ImageUploader({ images, onChange, maxCount = 9 }: ImageU
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-4">
+        {initialUrls.map((url, index) => (
+          <div key={`init-${index}-${url}`} className="relative group w-28 h-28 border rounded-lg overflow-hidden bg-gray-100 shadow-sm">
+            <img 
+              src={url} 
+              alt={`existing ${index}`} 
+              className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition"
+              onClick={() => openPreviewInitial(index)}
+            />
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex flex-col justify-between p-1">
+              <div className="flex justify-end">
+                {onInitialUrlsChange && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onInitialUrlsChange(initialUrls.filter((_, i) => i !== index)) }}
+                    className="p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition"
+                    title="删除"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
         {previews.map((url, index) => (
           <div key={url} className="relative group w-28 h-28 border rounded-lg overflow-hidden bg-gray-100 shadow-sm">
             <img 
               src={url} 
               alt={`preview ${index}`} 
               className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition"
-              onClick={() => openPreview(index)}
+              onClick={() => openPreviewNew(index)}
             />
             
             {/* Overlay Actions */}
@@ -109,7 +145,7 @@ export default function ImageUploader({ images, onChange, maxCount = 9 }: ImageU
           </div>
         ))}
 
-        {images.length < maxCount && (
+        {(images.length + (initialUrls?.length || 0)) < maxCount && (
           <div className="relative w-28 h-28 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-400 hover:border-indigo-500 hover:text-indigo-500 hover:bg-indigo-50 transition cursor-pointer group">
             <input 
               type="file" 
@@ -120,13 +156,13 @@ export default function ImageUploader({ images, onChange, maxCount = 9 }: ImageU
             />
             <ImageIcon size={24} className="group-hover:scale-110 transition" />
             <span className="text-xs mt-2 font-medium">上传图片</span>
-            <span className="text-[10px] text-gray-300 mt-0.5">{images.length}/{maxCount}</span>
+            <span className="text-[10px] text-gray-300 mt-0.5">{images.length + (initialUrls?.length || 0)}/{maxCount}</span>
           </div>
         )}
       </div>
 
       <AnimatePresence>
-        {viewIndex !== null && (
+        {viewIndex !== null && viewSource !== null && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -136,8 +172,17 @@ export default function ImageUploader({ images, onChange, maxCount = 9 }: ImageU
           >
             <div className="absolute top-0 left-0 w-full p-4 flex justify-between items-center z-10" onClick={e => e.stopPropagation()}>
                <div className="text-white/80 text-sm font-mono">
-                 {images[viewIndex]?.name} ({Math.round(images[viewIndex]?.size / 1024)} KB)
-                 <span className="ml-2 px-2 py-0.5 bg-white/10 rounded-full">{viewIndex + 1} / {images.length}</span>
+                 {viewSource === 'new' ? (
+                   <>
+                     {images[viewIndex]?.name} ({Math.round((images[viewIndex]?.size || 0) / 1024)} KB)
+                     <span className="ml-2 px-2 py-0.5 bg-white/10 rounded-full">{viewIndex + 1} / {images.length}</span>
+                   </>
+                 ) : (
+                   <>
+                     已上传图片
+                     <span className="ml-2 px-2 py-0.5 bg-white/10 rounded-full">{viewIndex + 1} / {initialUrls.length}</span>
+                   </>
+                 )}
                </div>
                
                <div className="flex items-center gap-4">
@@ -165,7 +210,15 @@ export default function ImageUploader({ images, onChange, maxCount = 9 }: ImageU
                        <ArrowLeft size={40} className="text-white/30 group-hover:text-white transition" />
                    </div>
                )}
-               {viewIndex < images.length - 1 && (
+               {viewSource === 'new' && viewIndex < images.length - 1 && (
+                   <div 
+                        className="absolute right-0 top-0 bottom-0 w-24 flex items-center justify-center hover:bg-white/5 cursor-pointer transition group z-10"
+                        onClick={(e) => { e.stopPropagation(); setViewIndex(viewIndex + 1); setRotate(0); setScale(1); }}
+                   >
+                       <ArrowRight size={40} className="text-white/30 group-hover:text-white transition" />
+                   </div>
+               )}
+               {viewSource === 'initial' && viewIndex < initialUrls.length - 1 && (
                    <div 
                         className="absolute right-0 top-0 bottom-0 w-24 flex items-center justify-center hover:bg-white/5 cursor-pointer transition group z-10"
                         onClick={(e) => { e.stopPropagation(); setViewIndex(viewIndex + 1); setRotate(0); setScale(1); }}
@@ -182,7 +235,7 @@ export default function ImageUploader({ images, onChange, maxCount = 9 }: ImageU
                  dragConstraints={{ left: -500, right: 500, top: -500, bottom: 500 }}
                >
                  <img
-                    src={previews[viewIndex]}
+                    src={viewSource === 'initial' ? initialUrls[viewIndex] : previews[viewIndex]}
                     alt="preview"
                     className="max-w-[90vw] max-h-[85vh] object-contain shadow-2xl rounded-lg"
                     draggable={false}
