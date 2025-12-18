@@ -6,7 +6,10 @@ import {
   FileText, Calendar, ChevronDown, ChevronUp, ArrowRight,
   User, ChevronRight as ChevronRightIcon, Sparkles, CreditCard, Layout
 } from 'lucide-react'
-import { ResourcesApi, AuthApi } from '../../services/api'
+import { ResourcesApi, AuthApi, API_ORIGIN } from '../../services/api'
+import { useNavigate } from 'react-router-dom'
+import { UploadsApi } from '../../services/uploads'
+import { useToast } from '../../components/common/Toast'
 
 // --- 工具组件：Toggle 开关 (保持不变) ---
 const ToggleSwitch = ({ checked, onChange, label, icon: Icon }: any) => (
@@ -105,6 +108,8 @@ const CollapsibleListCard = ({
 }
 
 export default function Profile() {
+  const { show } = useToast()
+  const navigate = useNavigate()
   const id = localStorage.getItem('id') || '2023123456'
   const role = localStorage.getItem('role') || 'STUDENT'
   
@@ -121,6 +126,22 @@ export default function Profile() {
   
   const [myUploads, setMyUploads] = useState<any[]>([])
   const [myDownloads, setMyDownloads] = useState<any[]>([])
+  const [showSettings, setShowSettings] = useState(false)
+  const [pwdCur, setPwdCur] = useState('')
+  const [pwdNew, setPwdNew] = useState('')
+  const [pwdNew2, setPwdNew2] = useState('')
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  const [emailNew, setEmailNew] = useState('')
+  const [emailCode, setEmailCode] = useState('')
+  const [avatar, setAvatar] = useState('')
+  const [avatarLoading, setAvatarLoading] = useState(false)
+  const [avatarError, setAvatarError] = useState(false)
+  const avatarSrc = React.useMemo(() => {
+    if (!avatar) return ''
+    if (/^https?:\/\//.test(avatar)) return avatar
+    return `${API_ORIGIN}${avatar.startsWith('/') ? avatar : '/' + avatar}`
+  }, [avatar])
 
   useEffect(() => {
     AuthApi.me().then(d => { 
@@ -128,6 +149,9 @@ export default function Profile() {
       setUsername(u)
       setFullName(d.user?.fullName || '')
       setNewName(u)
+      setAvatar(d.user?.avatar || '')
+      setAvatarLoading(!!(d.user?.avatar))
+      setAvatarError(false)
     }).catch(() => {})
 
     ResourcesApi.myUploads().then(res => setMyUploads(res.items || [])).catch(() => {})
@@ -187,21 +211,22 @@ export default function Profile() {
           </div>
 
           {/* 2. 标题与身份标签 */}
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mt-2">
-            <div>
-              <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
-                个人中心
-                {/* 身份徽章 */}
-                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${role === 'TEACHER' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
-                  {role === 'TEACHER' ? <CreditCard size={12}/> : <Sparkles size={12}/>}
-                  {role === 'TEACHER' ? '教师账户' : '学生账户'}
-                </span>
-              </h1>
-              <p className="mt-2 text-slate-500 max-w-2xl text-base">
-                管理您的个人资料、安全设置以及查看您在 ScholarHub 的活动历史。
-              </p>
-            </div>
-          </div>
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mt-2">
+        <div>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
+            个人中心
+            {/* 身份徽章 */}
+            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${role === 'TEACHER' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+              {role === 'TEACHER' ? <CreditCard size={12}/> : <Sparkles size={12}/>}
+              {role === 'TEACHER' ? '教师账户' : '学生账户'}
+            </span>
+          </h1>
+          <p className="mt-2 text-slate-500 max-w-2xl text-base">
+            管理您的个人资料、安全设置以及查看您在 ScholarHub 的活动历史。
+          </p>
+        </div>
+        
+      </div>
         </div>
       </div>
 
@@ -215,13 +240,39 @@ export default function Profile() {
              <div className="h-28 bg-gradient-to-r from-indigo-600 to-violet-600 relative overflow-hidden">
                 {/* 增加背景纹理 */}
                 <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+                <button
+                  aria-label="打开设置"
+                  onClick={() => navigate('/student/profile/settings')}
+                  className="absolute top-3 right-3 px-3 py-2 rounded-lg bg-white/90 backdrop-blur-md border border-white/40 shadow-sm text-slate-700 hover:bg-white hover:text-indigo-200 transition-all flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <Settings size={16} /> 设置
+                </button>
              </div>
              <div className="px-6 pb-6">
                 <div className="relative -mt-12 mb-4 flex justify-between items-end">
-                  <div className="w-24 h-24 rounded-2xl border-4 border-white bg-white shadow-lg flex items-center justify-center overflow-hidden transform group-hover:scale-105 transition-transform duration-300">
-                    <div className="w-full h-full bg-gradient-to-br from-indigo-50 to-slate-100 flex items-center justify-center text-4xl font-black text-indigo-600">
-                      {(fullName || username || 'U')[0].toUpperCase()}
-                    </div>
+                  <div className="rounded-full border border-slate-200 bg-white shadow-lg overflow-hidden transform group-hover:scale-105 transition-transform duration-300 relative" style={{ width: '120px', height: '120px' }}>
+                    {avatarSrc && !avatarError ? (
+                      <>
+                        {avatarLoading && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="w-6 h-6 border-2 border-slate-300 border-t-indigo-600 rounded-full animate-spin" />
+                          </div>
+                        )}
+                        <img
+                          src={avatarSrc}
+                          alt="头像"
+                          loading="lazy"
+                          decoding="async"
+                          onLoad={() => setAvatarLoading(false)}
+                          onError={() => { console.error('Avatar load error', avatarSrc); setAvatarError(true); setAvatarLoading(false) }}
+                          className="w-full h-full object-cover"
+                        />
+                      </>
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-indigo-50 to-slate-100 flex items-center justify-center text-4xl font-black text-indigo-600 select-none">
+                        {(fullName || username || 'U')[0].toUpperCase()}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -335,6 +386,77 @@ export default function Profile() {
               )}
             />
           </motion.div>
+
+          {showSettings && (
+            <motion.div variants={itemVariants} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <Settings size={20} className="text-indigo-500"/> 账户设置
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* 密码修改 */}
+                <div className="border border-slate-100 rounded-xl p-4">
+                  <h4 className="text-sm font-bold text-slate-700 mb-3">密码修改</h4>
+                  <div className="space-y-2">
+                    <input value={pwdCur} onChange={e=>setPwdCur(e.target.value)} type="password" placeholder="当前密码" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"/>
+                    <input value={pwdNew} onChange={e=>setPwdNew(e.target.value)} type="password" placeholder="新密码（至少8位，含大小写与数字）" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"/>
+                    <input value={pwdNew2} onChange={e=>setPwdNew2(e.target.value)} type="password" placeholder="确认新密码" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"/>
+                    <button onClick={async()=>{
+                      const strong = pwdNew.length>=8 && /[A-Z]/.test(pwdNew) && /[a-z]/.test(pwdNew) && /[0-9]/.test(pwdNew)
+                      if (!strong) { show('密码强度不足','error'); return }
+                      if (pwdNew !== pwdNew2) { show('两次输入不一致','error'); return }
+                      try { await AuthApi.updatePassword(pwdCur, pwdNew); show('密码已更新','success'); setPwdCur(''); setPwdNew(''); setPwdNew2('') } catch (e:any) { show(e?.message||'更新失败','error') }
+                    }} className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold">保存</button>
+                  </div>
+                </div>
+
+                {/* 头像上传（裁剪中央方形） */}
+                <div className="border border-slate-100 rounded-xl p-4">
+                  <h4 className="text-sm font-bold text-slate-700 mb-3">头像上传</h4>
+                  <div className="space-y-2">
+                    <input type="file" accept="image/*" onChange={e=>{ const f=e.target.files?.[0]||null; setAvatarFile(f); setAvatarPreview(f?URL.createObjectURL(f):null) }} />
+                    {avatarPreview && (
+                      <div className="flex items-center gap-3">
+                        <img src={avatarPreview} alt="预览" className="w-20 h-20 rounded-xl object-cover"/>
+                        <button onClick={async()=>{
+                          if (!avatarFile) return
+                          const img = document.createElement('img')
+                          img.src = avatarPreview as string
+                          await new Promise(r=>{ img.onload=()=>r(null) })
+                          const size = Math.min(img.width, img.height)
+                          const sx = Math.floor((img.width - size)/2)
+                          const sy = Math.floor((img.height - size)/2)
+                          const canvas = document.createElement('canvas')
+                          canvas.width = size; canvas.height = size
+                          const ctx = canvas.getContext('2d')!
+                          ctx.drawImage(img, sx, sy, size, size, 0, 0, size, size)
+                          const blob: Blob = await new Promise(res=>canvas.toBlob(b=>res(b as Blob),'image/jpeg',0.9))
+                          const file = new File([blob],'avatar.jpg',{ type: 'image/jpeg' })
+                          const up = await UploadsApi.uploadFile(file)
+                          await AuthApi.updateAvatar(up.url)
+                          show('头像已更新','success')
+                          setAvatarFile(null); setAvatarPreview(null)
+                        }} className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold">裁剪为中心方形并保存</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 邮箱修改（验证码确认） */}
+                <div className="border border-slate-100 rounded-xl p-4">
+                  <h4 className="text-sm font-bold text-slate-700 mb-3">邮箱修改</h4>
+                  <div className="space-y-2">
+                    <input value={emailNew} onChange={e=>setEmailNew(e.target.value)} placeholder="新邮箱" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"/>
+                    <div className="flex gap-2">
+                      <button onClick={async()=>{ try { await AuthApi.updateEmailStart(emailNew); show('验证码已发送','success') } catch(e:any){ show(e?.message||'发送失败','error') } }} className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm">发送验证码</button>
+                      <input value={emailCode} onChange={e=>setEmailCode(e.target.value)} placeholder="6位验证码" className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"/>
+                      <button onClick={async()=>{ try { await AuthApi.updateEmailConfirm(emailCode); show('邮箱已更新','success'); setEmailNew(''); setEmailCode('') } catch(e:any){ show(e?.message||'确认失败','error') } }} className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm">确认</button>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </motion.div>
+          )}
 
         </div>
       </div>

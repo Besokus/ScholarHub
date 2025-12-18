@@ -31,5 +31,16 @@ export const UploadsApi = {
     })
     if (!res.ok) throw new Error('Upload failed')
     return res.json()
+  },
+  uploadAvatar: async (file: File) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await fetch(`${API_BASE}/uploads/avatar`, {
+      method: 'POST',
+      body: fd,
+      headers: getHeaders()
+    })
+    if (!res.ok) throw new Error('Upload failed')
+    return res.json()
   }
 }

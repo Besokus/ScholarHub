@@ -48,6 +48,13 @@ export const AuthApi = {
   ,resetPasswordConfirm: (email: string, code: string, newPassword: string) =>
     apiFetch('/auth/reset-password/confirm', { method: 'POST', body: JSON.stringify({ email, code, newPassword }) })
   ,sendEmailCode: (email: string) => apiFetch('/send-email-code', { method: 'POST', body: JSON.stringify({ email }) })
+  ,updatePassword: (currentPassword: string, newPassword: string) =>
+    apiFetch('/auth/password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) })
+  ,emailCheck: (email: string) => apiFetch(`/auth/email/check?email=${encodeURIComponent(email)}`)
+  ,updateEmail: (email: string) => apiFetch('/auth/email', { method: 'POST', body: JSON.stringify({ email }) })
+  ,updateAvatar: (avatarUrl: string) =>
+    apiFetch('/auth/avatar', { method: 'POST', body: JSON.stringify({ avatarUrl }) })
+  ,checkUsername: (u: string) => apiFetch(`/auth/username/check?u=${encodeURIComponent(u)}`)
 }
  
 export const ResourcesApi = {

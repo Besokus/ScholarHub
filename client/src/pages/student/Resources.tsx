@@ -207,12 +207,14 @@ export default function Resources() {
     e.preventDefault()
     e.stopPropagation()
     if (!id || !fileUrl) return
+    ResourcesApi.downloadLog(String(id)).catch(() => {})
     const link = document.createElement('a')
     link.href = `${API_ORIGIN}/api/resources/${id}/download`
     link.target = '_blank'
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+    try { window.dispatchEvent(new CustomEvent('SH_STATS_UPDATED')) } catch {}
     show('开始下载...', 'success')
   }
 

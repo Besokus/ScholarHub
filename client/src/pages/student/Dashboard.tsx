@@ -170,8 +170,8 @@ export default function Dashboard() {
     const fetchData = async () => {
       try {
         const [qsData, allResData, notiData] = await Promise.all([
-          QaApi.list({ my: true, sort: 'latest', page: 1, pageSize: 5 }).catch(() => ({ items: [] })),
-          ResourcesApi.list({ page: 1, pageSize: 100 }).catch(() => ({ items: [] })),
+          QaApi.list({ my: true, sort: 'latest', page: 1, pageSize: 3 }).catch(() => ({ items: [] })),
+          ResourcesApi.list({ page: 1, pageSize: 50 }).catch(() => ({ items: [] })),
           NotiApi.unreadAnswers().catch(() => ({ items: [] }))
         ])
         
@@ -211,7 +211,7 @@ export default function Dashboard() {
     return (allRes || [])
       .filter((r: any) => r.uploaderId !== uid)
       .sort((a: any, b: any) => (b.downloadCount || 0) - (a.downloadCount || 0))
-      .slice(0, 3)
+      .slice(0, 5)
   }, [allRes, uid])
 
   return (
@@ -322,22 +322,34 @@ export default function Dashboard() {
             ) : recommended.length > 0 ? (
               <ul className="space-y-4">
                 {recommended.map((r: any, index: number) => (
-                  <li key={r.id} className="flex items-center gap-4 group/item cursor-pointer">
-                    <div className={`
-                      w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black shrink-0 transition-transform group-hover/item:scale-110 shadow-sm
-                      ${index === 0 ? 'bg-amber-100 text-amber-600 ring-2 ring-amber-50' : 
-                        index === 1 ? 'bg-slate-100 text-slate-600' : 
-                        'bg-orange-50 text-orange-600'}
-                    `}>
-                      {index + 1}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-bold text-slate-700 truncate group-hover/item:text-indigo-600 transition-colors" title={r.title}>{r.title}</div>
-                      <div className="text-xs text-slate-400 flex items-center gap-1 mt-1">
-                        <Download size={10} strokeWidth={2.5}/> 
-                        <span className="font-mono font-medium">{r.downloadCount || 0}</span>
+                  <li key={r.id}>
+                    <Link
+                      to={`/student/resources/${r.id}`}
+                      className="flex items-center gap-4 group/item cursor-pointer"
+                    >
+                      <div
+                        className={`
+                          w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black shrink-0 transition-transform group-hover/item:scale-110 shadow-sm
+                          ${index === 0 ? 'bg-amber-100 text-amber-600 ring-2 ring-amber-50' :
+                            index === 1 ? 'bg-slate-100 text-slate-600' :
+                            'bg-orange-50 text-orange-600'}
+                        `}
+                      >
+                        {index + 1}
                       </div>
-                    </div>
+                      <div className="flex-1 min-w-0">
+                        <div
+                          className="text-sm font-bold text-slate-700 truncate group-hover/item:text-indigo-600 transition-colors"
+                          title={r.title}
+                        >
+                          {r.title}
+                        </div>
+                        <div className="text-xs text-slate-400 flex items-center gap-1 mt-1">
+                          <Download size={10} strokeWidth={2.5} />
+                          <span className="font-mono font-medium">{r.downloadCount || 0}</span>
+                        </div>
+                      </div>
+                    </Link>
                   </li>
                 ))}
               </ul>
