@@ -145,10 +145,11 @@ export default function Profile() {
   const [qMy, setQMy] = useState('')
   const [qMyDebounce, setQMyDebounce] = useState('')
   const [qPage, setQPage] = useState(1)
-  const [qPageSize, setQPageSize] = useState(5)
   const [myQuestions, setMyQuestions] = useState<any[]>([])
   const [qTotal, setQTotal] = useState(0)
   const [qLoading, setQLoading] = useState(false)
+  const [qHasMore, setQHasMore] = useState(false)
+  const observerTarget = React.useRef<HTMLDivElement | null>(null)
   const [myIssues, setMyIssues] = useState<any[]>([])
 
   useEffect(() => {
@@ -171,17 +172,49 @@ export default function Profile() {
     return () => clearTimeout(t)
   }, [qMy])
 
-  useEffect(() => {
+  const loadQuestions = async (page: number, reset: boolean) => {
+    if (qLoading && !reset) return
     setQLoading(true)
-    QaApi.list({ my: true, page: qPage, pageSize: qPageSize, sort: qMyDebounce ? 'relevance' : 'time_desc' }).then((res: any) => {
-      const items = Array.isArray(res?.items) ? res.items : (Array.isArray(res) ? res : [])
-      setMyQuestions(items)
-      setQTotal(Number(res?.total || items.length))
-    }).catch(() => {
-      setMyQuestions([])
-      setQTotal(0)
-    }).finally(() => setQLoading(false))
-  }, [qMyDebounce, qPage, qPageSize])
+    try {
+      const pageSize = 10
+      const res: any = await QaApi.list({ 
+        my: true, 
+        page, 
+        pageSize, 
+        sort: qMyDebounce ? 'relevance' : 'time_desc' 
+      })
+      const items = Array.isArray(res?.items) ? res.items : []
+      const total = Number(res?.total || 0)
+      
+      setMyQuestions(prev => reset ? items : [...prev, ...items])
+      setQTotal(total)
+      // Check if we have more pages based on items returned
+      setQHasMore(items.length === pageSize)
+      setQPage(page)
+    } catch (e) {
+      console.error(e)
+      if (reset) setMyQuestions([])
+    } finally {
+      setQLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadQuestions(1, true)
+  }, [qMyDebounce])
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && qHasMore && !qLoading) {
+          loadQuestions(qPage + 1, false)
+        }
+      },
+      { threshold: 0.1 }
+    )
+    if (observerTarget.current) observer.observe(observerTarget.current)
+    return () => observer.disconnect()
+  }, [qHasMore, qLoading, qPage])
 
   useEffect(() => {
     QaApi.list({ my: true, status: 'open', page: 1, pageSize: 10 }).then((res: any) => {
@@ -368,40 +401,43 @@ export default function Profile() {
                 </h3>
                 <input value={qMy} onChange={e=>{ setQMy(e.target.value); setQPage(1) }} placeholder="搜索我的提问" className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"/>
               </div>
-              {qLoading ? (
-                <div className="flex items-center justify-center py-10"><div className="w-6 h-6 border-2 border-slate-300 border-t-indigo-600 rounded-full animate-spin"/></div>
-              ) : myQuestions.length > 0 ? (
-                <ul className="space-y-2">
-                  {myQuestions.map((q:any, idx:number) => (
-                    <li
-                      key={q.id || idx}
-                      className="p-3 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all cursor-pointer"
-                      onClick={() => navigate(`/student/qa/${q.id || q.questionId}`)}
-                    >
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-center min-w-0">
-                          <h4 className="font-bold text-slate-800 truncate pr-1 text-sm">{q.title || q.content || '未命名问题'}</h4>
-                          <span
-                            className={`ml-1 rounded-full ${q?.is_resolved ? 'bg-[#4CAF50]' : 'bg-[#FFC107]'} md:w-2 md:h-2 w-[6px] h-[6px]`}
-                            title={q?.is_resolved ? '已解决' : '未解决'}
-                          />
-                        </div>
-                        <span className="text-xs text-slate-400 shrink-0 whitespace-nowrap bg-slate-50 px-1.5 py-0.5 rounded">{q.time ? new Date(q.time).toLocaleDateString() : ''}</span>
+              <ul className="space-y-2">
+                {myQuestions.map((q:any, idx:number) => (
+                  <li
+                    key={q.id || idx}
+                    className="p-3 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all cursor-pointer"
+                    onClick={() => navigate(`/student/qa/${q.id || q.questionId}`)}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center min-w-0">
+                        <h4 className="font-bold text-slate-800 truncate pr-1 text-sm">{q.title || q.content || '未命名问题'}</h4>
+                        <span
+                          className={`ml-1 rounded-full ${q?.status === 'solved' ? 'bg-emerald-500' : 'bg-amber-400'} md:w-2 md:h-2 w-[6px] h-[6px]`}
+                          title={q?.status === 'solved' ? '已解决' : '未解决'}
+                        />
                       </div>
-                      <div className="text-xs text-slate-500 mt-1.5">{q.courseId || ''}</div>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="text-sm text-slate-500">暂无提问记录</div>
+                      <span className="text-xs text-slate-400 shrink-0 whitespace-nowrap bg-slate-50 px-1.5 py-0.5 rounded">
+                        {q.createdAt ? new Date(q.createdAt).toLocaleDateString() : (q.time ? new Date(q.time).toLocaleDateString() : '')}
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-500 mt-1.5">{q.courseId || ''}</div>
+                  </li>
+                ))}
+              </ul>
+              
+              {myQuestions.length === 0 && !qLoading && (
+                <div className="text-sm text-slate-500 py-10 text-center">暂无提问记录</div>
               )}
-              <div className="mt-4 flex items-center justify-between">
-                <div className="text-xs text-slate-400">共 {qTotal} 条</div>
-                <div className="flex items-center gap-2">
-                  <button disabled={qPage<=1} onClick={()=>setQPage(p=>Math.max(1,p-1))} className="px-2 py-1 text-sm rounded bg-white border border-slate-200 disabled:opacity-50">上一页</button>
-                  <span className="text-sm text-slate-600">{qPage}</span>
-                  <button disabled={(qPage*qPageSize)>=qTotal} onClick={()=>setQPage(p=>p+1)} className="px-2 py-1 text-sm rounded bg-white border border-slate-200 disabled:opacity-50">下一页</button>
-                </div>
+
+              <div ref={observerTarget} className="mt-4 py-4 flex justify-center items-center gap-2 min-h-[40px]">
+                 {qLoading && (
+                   <>
+                     <div className="w-4 h-4 border-2 border-slate-300 border-t-indigo-600 rounded-full animate-spin"/>
+                     <span className="text-xs text-slate-400">加载中...</span>
+                   </>
+                 )}
+                 {!qLoading && qHasMore && <span className="text-xs text-slate-400 cursor-pointer hover:text-indigo-600" onClick={() => loadQuestions(qPage+1, false)}>下滑或点击加载更多</span>}
+                 {!qLoading && !qHasMore && myQuestions.length > 0 && <span className="text-xs text-slate-400">已加载全部</span>}
               </div>
             </motion.div>
 
@@ -523,9 +559,31 @@ export default function Profile() {
                   <div className="space-y-2">
                     <input value={emailNew} onChange={e=>setEmailNew(e.target.value)} placeholder="新邮箱" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"/>
                     <div className="flex gap-2">
-                      <button onClick={async()=>{ try { await AuthApi.updateEmailStart(emailNew); show('验证码已发送','success') } catch(e:any){ show(e?.message||'发送失败','error') } }} className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm">发送验证码</button>
-                      <input value={emailCode} onChange={e=>setEmailCode(e.target.value)} placeholder="6位验证码" className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"/>
-                      <button onClick={async()=>{ try { await AuthApi.updateEmailConfirm(emailCode); show('邮箱已更新','success'); setEmailNew(''); setEmailCode('') } catch(e:any){ show(e?.message||'确认失败','error') } }} className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm">确认</button>
+                      <button
+                        onClick={async()=>{
+                          try {
+                            const r = await AuthApi.emailCheck(emailNew)
+                            if (r?.valid) show('邮箱格式与MX记录验证通过','success')
+                            else show(r?.reason || '邮箱验证失败','error')
+                          } catch(e:any){ show(e?.message||'验证失败','error') }
+                        }}
+                        className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm"
+                      >
+                        验证邮箱
+                      </button>
+                      <button
+                        onClick={async()=>{
+                          try {
+                            await AuthApi.updateEmail(emailNew)
+                            show('邮箱已更新','success')
+                            setEmailNew('')
+                            setEmailCode('')
+                          } catch(e:any){ show(e?.message||'更新失败','error') }
+                        }}
+                        className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm"
+                      >
+                        保存
+                      </button>
                     </div>
                   </div>
                 </div>
