@@ -103,20 +103,22 @@ router.get('/:id/download', async (req, res) => {
     const r = await prisma.resource.findUnique({ where: { id } })
     if (!r || !r.filePath) return res.status(404).json({ message: 'Not found' })
 
-    // Construct absolute path
-    let fileName = path.basename(r.filePath)
-    const absPath = path.join(process.cwd(), 'uploads', fileName)
-    
-    if (!fs.existsSync(absPath)) {
-        console.error(`File not found: ${absPath}`)
-        return res.status(404).json({ message: 'File not found on server' })
+    let fileName = r.filePath.startsWith('/uploads/') ? r.filePath.slice('/uploads/'.length) : path.basename(r.filePath)
+    const uploadsDir = path.join(process.cwd(), 'uploads')
+    const absPath = path.join(uploadsDir, fileName)
+    let finalPath = absPath
+    if (!fs.existsSync(finalPath)) {
+      if (fs.existsSync(r.filePath)) finalPath = r.filePath
+    }
+    if (!fs.existsSync(finalPath)) {
+      try { fs.appendFileSync('download.log', `${new Date().toISOString()} ${JSON.stringify({ id, filePath: r.filePath, expected: absPath })}\n`) } catch {}
+      return res.status(404).json({ message: 'File not found on server', expected_path: absPath, file_path: r.filePath })
     }
     
     // Set filename for download (use resource title + extension)
     const ext = path.extname(fileName)
     const downloadName = `${r.title}${ext}`
-    
-    res.download(absPath, downloadName)
+    res.download(finalPath, downloadName)
   } catch (err: any) {
     console.error('Download error:', err)
     res.status(500).json({ message: err.message || 'Server error' })
