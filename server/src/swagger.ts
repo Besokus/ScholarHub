@@ -8,6 +8,40 @@ export function registerSwagger(app: import('express').Express) {
       info: { title: 'ScholarHub API', version: '1.0.0' },
       servers: [{ url: 'http://localhost:3000' }],
       paths: {
+        '/api/auth/register': {
+          post: {
+            summary: 'Register user (student by default, teacher supported)',
+            requestBody: {
+              required: true,
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'string' },
+                      username: { type: 'string' },
+                      email: { type: 'string' },
+                      password: { type: 'string' },
+                      role: { type: 'string', enum: ['STUDENT', 'TEACHER'] }
+                    },
+                    required: ['id', 'username', 'email', 'password']
+                  }
+                }
+              }
+            },
+            responses: { '201': { description: 'Created' }, '400': { description: 'Invalid' } }
+          }
+        },
+        '/api/auth/login': {
+          post: {
+            summary: 'Login',
+            requestBody: {
+              required: true,
+              content: { 'application/json': { schema: { type: 'object', properties: { username: { type: 'string' }, password: { type: 'string' } }, required: ['username','password'] } } }
+            },
+            responses: { '200': { description: 'OK' }, '401': { description: 'Unauthorized' } }
+          }
+        },
         '/api/courses': {
           get: { summary: 'List courses', responses: { '200': { description: 'OK' } } },
           post: {

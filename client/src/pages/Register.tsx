@@ -1,16 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, Mail, Lock, ArrowRight, Loader2, AlertCircle, CheckCircle2, GraduationCap, School, BookOpen, Sparkles } from 'lucide-react';
+import { User, Mail, Lock, ArrowRight, Loader2, AlertCircle, CheckCircle2, BookOpen } from 'lucide-react';
 import { AuthApi } from '../services/api';
 
 const Register: React.FC = () => {
   const [username, setUsername] = useState('');
   const [accountId, setAccountId] = useState('');
-  const [realName, setRealName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'STUDENT' | 'TEACHER'>('STUDENT');
   
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -23,8 +21,8 @@ const Register: React.FC = () => {
 
     try {
       const id = accountId.trim();
-      const name = role === 'TEACHER' ? realName.trim() : username.trim();
-      await AuthApi.register({ id, username: name, email, password, role });
+      const name = username.trim();
+      await AuthApi.register({ id, username: name, email, password, role: 'STUDENT' });
       setMessage({ type: 'success', text: '注册成功！即将跳转登录页' });
       setTimeout(() => navigate('/login'), 500);
     } catch (err: any) {
@@ -61,7 +59,7 @@ const Register: React.FC = () => {
         className="relative z-10 w-full max-w-5xl mx-4 min-h-[600px] bg-white/40 backdrop-blur-xl rounded-3xl border border-white/50 shadow-2xl overflow-hidden flex flex-col lg:flex-row"
       >
         
-        {/* 左侧：品牌展示区 (更换了文案和图标以适应注册场景) */}
+        {/* 左侧：品牌展示区 */}
         <div className="hidden lg:flex w-1/2 flex-col justify-between p-12 relative overflow-hidden group bg-indigo-900/5">
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/80 to-purple-600/80 mix-blend-overlay opacity-10 group-hover:opacity-20 transition-opacity duration-700" />
           
@@ -90,7 +88,7 @@ const Register: React.FC = () => {
               <span className="text-purple-600">开启学术之旅</span>
             </h1>
             <p className="text-slate-600 text-lg max-w-sm">
-              无论你是寻求答案的学生，还是传道授业的教师，这里都是你分享知识的最佳平台。
+              连接校园资源与答疑互动，这里是你分享与获取知识的最佳平台。
             </p>
             
             <div className="mt-8 p-4 bg-white/40 backdrop-blur-md rounded-2xl border border-white/40 shadow-sm">
@@ -117,34 +115,7 @@ const Register: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="space-y-5">
               
-              {/* 角色选择器 (从 Select 升级为卡片选择) */}
-              <div className="grid grid-cols-2 gap-4">
-                <div 
-                  onClick={() => setRole('STUDENT')}
-                  className={`cursor-pointer relative flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-200 ${
-                    role === 'STUDENT' 
-                      ? 'border-indigo-500 bg-indigo-50/80 text-indigo-700 shadow-md' 
-                      : 'border-slate-200 bg-white/50 text-slate-500 hover:border-indigo-200 hover:bg-white'
-                  }`}
-                >
-                  <GraduationCap className={`h-6 w-6 mb-2 ${role === 'STUDENT' ? 'text-indigo-600' : 'text-slate-400'}`} />
-                  <span className="text-sm font-bold">我是学生</span>
-                  {role === 'STUDENT' && <div className="absolute top-2 right-2 w-2 h-2 bg-indigo-500 rounded-full" />}
-                </div>
-
-                <div 
-                  onClick={() => setRole('TEACHER')}
-                  className={`cursor-pointer relative flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-200 ${
-                    role === 'TEACHER' 
-                      ? 'border-purple-500 bg-purple-50/80 text-purple-700 shadow-md' 
-                      : 'border-slate-200 bg-white/50 text-slate-500 hover:border-purple-200 hover:bg-white'
-                  }`}
-                >
-                  <School className={`h-6 w-6 mb-2 ${role === 'TEACHER' ? 'text-purple-600' : 'text-slate-400'}`} />
-                  <span className="text-sm font-bold">我是教师</span>
-                  {role === 'TEACHER' && <div className="absolute top-2 right-2 w-2 h-2 bg-purple-500 rounded-full" />}
-                </div>
-              </div>
+              {/* 学生注册：移除教师注册入口 */}
 
               {/* 输入框组 */}
               <div className="space-y-4">
@@ -156,7 +127,7 @@ const Register: React.FC = () => {
                     value={accountId}
                     onChange={(e) => setAccountId(e.target.value)}
                     className="w-full pl-11 pr-4 py-3 bg-white/50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400"
-                    placeholder="学号/教工号"
+                    placeholder="学号"
                   />
                 </div>
                 <div className="group relative">
@@ -164,10 +135,10 @@ const Register: React.FC = () => {
                   <input 
                     type="text"
                     required
-                    value={role === 'TEACHER' ? realName : username}
-                    onChange={(e) => role === 'TEACHER' ? setRealName(e.target.value) : setUsername(e.target.value)}
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                     className="w-full pl-11 pr-4 py-3 bg-white/50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400"
-                    placeholder={role === 'TEACHER' ? '填写真实姓名' : '设置用户名'}
+                    placeholder={'设置用户名'}
                   />
                 </div>
 

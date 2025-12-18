@@ -36,13 +36,13 @@ Handles authentication, session management, profile operations.
 
 ### **Frontend Mapping**
 
-* Login / Register pages
+* Login / Register pages (Register UI exposes student-only; teacher registration not surfaced on frontend)
 * Settings / Profile center
 
 ### **Backend Modules**
 
 * `/auth/login`
-* `/auth/register`
+* `/auth/register` (Teacher role supported; API retained for administrative onboarding)
 * `/auth/refresh`
 * `/users/profile`
 

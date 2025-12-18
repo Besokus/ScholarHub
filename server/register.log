@@ -32,3 +32,5 @@
 [OK ] 2025-12-17T05:22:51.208Z {"userId":"u1765948970917"}
 [REQ] 2025-12-17T06:15:29.181Z {"body":{"id":"u1765952128833","username":"u1765952128833","email":"u1765952128833@test.com","role":"TEACHER"},"data":{"id":"u1765952128833","username":"u1765952128833","fullName":"u1765952128833","password":"$2b$12$7vJUArMX2ySZFbiNzRl3c.gbNiZyhgUmAsad9Ag5bpONPCRTaCv1K","email":"u1765952128833@test.com","role":"TEACHER"}}
 [OK ] 2025-12-17T06:15:29.195Z {"userId":"u1765952128833"}
+[REQ] 2025-12-18T02:39:05.739Z {"body":{"id":"u1766025545","username":"u1766025545","email":"u1766025545@test.com","role":"STUDENT"},"data":{"id":"u1766025545","username":"u1766025545","password":"$2b$12$T59TTUxDF1pE3miWZbJyC.mgEW6vzsm.WLXcdQCOqWZXQy8gVxU1i","email":"u1766025545@test.com","role":"STUDENT"}}
+[OK ] 2025-12-18T02:39:05.760Z {"userId":"u1766025545"}
