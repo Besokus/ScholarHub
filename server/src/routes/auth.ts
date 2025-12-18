@@ -146,7 +146,13 @@ router.get('/me', async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    res.json({ user });
+    try {
+      const rows: any[] = await prisma.$queryRawUnsafe(`SELECT uploads, downloads FROM "User" WHERE id = $1`, sub)
+      const stats = rows && rows[0] ? rows[0] : { uploads: 0, downloads: 0 }
+      res.json({ user: { ...user, uploads: stats.uploads ?? 0, downloads: stats.downloads ?? 0 } })
+    } catch {
+      res.json({ user })
+    }
   } catch (error) {
     res.status(401).json({ message: 'Invalid token' });
   }
@@ -171,3 +177,13 @@ router.patch('/username', requireAuth, async (req, res) => {
 })
 
 export default router;
+router.get('/stats', requireAuth, async (req, res) => {
+  try {
+    const uid = (req as any).userId as string
+    const rows: any[] = await prisma.$queryRawUnsafe(`SELECT uploads, downloads FROM "User" WHERE id = $1`, uid)
+    const stats = rows && rows[0] ? rows[0] : { uploads: 0, downloads: 0 }
+    res.json(stats)
+  } catch (err: any) {
+    res.status(500).json({ message: err.message || 'Server error' })
+  }
+})

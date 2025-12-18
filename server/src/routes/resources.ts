@@ -97,9 +97,6 @@ router.get('/:id/download', async (req, res) => {
     const r = await prisma.resource.findUnique({ where: { id } })
     if (!r || !r.filePath) return res.status(404).json({ message: 'Not found' })
 
-    // Increment count
-    await prisma.resource.update({ where: { id }, data: { downloadCount: { increment: 1 } } })
-
     // Construct absolute path
     let fileName = path.basename(r.filePath)
     const absPath = path.join(process.cwd(), 'uploads', fileName)
@@ -156,6 +153,9 @@ router.post('/', requireAuth, async (req, res) => {
       },
       include: { course: true, uploader: true }
     })
+    try {
+      await prisma.$executeRawUnsafe(`UPDATE "User" SET uploads = uploads + 1 WHERE id = $1`, uploaderId)
+    } catch (e) { console.warn('[uploads counter] failed', e) }
     res.json(toClientShape(created))
   } catch (err: any) {
     res.status(500).json({ message: err.message || 'Server error' })
@@ -193,11 +193,15 @@ router.delete('/:id', async (req, res) => {
   }
 })
 
-router.post('/:id/downloads', async (req, res) => {
+router.post('/:id/downloads', requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10)
-    const updated = await prisma.resource.update({ where: { id }, data: { downloadCount: { increment: 1 } } })
-    res.json({ downloadCount: updated.downloadCount })
+    const uid = (req as any).userId as string
+    const [updated] = await prisma.$transaction([
+      prisma.resource.update({ where: { id }, data: { downloadCount: { increment: 1 } } }),
+      prisma.$executeRawUnsafe(`UPDATE "User" SET downloads = downloads + 1 WHERE id = $1`, uid) as any
+    ])
+    res.json({ downloadCount: (updated as any).downloadCount })
   } catch (err: any) {
     if (err.code === 'P2025') return res.status(404).json({ message: 'Not found' })
     res.status(500).json({ message: err.message || 'Server error' })

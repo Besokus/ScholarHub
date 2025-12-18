@@ -6,7 +6,9 @@ CREATE TABLE "User" (
                         role      TEXT NOT NULL DEFAULT 'STUDENT',
                         avatar    TEXT,
                         email     TEXT NOT NULL UNIQUE,
-                        title     TEXT
+                        title     TEXT,
+                        uploads   integer default 0,
+                        downloads integer default 0
 );
 
 CREATE TABLE "Course" (

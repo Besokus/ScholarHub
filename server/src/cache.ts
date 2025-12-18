@@ -7,6 +7,10 @@ const password = process.env.REDIS_PASSWORD || undefined
 
 let useMemory = !url && !process.env.REDIS_HOST && !process.env.REDIS_PORT
 export const redis = useMemory ? null as any : (url ? new Redis(url) : new Redis({ host, port, password }))
+if (redis && !useMemory) {
+  redis.on('error', () => { useMemory = true })
+  redis.on('end', () => { useMemory = true })
+}
 
 const mem = new Map<string, { v: string; exp: number }>()
 
@@ -57,6 +61,7 @@ export async function incrWithTTL(key: string, ttlSec: number): Promise<number> 
     mem.set(key, { v: String(n), exp: e.exp }); return n
   }
   try {
+    if (!redis || (redis.status && redis.status !== 'ready')) { return 1 }
     const pipe = redis.pipeline()
     pipe.incr(key)
     pipe.expire(key, ttlSec)
