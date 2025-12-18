@@ -16,6 +16,7 @@ const StudentProfile = lazy(() => import('./pages/student/Profile'));
 const StudentResourceUpload = lazy(() => import('./pages/student/ResourceUpload'));
 const StudentResourceDetail = lazy(() => import('./pages/student/ResourceDetail'));
 const StudentQAQuestion = lazy(() => import('./pages/student/QAQuestion'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 
 // ✅ 新增：懒加载不同角色的首页
 // (实际项目中请创建这些文件，这里暂时用简单的占位组件演示)
@@ -158,6 +159,7 @@ const App: React.FC = () => {
           {/* 如果用户直接访问根路径，先去登录页（或者你可以改成去 PrivateRoute 让它自动判断） */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
 
           {/* 受保护路由 */}
           <Route element={<PrivateRoute />}>

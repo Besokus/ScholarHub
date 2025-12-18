@@ -8,6 +8,7 @@ const Register: React.FC = () => {
   const [username, setUsername] = useState('');
   const [accountId, setAccountId] = useState('');
   const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState('');
   const [password, setPassword] = useState('');
   
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -20,6 +21,8 @@ const Register: React.FC = () => {
     setIsLoading(true);
 
     try {
+      const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!re.test(email.trim())) { setEmailError('请输入有效的邮箱地址'); throw new Error('invalid_email') }
       const id = accountId.trim();
       const name = username.trim();
       await AuthApi.register({ id, username: name, email, password, role: 'STUDENT' });
@@ -142,17 +145,21 @@ const Register: React.FC = () => {
                   />
                 </div>
 
-                <div className="group relative">
-                  <Mail className="absolute left-4 top-3.5 h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
-                  <input 
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-11 pr-4 py-3 bg-white/50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400"
-                    placeholder="电子邮箱地址"
-                  />
-                </div>
+              <div className="group relative">
+                <Mail className="absolute left-4 top-3.5 h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
+                <input 
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); if (emailError) setEmailError('') }}
+                  onBlur={() => { const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; setEmailError(re.test(email.trim()) ? '' : '请输入有效的邮箱地址') }}
+                  className="w-full pl-11 pr-4 py-3 bg-white/50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400"
+                  placeholder="电子邮箱地址"
+                />
+                {emailError && (
+                  <div className="mt-2 text-xs text-rose-600 font-medium">{emailError}</div>
+                )}
+              </div>
 
                 <div className="group relative">
                   <Lock className="absolute left-4 top-3.5 h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />

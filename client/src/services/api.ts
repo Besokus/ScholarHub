@@ -43,7 +43,11 @@ export const AuthApi = {
     apiFetch('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
   me: () => apiFetch('/auth/me'),
   updateUsername: (username: string) => apiFetch('/auth/username', { method: 'PATCH', body: JSON.stringify({ username }) }),
-  stats: () => apiFetch('/auth/stats')
+  stats: () => apiFetch('/auth/stats'),
+  resetPassword: (email: string) => apiFetch('/auth/reset-password', { method: 'POST', body: JSON.stringify({ email }) })
+  ,resetPasswordConfirm: (email: string, code: string, newPassword: string) =>
+    apiFetch('/auth/reset-password/confirm', { method: 'POST', body: JSON.stringify({ email, code, newPassword }) })
+  ,sendEmailCode: (email: string) => apiFetch('/send-email-code', { method: 'POST', body: JSON.stringify({ email }) })
 }
  
 export const ResourcesApi = {

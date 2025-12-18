@@ -180,7 +180,7 @@ const Login: React.FC = () => {
               <div className="group space-y-1">
                 <div className="flex justify-between items-center ml-1">
                   <label className="text-sm font-medium text-indigo-200">密码</label>
-                  <a href="#" className="text-xs text-indigo-400 hover:text-indigo-300 font-medium transition-colors">忘记密码？</a>
+                  <a href="/forgot-password" className="text-xs text-indigo-400 hover:text-indigo-300 font-medium transition-colors">忘记密码？</a>
                 </div>
                 <div className="relative transition-all">
                   <Lock className="absolute left-4 top-3.5 h-5 w-5 text-indigo-400 group-focus-within:text-indigo-300 transition-colors" />
