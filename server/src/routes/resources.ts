@@ -3,6 +3,7 @@ import prisma from '../db'
 import { requireAuth } from '../middleware/auth'
 import path from 'path'
 import fs from 'fs'
+import { cacheGet, cacheSet, delByPrefix } from '../cache'
 
 const router = Router()
 
@@ -80,11 +81,16 @@ router.get('/', async (req, res) => {
       if (course) where.courseId = course.id
       else where.courseId = -1
     }
+    const cacheKey = `res:list:${JSON.stringify({ q, courseId, page, pageSize })}`
+    const cached = await cacheGet(cacheKey)
+    if (cached) return res.json(JSON.parse(cached))
     const [items, total] = await Promise.all([
       prisma.resource.findMany({ where, include: { course: true, uploader: true }, orderBy: { id: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
       prisma.resource.count({ where })
     ])
-    res.json({ items: items.map(toClientShape), total })
+    const payload = { items: items.map(toClientShape), total }
+    await cacheSet(cacheKey, JSON.stringify(payload), 60)
+    res.json(payload)
   } catch (err: any) {
     res.status(500).json({ message: err.message || 'Server error' })
   }
@@ -156,6 +162,7 @@ router.post('/', requireAuth, async (req, res) => {
     try {
       await prisma.$executeRawUnsafe(`UPDATE "User" SET uploads = uploads + 1 WHERE id = $1`, uploaderId)
     } catch (e) { console.warn('[uploads counter] failed', e) }
+    await delByPrefix('res:list:')
     res.json(toClientShape(created))
   } catch (err: any) {
     res.status(500).json({ message: err.message || 'Server error' })
@@ -175,6 +182,7 @@ router.put('/:id', requireAuth, async (req, res) => {
       data.courseId = course.id
     }
     const updated = await prisma.resource.update({ where: { id }, data, include: { course: true, uploader: true } })
+    await delByPrefix('res:list:')
     res.json(toClientShape(updated))
   } catch (err: any) {
     if (err.code === 'P2025') return res.status(404).json({ message: 'Not found' })
@@ -186,6 +194,7 @@ router.delete('/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10)
     await prisma.resource.delete({ where: { id } })
+    await delByPrefix('res:list:')
     res.json({ ok: true })
   } catch (err: any) {
     if (err.code === 'P2025') return res.status(404).json({ message: 'Not found' })

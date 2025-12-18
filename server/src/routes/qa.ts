@@ -45,7 +45,7 @@ router.get('/questions', async (req, res) => {
     if (status === 'unanswered') where.status = 'UNANSWERED'
     if (my === '1' && userId) where.studentId = userId
     const orderBy = sort === 'hot' ? { downloadCount: 'desc' } as any : { createTime: 'desc' }
-    const cacheKey = `qa:list:${JSON.stringify({ courseName, sort, status, my, page, pageSize })}`
+    const cacheKey = `qa:list:${JSON.stringify({ courseName, sort, status, my, page, pageSize, userId: my === '1' ? userId : '' })}`
     const cached = await cacheGet(cacheKey)
     if (cached) return res.json(JSON.parse(cached))
     const [items, total] = await Promise.all([
