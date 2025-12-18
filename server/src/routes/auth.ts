@@ -4,11 +4,28 @@ import jwt from 'jsonwebtoken';
 import prisma from '../db';
 import fs from 'fs';
 import { requireAuth } from '../middleware/auth';
-import { incrWithTTL } from '../cache';
+import { incrWithTTL, cacheGet, cacheSet, cacheDel } from '../cache';
+import { sendMail, buildCodeTemplate } from '../mail';
 
 const router = Router();
 const RATE_LIMIT_WINDOW = 10 * 60;
 const RATE_LIMIT_MAX = 10;
+const RESET_CODE_TTL_SEC = 5 * 60;
+const RESET_FAIL_LOCK_SEC = 60 * 60;
+
+function genCode(): string {
+  const n = Math.floor(Math.random() * 1000000);
+  return String(n).padStart(6, '0');
+}
+
+function logReset(entry: any) {
+  try { fs.appendFileSync('password_reset.log', `${new Date().toISOString()} ${JSON.stringify(entry)}\n`) } catch {}
+}
+
+async function sendResetMail(email: string, code: string) {
+  const tpl = buildCodeTemplate(email, code)
+  await sendMail({ to: email, subject: tpl.subject, text: tpl.text, html: tpl.html })
+}
 
 // User Registration (Student/Teacher)
 router.post('/register', async (req, res) => {
@@ -187,3 +204,79 @@ router.get('/stats', requireAuth, async (req, res) => {
     res.status(500).json({ message: err.message || 'Server error' })
   }
 })
+// Request password reset code
+router.post('/reset-password', async (req, res) => {
+  const { email } = req.body as { email?: string }
+  const em = String(email || '').trim()
+  if (!em) return res.status(400).json({ message: 'Email required' })
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!re.test(em)) return res.status(400).json({ message: 'Invalid email' })
+  try {
+    const user = await prisma.user.findUnique({ where: { email: em } })
+    if (!user) {
+      logReset({ phase: 'request', email: em, ok: false, reason: 'not_found' })
+      return res.status(404).json({ message: '注册邮箱不存在' })
+    }
+    const code = genCode()
+    await cacheSet(`pwd:code:${em}`, JSON.stringify({ code, ts: Date.now() }), RESET_CODE_TTL_SEC)
+    await cacheDel(`pwd:fail:${em}`)
+    await sendResetMail(em, code)
+    logReset({ phase: 'request', email: em, ok: true })
+    res.json({ message: '验证码已发送至您的邮箱' })
+  } catch (err: any) {
+    logReset({ phase: 'request', email: em, ok: false, error: err?.message })
+    res.status(500).json({ message: err?.message || 'Server error' })
+  }
+})
+
+// Confirm password reset with code
+router.post('/reset-password/confirm', async (req, res) => {
+  const { email, code, newPassword } = req.body as { email?: string; code?: string; newPassword?: string }
+  const em = String(email || '').trim()
+  const cd = String(code || '').trim()
+  const np = String(newPassword || '')
+  if (!em || !cd || !np) return res.status(400).json({ message: 'Params required' })
+  if (!/^\d{6}$/.test(cd)) return res.status(400).json({ message: '验证码错误或已过期' })
+  try {
+    const lock = await cacheGet(`pwd:lock:${em}`)
+    if (lock) {
+      logReset({ phase: 'confirm', email: em, ok: false, reason: 'locked' })
+      return res.status(429).json({ message: '尝试过多，邮箱已锁定，请稍后再试' })
+    }
+    const cached = await cacheGet(`pwd:code:${em}`)
+    if (!cached) {
+      await incrFail(em)
+      logReset({ phase: 'confirm', email: em, ok: false, reason: 'code_missing' })
+      return res.status(400).json({ message: '验证码错误或已过期' })
+    }
+    let parsed: any = null
+    try { parsed = JSON.parse(cached) } catch {}
+    const valid = parsed && parsed.code === cd && (Date.now() - (parsed.ts || 0)) <= RESET_CODE_TTL_SEC * 1000
+    if (!valid) {
+      await incrFail(em)
+      logReset({ phase: 'confirm', email: em, ok: false, reason: 'code_invalid' })
+      return res.status(400).json({ message: '验证码错误或已过期' })
+    }
+
+    // Password strength: ≥8, contains upper, lower, digit
+    const strong = np.length >= 8 && /[A-Z]/.test(np) && /[a-z]/.test(np) && /[0-9]/.test(np)
+    if (!strong) return res.status(400).json({ message: '密码需至少8位，包含大小写字母和数字' })
+
+    const user = await prisma.user.findUnique({ where: { email: em } })
+    if (!user) return res.status(404).json({ message: 'User not found' })
+    const hashed = await bcrypt.hash(np, 12)
+    await prisma.user.update({ where: { id: user.id }, data: { password: hashed } })
+    await cacheDel(`pwd:code:${em}`)
+    await cacheDel(`pwd:fail:${em}`)
+    logReset({ phase: 'confirm', email: em, ok: true })
+    res.json({ message: '密码修改成功' })
+  } catch (err: any) {
+    logReset({ phase: 'confirm', email: em, ok: false, error: err?.message })
+    res.status(500).json({ message: err?.message || 'Server error' })
+  }
+})
+
+async function incrFail(email: string) {
+  const n = await incrWithTTL(`pwd:fail:${email}`, RESET_FAIL_LOCK_SEC)
+  if (n >= 3) await cacheSet(`pwd:lock:${email}`, '1', RESET_FAIL_LOCK_SEC)
+}

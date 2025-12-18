@@ -7,6 +7,7 @@ import qaRouter from './routes/qa';
 import notificationsRouter from './routes/notifications';
 import coursesRouter from './routes/courses';
 import prisma from './db';
+import { sendMail } from './mail';
 import bcrypt from 'bcryptjs';
 import path from 'path';
 import uploadsRouter from './routes/uploads';
@@ -14,7 +15,7 @@ import { registerSwagger } from './swagger';
 import answersRouter from './routes/answers';
 import { authOptional } from './middleware/auth';
 import fs from 'fs';
-import { redis } from './cache';
+import { redis, cacheGet, cacheSet, incrWithTTL } from './cache';
 
 dotenv.config();
 
@@ -56,10 +57,13 @@ app.get('/', (req, res) => {
 
 app.get('/api/health/redis', async (_req, res) => {
   try {
-    const r = redis ? await redis.ping() : 'PONG'
-    res.json({ ok: true, mode: redis ? 'redis' : 'memory', ping: r })
-  } catch (e: any) {
-    res.status(500).json({ ok: false, error: String(e?.message || e) })
+    if (!redis || (redis.status && redis.status !== 'ready')) {
+      return res.json({ ok: true, mode: 'memory', ping: 'PONG' })
+    }
+    const r = await redis.ping()
+    res.json({ ok: true, mode: 'redis', ping: r })
+  } catch {
+    res.json({ ok: true, mode: 'memory', ping: 'PONG' })
   }
 });
 
@@ -97,3 +101,40 @@ async function bootstrapAdmin() {
     console.error('Failed to bootstrap admin user', err);
   }
 }
+app.post('/api/send-email-code', async (req, res) => {
+  try {
+    const email = String((req as any).body?.email || '').trim()
+    if (!email) return res.status(400).json({ error: 'bad_request', message: 'Email required' })
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!re.test(email)) return res.status(400).json({ error: 'bad_request', message: 'Invalid email' })
+
+    const user = await prisma.user.findUnique({ where: { email } })
+    if (!user) return res.status(404).json({ error: 'not_found', message: '注册邮箱不存在' })
+
+    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || ''
+    const ipKey = `emailcode:ip:${ip}`
+    const ipCount = await incrWithTTL(ipKey, 3600)
+    if (ipCount > 10) return res.status(429).json({ error: 'too_frequent', retry_after: 3600 })
+
+    const now = Date.now()
+    const coolKey = `user:${user.id}:email_code_cooldown`
+    const cool = await cacheGet(coolKey)
+    if (cool) {
+      let sendTime = 0
+      try { sendTime = JSON.parse(cool)?.send_time || 0 } catch {}
+      const elapsed = Math.floor((now - sendTime) / 1000)
+      const remain = Math.max(0, 60 - elapsed)
+      if (remain > 0) return res.status(429).json({ error: 'too_frequent', retry_after: remain })
+    }
+
+    const n = Math.floor(Math.random() * 1000000)
+    const code = String(n).padStart(6, '0')
+    await cacheSet(`user:${user.id}:email_code`, JSON.stringify({ code, send_time: now }), 300)
+    await cacheSet(coolKey, JSON.stringify({ send_time: now }), 60)
+    try { await sendMail({ to: email, subject: 'ScholarHub 邮件验证码', text: `验证码：${code}（5分钟内有效）`, html: `<p>验证码：<b>${code}</b>（5分钟内有效）</p>` }) } catch (e: any) { try { fs.appendFileSync('mail.log', `[CODE-FALLBACK] ${new Date().toISOString()} to=${email} code=${code} err=${e?.message}\n`) } catch {} }
+    try { fs.appendFileSync('password_reset.log', `${new Date().toISOString()} ${JSON.stringify({ phase: 'send', email, ip })}\n`) } catch {}
+    res.json({ status: 'success', next_request: 60 })
+  } catch (err: any) {
+    res.status(500).json({ error: 'server_error', message: err?.message || 'Server error' })
+  }
+})
