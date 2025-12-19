@@ -147,7 +147,27 @@ export async function adminFetch(path: string, options?: RequestInit) {
 }
 
 export const AdminApi = {
-  stats: () => adminFetch('/admin/stats'),
+  stats: (params?: { ts?: number }) => {
+    const q = new URLSearchParams()
+    if (params?.ts) q.set('ts', String(params.ts))
+    q.set('_', String(Date.now()))
+    return adminFetch(`/admin/stats?${q.toString()}`)
+  },
+  health: () => adminFetch(`/admin/health?_=${Date.now()}`),
+  serviceStatus: () => adminFetch(`/admin/service/status?_=${Date.now()}`),
+  healthTrend: (days?: number) => {
+    const q = new URLSearchParams()
+    if (days && days > 0) q.set('days', String(days))
+    q.set('_', String(Date.now()))
+    return adminFetch(`/admin/health/trend?${q.toString()}`)
+  },
+  healthSamples: (since?: number, limit?: number) => {
+    const q = new URLSearchParams()
+    if (since && since > 0) q.set('since', String(since))
+    if (limit && limit > 0) q.set('limit', String(limit))
+    q.set('_', String(Date.now()))
+    return adminFetch(`/admin/health/samples?${q.toString()}`)
+  },
   teachers: {
     list: (params: any) => {
       const q = new URLSearchParams()
