@@ -28,6 +28,9 @@ app.use(cors(corsOptions));
 app.use(express.json());
 const uploadsPath = path.join(process.cwd(), 'uploads')
 console.log('Serving uploads from:', uploadsPath)
+console.log('Allowed origins:', allowed.length ? allowed : ['*'])
+console.log('Env:', (process.env.NODE_ENV || 'development'))
+console.log('Database URL set:', !!process.env.DATABASE_URL)
 app.use('/uploads', (req, res, next) => {
   try {
     const ref = String(req.headers.referer || '')

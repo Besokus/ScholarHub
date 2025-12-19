@@ -13,6 +13,19 @@ if (redis && !useMemory) {
 }
 
 const mem = new Map<string, { v: string; exp: number }>()
+const MEM_CAP = parseInt(process.env.MEM_CACHE_CAP || '1000', 10)
+function pruneExpired() {
+  const now = Date.now()
+  for (const [k, e] of mem) { if (e.exp < now) mem.delete(k) }
+}
+function shrinkIfNeeded() {
+  if (mem.size <= MEM_CAP) return
+  pruneExpired()
+  if (mem.size <= MEM_CAP) return
+  const arr = Array.from(mem.entries()).sort((a, b) => a[1].exp - b[1].exp)
+  const remove = arr.length - MEM_CAP
+  for (let i = 0; i < remove; i++) mem.delete(arr[i][0])
+}
 
 export async function cacheGet(key: string): Promise<string | null> {
   if (useMemory) {
@@ -26,6 +39,7 @@ export async function cacheGet(key: string): Promise<string | null> {
 export async function cacheSet(key: string, value: string, ttlSec: number): Promise<void> {
   if (useMemory) {
     mem.set(key, { v: value, exp: Date.now() + ttlSec * 1000 })
+    shrinkIfNeeded()
     return
   }
   try { await redis.set(key, value, 'EX', ttlSec) } catch {}

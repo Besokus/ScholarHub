@@ -64,11 +64,14 @@ const avatarUpload = multer({ storage: multer.diskStorage({
   cb(null, true)
 }, limits: { fileSize: 5 * 1024 * 1024 } })
 
-function sha256File(p: string): string {
-  const h = crypto.createHash('sha256')
-  const buf = fs.readFileSync(p)
-  h.update(buf)
-  return h.digest('hex')
+async function sha256File(p: string): Promise<string> {
+  return await new Promise<string>((resolve, reject) => {
+    const h = crypto.createHash('sha256')
+    const s = fs.createReadStream(p)
+    s.on('data', (chunk) => h.update(chunk))
+    s.on('error', reject)
+    s.on('end', () => resolve(h.digest('hex')))
+  })
 }
 
 function isExecutable(buffer: Buffer): boolean {
@@ -112,7 +115,7 @@ router.post('/images', requireAuth, imagesUpload.array('images', 9), async (req,
       fs.closeSync(fd)
       if (isExecutable(chunk)) { fs.unlinkSync(f.path); return res.status(400).json({ message: 'Executable files are not allowed' }) }
       if (!validateImageMagic(f.path)) { fs.unlinkSync(f.path); return res.status(400).json({ message: 'Invalid image content' }) }
-      const hash = sha256File(f.path)
+      const hash = await sha256File(f.path)
       if (index[hash]) {
         urls.push({ url: index[hash], size: f.size })
         fs.unlinkSync(f.path)
@@ -190,7 +193,7 @@ const resMimes: Record<string, string[]> = {
   audio: ['audio/mpeg','audio/mp3','audio/wav','audio/aac']
 }
 
-router.post('/resources', requireAuth, multer({ storage: genericStorage, fileFilter, limits: { fileSize: 200 * 1024 * 1024 } }).single('file'), (req, res) => {
+router.post('/resources', requireAuth, multer({ storage: genericStorage, fileFilter, limits: { fileSize: 200 * 1024 * 1024 } }).single('file'), async (req, res) => {
   const f = req.file
   const body: any = (req as any).body || {}
   const resourceType = String(body.resourceType || '').toLowerCase()
@@ -215,7 +218,7 @@ router.post('/resources', requireAuth, multer({ storage: genericStorage, fileFil
   try {
     fs.renameSync(f.path, targetPath)
     fs.chmodSync(targetPath, 0o644)
-    const hash = sha256File(targetPath)
+    const hash = await sha256File(targetPath)
     const url = `/uploads/resources/${resourceType}/${targetName}`
     try { fs.appendFileSync(path.join(process.cwd(),'uploads.log'), `${new Date().toISOString()} ${JSON.stringify({ user:(req as any).userId, url, size:fs.statSync(targetPath).size, hash, type:`resource_${resourceType}` })}\n`) } catch {}
     res.json({ url, size: fs.statSync(targetPath).size })
