@@ -130,7 +130,10 @@ exports.Prisma.UserScalarFieldEnum = {
   role: 'role',
   avatar: 'avatar',
   email: 'email',
-  title: 'title'
+  title: 'title',
+  employeeId: 'employeeId',
+  uploads: 'uploads',
+  downloads: 'downloads'
 };
 
 exports.Prisma.CourseScalarFieldEnum = {
@@ -153,7 +156,8 @@ exports.Prisma.ResourceScalarFieldEnum = {
   createTime: 'createTime',
   fileSize: 'fileSize',
   fileType: 'fileType',
-  viewCount: 'viewCount'
+  viewCount: 'viewCount',
+  status: 'status'
 };
 
 exports.Prisma.QuestionScalarFieldEnum = {
@@ -173,7 +177,9 @@ exports.Prisma.AnswerScalarFieldEnum = {
   teacherId: 'teacherId',
   content: 'content',
   attachments: 'attachments',
-  createTime: 'createTime'
+  createTime: 'createTime',
+  isTop: 'isTop',
+  hidden: 'hidden'
 };
 
 exports.Prisma.NotificationScalarFieldEnum = {
@@ -184,6 +190,15 @@ exports.Prisma.NotificationScalarFieldEnum = {
   createTime: 'createTime',
   answerId: 'answerId',
   id: 'id'
+};
+
+exports.Prisma.AdminLogScalarFieldEnum = {
+  id: 'id',
+  adminId: 'adminId',
+  actionType: 'actionType',
+  targetId: 'targetId',
+  details: 'details',
+  createTime: 'createTime'
 };
 
 exports.Prisma.SortOrder = {
@@ -208,7 +223,8 @@ exports.Prisma.ModelName = {
   Resource: 'Resource',
   Question: 'Question',
   Answer: 'Answer',
-  Notification: 'Notification'
+  Notification: 'Notification',
+  AdminLog: 'AdminLog'
 };
 
 /**

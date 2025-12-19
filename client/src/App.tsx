@@ -18,6 +18,10 @@ const StudentResourceUpload = lazy(() => import('./pages/student/ResourceUpload'
 const StudentResourceDetail = lazy(() => import('./pages/student/ResourceDetail'));
 const StudentQAQuestion = lazy(() => import('./pages/student/QAQuestion'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
+const AdminUsers = lazy(() => import('./pages/admin/UserManagement'));
+const AdminConfig = lazy(() => import('./pages/admin/SystemConfig'));
+const AdminContentAudit = lazy(() => import('./pages/admin/ContentAudit'));
 
 // ✅ 新增：懒加载不同角色的首页
 // (实际项目中请创建这些文件，这里暂时用简单的占位组件演示)
@@ -53,6 +57,10 @@ const RoleBasedRedirect = () => {
     return <Navigate to="/student/dashboard" replace />;
   }
 
+  if (role === 'ADMIN') {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+
   // 如果没有角色信息（异常情况），默认跳个人中心或重新登录
   return <Navigate to="/profile" replace />;
 };
@@ -60,6 +68,11 @@ const RoleBasedRedirect = () => {
 const StudentRoute = () => {
   const role = localStorage.getItem('role');
   return role === 'STUDENT' ? <Outlet /> : <Navigate to="/login" replace />;
+};
+
+const AdminRoute = () => {
+  const role = localStorage.getItem('role');
+  return role === 'ADMIN' ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
 // --- 主布局 ---
@@ -184,6 +197,12 @@ const App: React.FC = () => {
                 <Route path="/student/profile/settings" element={<ProfileSettings />} />
               </Route>
               <Route path="/teacher/dashboard" element={<TeacherHome />} />
+              <Route element={<AdminRoute />}>
+                <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                <Route path="/admin/users" element={<AdminUsers />} />
+                <Route path="/admin/config" element={<AdminConfig />} />
+                <Route path="/admin/audit" element={<AdminContentAudit />} />
+              </Route>
               
               <Route path="/profile" element={<Profile />} />
             </Route>

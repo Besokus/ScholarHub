@@ -22,8 +22,20 @@ func JWT() gin.HandlerFunc {
         if !ok { c.JSON(http.StatusUnauthorized, respErr(1001, "unauthorized")); c.Abort(); return }
         c.Set("user_id", claims["uid"])
         c.Set("role", claims["role"])
-        c.Next()
-    }
+		c.Next()
+	}
+}
+
+func RequireAdmin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		r := strings.ToUpper(c.GetString("role"))
+		if r != "ADMIN" {
+			c.JSON(http.StatusForbidden, respErr(1007, "forbidden"))
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
 }
 
 func signJWT(uid interface{}, role string) (string, error) {

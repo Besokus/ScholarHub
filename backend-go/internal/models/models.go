@@ -7,11 +7,15 @@ type User struct {
 	ID       string `gorm:"column:id;primaryKey" json:"id"`
 	Username string `gorm:"column:username" json:"username"`
 	// Password 加上 json:"-" 防止密码泄露给前端
-	Password string  `gorm:"column:password" json:"-"`
-	Role     string  `gorm:"column:role" json:"role"`
-	Avatar   *string `gorm:"column:avatar" json:"avatar"`
-	Email    string  `gorm:"column:email" json:"email"`
-	Title    *string `gorm:"column:title" json:"title"`
+	Password   string  `gorm:"column:password" json:"-"`
+	Role       string  `gorm:"column:role" json:"role"`
+	Avatar     *string `gorm:"column:avatar" json:"avatar"`
+	Email      string  `gorm:"column:email" json:"email"`
+	FullName   *string `gorm:"column:fullname" json:"fullName"`
+	Title      *string `gorm:"column:title" json:"title"`
+	EmployeeID *string `gorm:"column:employeeId" json:"employeeId"`
+	Uploads    int     `gorm:"column:uploads;default:0" json:"uploads"`
+	Downloads  int     `gorm:"column:downloads;default:0" json:"downloads"`
 }
 
 func (User) TableName() string { return "\"User\"" } // 注意：Postgres带引号的表名需要转义
@@ -41,6 +45,7 @@ type Resource struct {
 	ViewType      string    `gorm:"column:viewType" json:"viewType"`
 	DownloadCount int       `gorm:"column:downloadCount" json:"downloadCount"`
 	ViewCount     int       `gorm:"column:viewcount;default:0" json:"viewCount"`
+	Status        string    `gorm:"column:status;default:'NORMAL'" json:"status"`
 	CreateTime    time.Time `gorm:"column:createTime;autoCreateTime" json:"createTime"`
 
 	// 【修改 3】增加 json 标签，否则前端传来的 size 和 type 无法存入
@@ -80,6 +85,8 @@ type Answer struct {
 	Content     string    `gorm:"column:content" json:"content"`
 	Attachments *string   `gorm:"column:attachments" json:"attachments"`
 	CreateTime  time.Time `gorm:"column:createTime;autoCreateTime" json:"createTime"`
+	IsTop       bool      `gorm:"column:isTop;default:false" json:"isTop"`
+	Hidden      bool      `gorm:"column:hidden;default:false" json:"hidden"`
 }
 
 func (Answer) TableName() string { return "\"Answer\"" }
@@ -95,3 +102,14 @@ type Notification struct {
 }
 
 func (Notification) TableName() string { return "\"Notification\"" }
+
+type AdminLog struct {
+	ID         int       `gorm:"column:id;primaryKey" json:"id"`
+	AdminID    string    `gorm:"column:adminId" json:"adminId"`
+	ActionType string    `gorm:"column:actionType" json:"actionType"`
+	TargetID   string    `gorm:"column:targetId" json:"targetId"`
+	Details    *string   `gorm:"column:details" json:"details"`
+	CreateTime time.Time `gorm:"column:createTime;autoCreateTime" json:"createTime"`
+}
+
+func (AdminLog) TableName() string { return "\"AdminLog\"" }

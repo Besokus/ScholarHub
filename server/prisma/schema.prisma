@@ -17,6 +17,9 @@ model User {
   avatar        String?
   email         String         @unique
   title         String?
+  employeeId    String?        @unique
+  uploads       Int            @default(0)
+  downloads     Int            @default(0)
   answers       Answer[]
   courses       Course[]
   notifications Notification[]
@@ -48,6 +51,7 @@ model Resource {
   fileSize      String?
   fileType      String?
   viewCount     Int      @default(0) @map("viewcount")
+  status        String   @default("NORMAL")
   course        Course   @relation(fields: [courseId], references: [id])
   uploader      User     @relation(fields: [uploaderId], references: [id])
 }
@@ -73,6 +77,8 @@ model Answer {
   content     String
   attachments String?
   createTime  DateTime @default(now())
+  isTop       Boolean  @default(false)
+  hidden      Boolean  @default(false)
   question    Question @relation(fields: [questionId], references: [id])
   teacher     User     @relation(fields: [teacherId], references: [id])
 }
@@ -86,4 +92,13 @@ model Notification {
   answerId   Int?
   id         Int      @id @default(autoincrement())
   user       User     @relation(fields: [userId], references: [id])
+}
+
+model AdminLog {
+  id         Int      @id @default(autoincrement())
+  adminId    String
+  actionType String
+  targetId   String
+  details    String?
+  createTime DateTime @default(now())
 }

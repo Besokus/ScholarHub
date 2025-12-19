@@ -43,6 +43,11 @@ export type Answer = $Result.DefaultSelection<Prisma.$AnswerPayload>
  * 
  */
 export type Notification = $Result.DefaultSelection<Prisma.$NotificationPayload>
+/**
+ * Model AdminLog
+ * 
+ */
+export type AdminLog = $Result.DefaultSelection<Prisma.$AdminLogPayload>
 
 /**
  * ##  Prisma Client ʲˢ
@@ -226,6 +231,16 @@ export class PrismaClient<
     * ```
     */
   get notification(): Prisma.NotificationDelegate<ExtArgs>;
+
+  /**
+   * `prisma.adminLog`: Exposes CRUD operations for the **AdminLog** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more AdminLogs
+    * const adminLogs = await prisma.adminLog.findMany()
+    * ```
+    */
+  get adminLog(): Prisma.AdminLogDelegate<ExtArgs>;
 }
 
 export namespace Prisma {
@@ -672,7 +687,8 @@ export namespace Prisma {
     Resource: 'Resource',
     Question: 'Question',
     Answer: 'Answer',
-    Notification: 'Notification'
+    Notification: 'Notification',
+    AdminLog: 'AdminLog'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -688,7 +704,7 @@ export namespace Prisma {
 
   export type TypeMap<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> = {
     meta: {
-      modelProps: "user" | "course" | "resource" | "question" | "answer" | "notification"
+      modelProps: "user" | "course" | "resource" | "question" | "answer" | "notification" | "adminLog"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1112,6 +1128,76 @@ export namespace Prisma {
           }
         }
       }
+      AdminLog: {
+        payload: Prisma.$AdminLogPayload<ExtArgs>
+        fields: Prisma.AdminLogFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.AdminLogFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AdminLogPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.AdminLogFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AdminLogPayload>
+          }
+          findFirst: {
+            args: Prisma.AdminLogFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AdminLogPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.AdminLogFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AdminLogPayload>
+          }
+          findMany: {
+            args: Prisma.AdminLogFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AdminLogPayload>[]
+          }
+          create: {
+            args: Prisma.AdminLogCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AdminLogPayload>
+          }
+          createMany: {
+            args: Prisma.AdminLogCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.AdminLogCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AdminLogPayload>[]
+          }
+          delete: {
+            args: Prisma.AdminLogDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AdminLogPayload>
+          }
+          update: {
+            args: Prisma.AdminLogUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AdminLogPayload>
+          }
+          deleteMany: {
+            args: Prisma.AdminLogDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.AdminLogUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.AdminLogUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AdminLogPayload>
+          }
+          aggregate: {
+            args: Prisma.AdminLogAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateAdminLog>
+          }
+          groupBy: {
+            args: Prisma.AdminLogGroupByArgs<ExtArgs>
+            result: $Utils.Optional<AdminLogGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.AdminLogCountArgs<ExtArgs>
+            result: $Utils.Optional<AdminLogCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -1416,8 +1502,20 @@ export namespace Prisma {
 
   export type AggregateUser = {
     _count: UserCountAggregateOutputType | null
+    _avg: UserAvgAggregateOutputType | null
+    _sum: UserSumAggregateOutputType | null
     _min: UserMinAggregateOutputType | null
     _max: UserMaxAggregateOutputType | null
+  }
+
+  export type UserAvgAggregateOutputType = {
+    uploads: number | null
+    downloads: number | null
+  }
+
+  export type UserSumAggregateOutputType = {
+    uploads: number | null
+    downloads: number | null
   }
 
   export type UserMinAggregateOutputType = {
@@ -1429,6 +1527,9 @@ export namespace Prisma {
     avatar: string | null
     email: string | null
     title: string | null
+    employeeId: string | null
+    uploads: number | null
+    downloads: number | null
   }
 
   export type UserMaxAggregateOutputType = {
@@ -1440,6 +1541,9 @@ export namespace Prisma {
     avatar: string | null
     email: string | null
     title: string | null
+    employeeId: string | null
+    uploads: number | null
+    downloads: number | null
   }
 
   export type UserCountAggregateOutputType = {
@@ -1451,9 +1555,22 @@ export namespace Prisma {
     avatar: number
     email: number
     title: number
+    employeeId: number
+    uploads: number
+    downloads: number
     _all: number
   }
 
+
+  export type UserAvgAggregateInputType = {
+    uploads?: true
+    downloads?: true
+  }
+
+  export type UserSumAggregateInputType = {
+    uploads?: true
+    downloads?: true
+  }
 
   export type UserMinAggregateInputType = {
     id?: true
@@ -1464,6 +1581,9 @@ export namespace Prisma {
     avatar?: true
     email?: true
     title?: true
+    employeeId?: true
+    uploads?: true
+    downloads?: true
   }
 
   export type UserMaxAggregateInputType = {
@@ -1475,6 +1595,9 @@ export namespace Prisma {
     avatar?: true
     email?: true
     title?: true
+    employeeId?: true
+    uploads?: true
+    downloads?: true
   }
 
   export type UserCountAggregateInputType = {
@@ -1486,6 +1609,9 @@ export namespace Prisma {
     avatar?: true
     email?: true
     title?: true
+    employeeId?: true
+    uploads?: true
+    downloads?: true
     _all?: true
   }
 
@@ -1527,6 +1653,18 @@ export namespace Prisma {
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
      * 
+     * Select which fields to average
+    **/
+    _avg?: UserAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: UserSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
      * Select which fields to find the minimum value
     **/
     _min?: UserMinAggregateInputType
@@ -1557,6 +1695,8 @@ export namespace Prisma {
     take?: number
     skip?: number
     _count?: UserCountAggregateInputType | true
+    _avg?: UserAvgAggregateInputType
+    _sum?: UserSumAggregateInputType
     _min?: UserMinAggregateInputType
     _max?: UserMaxAggregateInputType
   }
@@ -1570,7 +1710,12 @@ export namespace Prisma {
     avatar: string | null
     email: string
     title: string | null
+    employeeId: string | null
+    uploads: number
+    downloads: number
     _count: UserCountAggregateOutputType | null
+    _avg: UserAvgAggregateOutputType | null
+    _sum: UserSumAggregateOutputType | null
     _min: UserMinAggregateOutputType | null
     _max: UserMaxAggregateOutputType | null
   }
@@ -1598,6 +1743,9 @@ export namespace Prisma {
     avatar?: boolean
     email?: boolean
     title?: boolean
+    employeeId?: boolean
+    uploads?: boolean
+    downloads?: boolean
     answers?: boolean | User$answersArgs<ExtArgs>
     courses?: boolean | User$coursesArgs<ExtArgs>
     notifications?: boolean | User$notificationsArgs<ExtArgs>
@@ -1615,6 +1763,9 @@ export namespace Prisma {
     avatar?: boolean
     email?: boolean
     title?: boolean
+    employeeId?: boolean
+    uploads?: boolean
+    downloads?: boolean
   }, ExtArgs["result"]["user"]>
 
   export type UserSelectScalar = {
@@ -1626,6 +1777,9 @@ export namespace Prisma {
     avatar?: boolean
     email?: boolean
     title?: boolean
+    employeeId?: boolean
+    uploads?: boolean
+    downloads?: boolean
   }
 
   export type UserInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -1656,6 +1810,9 @@ export namespace Prisma {
       avatar: string | null
       email: string
       title: string | null
+      employeeId: string | null
+      uploads: number
+      downloads: number
     }, ExtArgs["result"]["user"]>
     composites: {}
   }
@@ -2062,6 +2219,9 @@ export namespace Prisma {
     readonly avatar: FieldRef<"User", 'String'>
     readonly email: FieldRef<"User", 'String'>
     readonly title: FieldRef<"User", 'String'>
+    readonly employeeId: FieldRef<"User", 'String'>
+    readonly uploads: FieldRef<"User", 'Int'>
+    readonly downloads: FieldRef<"User", 'Int'>
   }
     
 
@@ -3546,6 +3706,7 @@ export namespace Prisma {
     fileSize: string | null
     fileType: string | null
     viewCount: number | null
+    status: string | null
   }
 
   export type ResourceMaxAggregateOutputType = {
@@ -3561,6 +3722,7 @@ export namespace Prisma {
     fileSize: string | null
     fileType: string | null
     viewCount: number | null
+    status: string | null
   }
 
   export type ResourceCountAggregateOutputType = {
@@ -3576,6 +3738,7 @@ export namespace Prisma {
     fileSize: number
     fileType: number
     viewCount: number
+    status: number
     _all: number
   }
 
@@ -3607,6 +3770,7 @@ export namespace Prisma {
     fileSize?: true
     fileType?: true
     viewCount?: true
+    status?: true
   }
 
   export type ResourceMaxAggregateInputType = {
@@ -3622,6 +3786,7 @@ export namespace Prisma {
     fileSize?: true
     fileType?: true
     viewCount?: true
+    status?: true
   }
 
   export type ResourceCountAggregateInputType = {
@@ -3637,6 +3802,7 @@ export namespace Prisma {
     fileSize?: true
     fileType?: true
     viewCount?: true
+    status?: true
     _all?: true
   }
 
@@ -3739,6 +3905,7 @@ export namespace Prisma {
     fileSize: string | null
     fileType: string | null
     viewCount: number
+    status: string
     _count: ResourceCountAggregateOutputType | null
     _avg: ResourceAvgAggregateOutputType | null
     _sum: ResourceSumAggregateOutputType | null
@@ -3773,6 +3940,7 @@ export namespace Prisma {
     fileSize?: boolean
     fileType?: boolean
     viewCount?: boolean
+    status?: boolean
     course?: boolean | CourseDefaultArgs<ExtArgs>
     uploader?: boolean | UserDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["resource"]>
@@ -3790,6 +3958,7 @@ export namespace Prisma {
     fileSize?: boolean
     fileType?: boolean
     viewCount?: boolean
+    status?: boolean
     course?: boolean | CourseDefaultArgs<ExtArgs>
     uploader?: boolean | UserDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["resource"]>
@@ -3807,6 +3976,7 @@ export namespace Prisma {
     fileSize?: boolean
     fileType?: boolean
     viewCount?: boolean
+    status?: boolean
   }
 
   export type ResourceInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -3837,6 +4007,7 @@ export namespace Prisma {
       fileSize: string | null
       fileType: string | null
       viewCount: number
+      status: string
     }, ExtArgs["result"]["resource"]>
     composites: {}
   }
@@ -4244,6 +4415,7 @@ export namespace Prisma {
     readonly fileSize: FieldRef<"Resource", 'String'>
     readonly fileType: FieldRef<"Resource", 'String'>
     readonly viewCount: FieldRef<"Resource", 'Int'>
+    readonly status: FieldRef<"Resource", 'String'>
   }
     
 
@@ -5644,6 +5816,8 @@ export namespace Prisma {
     content: string | null
     attachments: string | null
     createTime: Date | null
+    isTop: boolean | null
+    hidden: boolean | null
   }
 
   export type AnswerMaxAggregateOutputType = {
@@ -5653,6 +5827,8 @@ export namespace Prisma {
     content: string | null
     attachments: string | null
     createTime: Date | null
+    isTop: boolean | null
+    hidden: boolean | null
   }
 
   export type AnswerCountAggregateOutputType = {
@@ -5662,6 +5838,8 @@ export namespace Prisma {
     content: number
     attachments: number
     createTime: number
+    isTop: number
+    hidden: number
     _all: number
   }
 
@@ -5683,6 +5861,8 @@ export namespace Prisma {
     content?: true
     attachments?: true
     createTime?: true
+    isTop?: true
+    hidden?: true
   }
 
   export type AnswerMaxAggregateInputType = {
@@ -5692,6 +5872,8 @@ export namespace Prisma {
     content?: true
     attachments?: true
     createTime?: true
+    isTop?: true
+    hidden?: true
   }
 
   export type AnswerCountAggregateInputType = {
@@ -5701,6 +5883,8 @@ export namespace Prisma {
     content?: true
     attachments?: true
     createTime?: true
+    isTop?: true
+    hidden?: true
     _all?: true
   }
 
@@ -5797,6 +5981,8 @@ export namespace Prisma {
     content: string
     attachments: string | null
     createTime: Date
+    isTop: boolean
+    hidden: boolean
     _count: AnswerCountAggregateOutputType | null
     _avg: AnswerAvgAggregateOutputType | null
     _sum: AnswerSumAggregateOutputType | null
@@ -5825,6 +6011,8 @@ export namespace Prisma {
     content?: boolean
     attachments?: boolean
     createTime?: boolean
+    isTop?: boolean
+    hidden?: boolean
     question?: boolean | QuestionDefaultArgs<ExtArgs>
     teacher?: boolean | UserDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["answer"]>
@@ -5836,6 +6024,8 @@ export namespace Prisma {
     content?: boolean
     attachments?: boolean
     createTime?: boolean
+    isTop?: boolean
+    hidden?: boolean
     question?: boolean | QuestionDefaultArgs<ExtArgs>
     teacher?: boolean | UserDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["answer"]>
@@ -5847,6 +6037,8 @@ export namespace Prisma {
     content?: boolean
     attachments?: boolean
     createTime?: boolean
+    isTop?: boolean
+    hidden?: boolean
   }
 
   export type AnswerInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -5871,6 +6063,8 @@ export namespace Prisma {
       content: string
       attachments: string | null
       createTime: Date
+      isTop: boolean
+      hidden: boolean
     }, ExtArgs["result"]["answer"]>
     composites: {}
   }
@@ -6272,6 +6466,8 @@ export namespace Prisma {
     readonly content: FieldRef<"Answer", 'String'>
     readonly attachments: FieldRef<"Answer", 'String'>
     readonly createTime: FieldRef<"Answer", 'DateTime'>
+    readonly isTop: FieldRef<"Answer", 'Boolean'>
+    readonly hidden: FieldRef<"Answer", 'Boolean'>
   }
     
 
@@ -7604,6 +7800,930 @@ export namespace Prisma {
 
 
   /**
+   * Model AdminLog
+   */
+
+  export type AggregateAdminLog = {
+    _count: AdminLogCountAggregateOutputType | null
+    _avg: AdminLogAvgAggregateOutputType | null
+    _sum: AdminLogSumAggregateOutputType | null
+    _min: AdminLogMinAggregateOutputType | null
+    _max: AdminLogMaxAggregateOutputType | null
+  }
+
+  export type AdminLogAvgAggregateOutputType = {
+    id: number | null
+  }
+
+  export type AdminLogSumAggregateOutputType = {
+    id: number | null
+  }
+
+  export type AdminLogMinAggregateOutputType = {
+    id: number | null
+    adminId: string | null
+    actionType: string | null
+    targetId: string | null
+    details: string | null
+    createTime: Date | null
+  }
+
+  export type AdminLogMaxAggregateOutputType = {
+    id: number | null
+    adminId: string | null
+    actionType: string | null
+    targetId: string | null
+    details: string | null
+    createTime: Date | null
+  }
+
+  export type AdminLogCountAggregateOutputType = {
+    id: number
+    adminId: number
+    actionType: number
+    targetId: number
+    details: number
+    createTime: number
+    _all: number
+  }
+
+
+  export type AdminLogAvgAggregateInputType = {
+    id?: true
+  }
+
+  export type AdminLogSumAggregateInputType = {
+    id?: true
+  }
+
+  export type AdminLogMinAggregateInputType = {
+    id?: true
+    adminId?: true
+    actionType?: true
+    targetId?: true
+    details?: true
+    createTime?: true
+  }
+
+  export type AdminLogMaxAggregateInputType = {
+    id?: true
+    adminId?: true
+    actionType?: true
+    targetId?: true
+    details?: true
+    createTime?: true
+  }
+
+  export type AdminLogCountAggregateInputType = {
+    id?: true
+    adminId?: true
+    actionType?: true
+    targetId?: true
+    details?: true
+    createTime?: true
+    _all?: true
+  }
+
+  export type AdminLogAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which AdminLog to aggregate.
+     */
+    where?: AdminLogWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AdminLogs to fetch.
+     */
+    orderBy?: AdminLogOrderByWithRelationInput | AdminLogOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: AdminLogWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AdminLogs from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AdminLogs.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned AdminLogs
+    **/
+    _count?: true | AdminLogCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: AdminLogAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: AdminLogSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: AdminLogMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: AdminLogMaxAggregateInputType
+  }
+
+  export type GetAdminLogAggregateType<T extends AdminLogAggregateArgs> = {
+        [P in keyof T & keyof AggregateAdminLog]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateAdminLog[P]>
+      : GetScalarType<T[P], AggregateAdminLog[P]>
+  }
+
+
+
+
+  export type AdminLogGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: AdminLogWhereInput
+    orderBy?: AdminLogOrderByWithAggregationInput | AdminLogOrderByWithAggregationInput[]
+    by: AdminLogScalarFieldEnum[] | AdminLogScalarFieldEnum
+    having?: AdminLogScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: AdminLogCountAggregateInputType | true
+    _avg?: AdminLogAvgAggregateInputType
+    _sum?: AdminLogSumAggregateInputType
+    _min?: AdminLogMinAggregateInputType
+    _max?: AdminLogMaxAggregateInputType
+  }
+
+  export type AdminLogGroupByOutputType = {
+    id: number
+    adminId: string
+    actionType: string
+    targetId: string
+    details: string | null
+    createTime: Date
+    _count: AdminLogCountAggregateOutputType | null
+    _avg: AdminLogAvgAggregateOutputType | null
+    _sum: AdminLogSumAggregateOutputType | null
+    _min: AdminLogMinAggregateOutputType | null
+    _max: AdminLogMaxAggregateOutputType | null
+  }
+
+  type GetAdminLogGroupByPayload<T extends AdminLogGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<AdminLogGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof AdminLogGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], AdminLogGroupByOutputType[P]>
+            : GetScalarType<T[P], AdminLogGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type AdminLogSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    adminId?: boolean
+    actionType?: boolean
+    targetId?: boolean
+    details?: boolean
+    createTime?: boolean
+  }, ExtArgs["result"]["adminLog"]>
+
+  export type AdminLogSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    adminId?: boolean
+    actionType?: boolean
+    targetId?: boolean
+    details?: boolean
+    createTime?: boolean
+  }, ExtArgs["result"]["adminLog"]>
+
+  export type AdminLogSelectScalar = {
+    id?: boolean
+    adminId?: boolean
+    actionType?: boolean
+    targetId?: boolean
+    details?: boolean
+    createTime?: boolean
+  }
+
+
+  export type $AdminLogPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "AdminLog"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      adminId: string
+      actionType: string
+      targetId: string
+      details: string | null
+      createTime: Date
+    }, ExtArgs["result"]["adminLog"]>
+    composites: {}
+  }
+
+  type AdminLogGetPayload<S extends boolean | null | undefined | AdminLogDefaultArgs> = $Result.GetResult<Prisma.$AdminLogPayload, S>
+
+  type AdminLogCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<AdminLogFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: AdminLogCountAggregateInputType | true
+    }
+
+  export interface AdminLogDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['AdminLog'], meta: { name: 'AdminLog' } }
+    /**
+     * Find zero or one AdminLog that matches the filter.
+     * @param {AdminLogFindUniqueArgs} args - Arguments to find a AdminLog
+     * @example
+     * // Get one AdminLog
+     * const adminLog = await prisma.adminLog.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends AdminLogFindUniqueArgs>(args: SelectSubset<T, AdminLogFindUniqueArgs<ExtArgs>>): Prisma__AdminLogClient<$Result.GetResult<Prisma.$AdminLogPayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one AdminLog that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {AdminLogFindUniqueOrThrowArgs} args - Arguments to find a AdminLog
+     * @example
+     * // Get one AdminLog
+     * const adminLog = await prisma.adminLog.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends AdminLogFindUniqueOrThrowArgs>(args: SelectSubset<T, AdminLogFindUniqueOrThrowArgs<ExtArgs>>): Prisma__AdminLogClient<$Result.GetResult<Prisma.$AdminLogPayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first AdminLog that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AdminLogFindFirstArgs} args - Arguments to find a AdminLog
+     * @example
+     * // Get one AdminLog
+     * const adminLog = await prisma.adminLog.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends AdminLogFindFirstArgs>(args?: SelectSubset<T, AdminLogFindFirstArgs<ExtArgs>>): Prisma__AdminLogClient<$Result.GetResult<Prisma.$AdminLogPayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first AdminLog that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AdminLogFindFirstOrThrowArgs} args - Arguments to find a AdminLog
+     * @example
+     * // Get one AdminLog
+     * const adminLog = await prisma.adminLog.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends AdminLogFindFirstOrThrowArgs>(args?: SelectSubset<T, AdminLogFindFirstOrThrowArgs<ExtArgs>>): Prisma__AdminLogClient<$Result.GetResult<Prisma.$AdminLogPayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more AdminLogs that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AdminLogFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all AdminLogs
+     * const adminLogs = await prisma.adminLog.findMany()
+     * 
+     * // Get first 10 AdminLogs
+     * const adminLogs = await prisma.adminLog.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const adminLogWithIdOnly = await prisma.adminLog.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends AdminLogFindManyArgs>(args?: SelectSubset<T, AdminLogFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AdminLogPayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a AdminLog.
+     * @param {AdminLogCreateArgs} args - Arguments to create a AdminLog.
+     * @example
+     * // Create one AdminLog
+     * const AdminLog = await prisma.adminLog.create({
+     *   data: {
+     *     // ... data to create a AdminLog
+     *   }
+     * })
+     * 
+     */
+    create<T extends AdminLogCreateArgs>(args: SelectSubset<T, AdminLogCreateArgs<ExtArgs>>): Prisma__AdminLogClient<$Result.GetResult<Prisma.$AdminLogPayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many AdminLogs.
+     * @param {AdminLogCreateManyArgs} args - Arguments to create many AdminLogs.
+     * @example
+     * // Create many AdminLogs
+     * const adminLog = await prisma.adminLog.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends AdminLogCreateManyArgs>(args?: SelectSubset<T, AdminLogCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many AdminLogs and returns the data saved in the database.
+     * @param {AdminLogCreateManyAndReturnArgs} args - Arguments to create many AdminLogs.
+     * @example
+     * // Create many AdminLogs
+     * const adminLog = await prisma.adminLog.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many AdminLogs and only return the `id`
+     * const adminLogWithIdOnly = await prisma.adminLog.createManyAndReturn({ 
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends AdminLogCreateManyAndReturnArgs>(args?: SelectSubset<T, AdminLogCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AdminLogPayload<ExtArgs>, T, "createManyAndReturn">>
+
+    /**
+     * Delete a AdminLog.
+     * @param {AdminLogDeleteArgs} args - Arguments to delete one AdminLog.
+     * @example
+     * // Delete one AdminLog
+     * const AdminLog = await prisma.adminLog.delete({
+     *   where: {
+     *     // ... filter to delete one AdminLog
+     *   }
+     * })
+     * 
+     */
+    delete<T extends AdminLogDeleteArgs>(args: SelectSubset<T, AdminLogDeleteArgs<ExtArgs>>): Prisma__AdminLogClient<$Result.GetResult<Prisma.$AdminLogPayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one AdminLog.
+     * @param {AdminLogUpdateArgs} args - Arguments to update one AdminLog.
+     * @example
+     * // Update one AdminLog
+     * const adminLog = await prisma.adminLog.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends AdminLogUpdateArgs>(args: SelectSubset<T, AdminLogUpdateArgs<ExtArgs>>): Prisma__AdminLogClient<$Result.GetResult<Prisma.$AdminLogPayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more AdminLogs.
+     * @param {AdminLogDeleteManyArgs} args - Arguments to filter AdminLogs to delete.
+     * @example
+     * // Delete a few AdminLogs
+     * const { count } = await prisma.adminLog.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends AdminLogDeleteManyArgs>(args?: SelectSubset<T, AdminLogDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more AdminLogs.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AdminLogUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many AdminLogs
+     * const adminLog = await prisma.adminLog.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends AdminLogUpdateManyArgs>(args: SelectSubset<T, AdminLogUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one AdminLog.
+     * @param {AdminLogUpsertArgs} args - Arguments to update or create a AdminLog.
+     * @example
+     * // Update or create a AdminLog
+     * const adminLog = await prisma.adminLog.upsert({
+     *   create: {
+     *     // ... data to create a AdminLog
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the AdminLog we want to update
+     *   }
+     * })
+     */
+    upsert<T extends AdminLogUpsertArgs>(args: SelectSubset<T, AdminLogUpsertArgs<ExtArgs>>): Prisma__AdminLogClient<$Result.GetResult<Prisma.$AdminLogPayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of AdminLogs.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AdminLogCountArgs} args - Arguments to filter AdminLogs to count.
+     * @example
+     * // Count the number of AdminLogs
+     * const count = await prisma.adminLog.count({
+     *   where: {
+     *     // ... the filter for the AdminLogs we want to count
+     *   }
+     * })
+    **/
+    count<T extends AdminLogCountArgs>(
+      args?: Subset<T, AdminLogCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], AdminLogCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a AdminLog.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AdminLogAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends AdminLogAggregateArgs>(args: Subset<T, AdminLogAggregateArgs>): Prisma.PrismaPromise<GetAdminLogAggregateType<T>>
+
+    /**
+     * Group by AdminLog.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AdminLogGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends AdminLogGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: AdminLogGroupByArgs['orderBy'] }
+        : { orderBy?: AdminLogGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, AdminLogGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetAdminLogGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the AdminLog model
+   */
+  readonly fields: AdminLogFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for AdminLog.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__AdminLogClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the AdminLog model
+   */ 
+  interface AdminLogFieldRefs {
+    readonly id: FieldRef<"AdminLog", 'Int'>
+    readonly adminId: FieldRef<"AdminLog", 'String'>
+    readonly actionType: FieldRef<"AdminLog", 'String'>
+    readonly targetId: FieldRef<"AdminLog", 'String'>
+    readonly details: FieldRef<"AdminLog", 'String'>
+    readonly createTime: FieldRef<"AdminLog", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * AdminLog findUnique
+   */
+  export type AdminLogFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AdminLog
+     */
+    select?: AdminLogSelect<ExtArgs> | null
+    /**
+     * Filter, which AdminLog to fetch.
+     */
+    where: AdminLogWhereUniqueInput
+  }
+
+  /**
+   * AdminLog findUniqueOrThrow
+   */
+  export type AdminLogFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AdminLog
+     */
+    select?: AdminLogSelect<ExtArgs> | null
+    /**
+     * Filter, which AdminLog to fetch.
+     */
+    where: AdminLogWhereUniqueInput
+  }
+
+  /**
+   * AdminLog findFirst
+   */
+  export type AdminLogFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AdminLog
+     */
+    select?: AdminLogSelect<ExtArgs> | null
+    /**
+     * Filter, which AdminLog to fetch.
+     */
+    where?: AdminLogWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AdminLogs to fetch.
+     */
+    orderBy?: AdminLogOrderByWithRelationInput | AdminLogOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for AdminLogs.
+     */
+    cursor?: AdminLogWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AdminLogs from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AdminLogs.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AdminLogs.
+     */
+    distinct?: AdminLogScalarFieldEnum | AdminLogScalarFieldEnum[]
+  }
+
+  /**
+   * AdminLog findFirstOrThrow
+   */
+  export type AdminLogFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AdminLog
+     */
+    select?: AdminLogSelect<ExtArgs> | null
+    /**
+     * Filter, which AdminLog to fetch.
+     */
+    where?: AdminLogWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AdminLogs to fetch.
+     */
+    orderBy?: AdminLogOrderByWithRelationInput | AdminLogOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for AdminLogs.
+     */
+    cursor?: AdminLogWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AdminLogs from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AdminLogs.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AdminLogs.
+     */
+    distinct?: AdminLogScalarFieldEnum | AdminLogScalarFieldEnum[]
+  }
+
+  /**
+   * AdminLog findMany
+   */
+  export type AdminLogFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AdminLog
+     */
+    select?: AdminLogSelect<ExtArgs> | null
+    /**
+     * Filter, which AdminLogs to fetch.
+     */
+    where?: AdminLogWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AdminLogs to fetch.
+     */
+    orderBy?: AdminLogOrderByWithRelationInput | AdminLogOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing AdminLogs.
+     */
+    cursor?: AdminLogWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AdminLogs from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AdminLogs.
+     */
+    skip?: number
+    distinct?: AdminLogScalarFieldEnum | AdminLogScalarFieldEnum[]
+  }
+
+  /**
+   * AdminLog create
+   */
+  export type AdminLogCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AdminLog
+     */
+    select?: AdminLogSelect<ExtArgs> | null
+    /**
+     * The data needed to create a AdminLog.
+     */
+    data: XOR<AdminLogCreateInput, AdminLogUncheckedCreateInput>
+  }
+
+  /**
+   * AdminLog createMany
+   */
+  export type AdminLogCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many AdminLogs.
+     */
+    data: AdminLogCreateManyInput | AdminLogCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * AdminLog createManyAndReturn
+   */
+  export type AdminLogCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AdminLog
+     */
+    select?: AdminLogSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * The data used to create many AdminLogs.
+     */
+    data: AdminLogCreateManyInput | AdminLogCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * AdminLog update
+   */
+  export type AdminLogUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AdminLog
+     */
+    select?: AdminLogSelect<ExtArgs> | null
+    /**
+     * The data needed to update a AdminLog.
+     */
+    data: XOR<AdminLogUpdateInput, AdminLogUncheckedUpdateInput>
+    /**
+     * Choose, which AdminLog to update.
+     */
+    where: AdminLogWhereUniqueInput
+  }
+
+  /**
+   * AdminLog updateMany
+   */
+  export type AdminLogUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update AdminLogs.
+     */
+    data: XOR<AdminLogUpdateManyMutationInput, AdminLogUncheckedUpdateManyInput>
+    /**
+     * Filter which AdminLogs to update
+     */
+    where?: AdminLogWhereInput
+  }
+
+  /**
+   * AdminLog upsert
+   */
+  export type AdminLogUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AdminLog
+     */
+    select?: AdminLogSelect<ExtArgs> | null
+    /**
+     * The filter to search for the AdminLog to update in case it exists.
+     */
+    where: AdminLogWhereUniqueInput
+    /**
+     * In case the AdminLog found by the `where` argument doesn't exist, create a new AdminLog with this data.
+     */
+    create: XOR<AdminLogCreateInput, AdminLogUncheckedCreateInput>
+    /**
+     * In case the AdminLog was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<AdminLogUpdateInput, AdminLogUncheckedUpdateInput>
+  }
+
+  /**
+   * AdminLog delete
+   */
+  export type AdminLogDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AdminLog
+     */
+    select?: AdminLogSelect<ExtArgs> | null
+    /**
+     * Filter which AdminLog to delete.
+     */
+    where: AdminLogWhereUniqueInput
+  }
+
+  /**
+   * AdminLog deleteMany
+   */
+  export type AdminLogDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which AdminLogs to delete
+     */
+    where?: AdminLogWhereInput
+  }
+
+  /**
+   * AdminLog without action
+   */
+  export type AdminLogDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AdminLog
+     */
+    select?: AdminLogSelect<ExtArgs> | null
+  }
+
+
+  /**
    * Enums
    */
 
@@ -7625,7 +8745,10 @@ export namespace Prisma {
     role: 'role',
     avatar: 'avatar',
     email: 'email',
-    title: 'title'
+    title: 'title',
+    employeeId: 'employeeId',
+    uploads: 'uploads',
+    downloads: 'downloads'
   };
 
   export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
@@ -7654,7 +8777,8 @@ export namespace Prisma {
     createTime: 'createTime',
     fileSize: 'fileSize',
     fileType: 'fileType',
-    viewCount: 'viewCount'
+    viewCount: 'viewCount',
+    status: 'status'
   };
 
   export type ResourceScalarFieldEnum = (typeof ResourceScalarFieldEnum)[keyof typeof ResourceScalarFieldEnum]
@@ -7680,7 +8804,9 @@ export namespace Prisma {
     teacherId: 'teacherId',
     content: 'content',
     attachments: 'attachments',
-    createTime: 'createTime'
+    createTime: 'createTime',
+    isTop: 'isTop',
+    hidden: 'hidden'
   };
 
   export type AnswerScalarFieldEnum = (typeof AnswerScalarFieldEnum)[keyof typeof AnswerScalarFieldEnum]
@@ -7697,6 +8823,18 @@ export namespace Prisma {
   };
 
   export type NotificationScalarFieldEnum = (typeof NotificationScalarFieldEnum)[keyof typeof NotificationScalarFieldEnum]
+
+
+  export const AdminLogScalarFieldEnum: {
+    id: 'id',
+    adminId: 'adminId',
+    actionType: 'actionType',
+    targetId: 'targetId',
+    details: 'details',
+    createTime: 'createTime'
+  };
+
+  export type AdminLogScalarFieldEnum = (typeof AdminLogScalarFieldEnum)[keyof typeof AdminLogScalarFieldEnum]
 
 
   export const SortOrder: {
@@ -7806,6 +8944,9 @@ export namespace Prisma {
     avatar?: StringNullableFilter<"User"> | string | null
     email?: StringFilter<"User"> | string
     title?: StringNullableFilter<"User"> | string | null
+    employeeId?: StringNullableFilter<"User"> | string | null
+    uploads?: IntFilter<"User"> | number
+    downloads?: IntFilter<"User"> | number
     answers?: AnswerListRelationFilter
     courses?: CourseListRelationFilter
     notifications?: NotificationListRelationFilter
@@ -7822,6 +8963,9 @@ export namespace Prisma {
     avatar?: SortOrderInput | SortOrder
     email?: SortOrder
     title?: SortOrderInput | SortOrder
+    employeeId?: SortOrderInput | SortOrder
+    uploads?: SortOrder
+    downloads?: SortOrder
     answers?: AnswerOrderByRelationAggregateInput
     courses?: CourseOrderByRelationAggregateInput
     notifications?: NotificationOrderByRelationAggregateInput
@@ -7833,6 +8977,7 @@ export namespace Prisma {
     id?: string
     username?: string
     email?: string
+    employeeId?: string
     AND?: UserWhereInput | UserWhereInput[]
     OR?: UserWhereInput[]
     NOT?: UserWhereInput | UserWhereInput[]
@@ -7841,12 +8986,14 @@ export namespace Prisma {
     role?: StringFilter<"User"> | string
     avatar?: StringNullableFilter<"User"> | string | null
     title?: StringNullableFilter<"User"> | string | null
+    uploads?: IntFilter<"User"> | number
+    downloads?: IntFilter<"User"> | number
     answers?: AnswerListRelationFilter
     courses?: CourseListRelationFilter
     notifications?: NotificationListRelationFilter
     questions?: QuestionListRelationFilter
     resources?: ResourceListRelationFilter
-  }, "id" | "username" | "email">
+  }, "id" | "username" | "email" | "employeeId">
 
   export type UserOrderByWithAggregationInput = {
     id?: SortOrder
@@ -7857,9 +9004,14 @@ export namespace Prisma {
     avatar?: SortOrderInput | SortOrder
     email?: SortOrder
     title?: SortOrderInput | SortOrder
+    employeeId?: SortOrderInput | SortOrder
+    uploads?: SortOrder
+    downloads?: SortOrder
     _count?: UserCountOrderByAggregateInput
+    _avg?: UserAvgOrderByAggregateInput
     _max?: UserMaxOrderByAggregateInput
     _min?: UserMinOrderByAggregateInput
+    _sum?: UserSumOrderByAggregateInput
   }
 
   export type UserScalarWhereWithAggregatesInput = {
@@ -7874,6 +9026,9 @@ export namespace Prisma {
     avatar?: StringNullableWithAggregatesFilter<"User"> | string | null
     email?: StringWithAggregatesFilter<"User"> | string
     title?: StringNullableWithAggregatesFilter<"User"> | string | null
+    employeeId?: StringNullableWithAggregatesFilter<"User"> | string | null
+    uploads?: IntWithAggregatesFilter<"User"> | number
+    downloads?: IntWithAggregatesFilter<"User"> | number
   }
 
   export type CourseWhereInput = {
@@ -7955,6 +9110,7 @@ export namespace Prisma {
     fileSize?: StringNullableFilter<"Resource"> | string | null
     fileType?: StringNullableFilter<"Resource"> | string | null
     viewCount?: IntFilter<"Resource"> | number
+    status?: StringFilter<"Resource"> | string
     course?: XOR<CourseRelationFilter, CourseWhereInput>
     uploader?: XOR<UserRelationFilter, UserWhereInput>
   }
@@ -7972,6 +9128,7 @@ export namespace Prisma {
     fileSize?: SortOrderInput | SortOrder
     fileType?: SortOrderInput | SortOrder
     viewCount?: SortOrder
+    status?: SortOrder
     course?: CourseOrderByWithRelationInput
     uploader?: UserOrderByWithRelationInput
   }
@@ -7992,6 +9149,7 @@ export namespace Prisma {
     fileSize?: StringNullableFilter<"Resource"> | string | null
     fileType?: StringNullableFilter<"Resource"> | string | null
     viewCount?: IntFilter<"Resource"> | number
+    status?: StringFilter<"Resource"> | string
     course?: XOR<CourseRelationFilter, CourseWhereInput>
     uploader?: XOR<UserRelationFilter, UserWhereInput>
   }, "id">
@@ -8009,6 +9167,7 @@ export namespace Prisma {
     fileSize?: SortOrderInput | SortOrder
     fileType?: SortOrderInput | SortOrder
     viewCount?: SortOrder
+    status?: SortOrder
     _count?: ResourceCountOrderByAggregateInput
     _avg?: ResourceAvgOrderByAggregateInput
     _max?: ResourceMaxOrderByAggregateInput
@@ -8032,6 +9191,7 @@ export namespace Prisma {
     fileSize?: StringNullableWithAggregatesFilter<"Resource"> | string | null
     fileType?: StringNullableWithAggregatesFilter<"Resource"> | string | null
     viewCount?: IntWithAggregatesFilter<"Resource"> | number
+    status?: StringWithAggregatesFilter<"Resource"> | string
   }
 
   export type QuestionWhereInput = {
@@ -8122,6 +9282,8 @@ export namespace Prisma {
     content?: StringFilter<"Answer"> | string
     attachments?: StringNullableFilter<"Answer"> | string | null
     createTime?: DateTimeFilter<"Answer"> | Date | string
+    isTop?: BoolFilter<"Answer"> | boolean
+    hidden?: BoolFilter<"Answer"> | boolean
     question?: XOR<QuestionRelationFilter, QuestionWhereInput>
     teacher?: XOR<UserRelationFilter, UserWhereInput>
   }
@@ -8133,6 +9295,8 @@ export namespace Prisma {
     content?: SortOrder
     attachments?: SortOrderInput | SortOrder
     createTime?: SortOrder
+    isTop?: SortOrder
+    hidden?: SortOrder
     question?: QuestionOrderByWithRelationInput
     teacher?: UserOrderByWithRelationInput
   }
@@ -8147,6 +9311,8 @@ export namespace Prisma {
     content?: StringFilter<"Answer"> | string
     attachments?: StringNullableFilter<"Answer"> | string | null
     createTime?: DateTimeFilter<"Answer"> | Date | string
+    isTop?: BoolFilter<"Answer"> | boolean
+    hidden?: BoolFilter<"Answer"> | boolean
     question?: XOR<QuestionRelationFilter, QuestionWhereInput>
     teacher?: XOR<UserRelationFilter, UserWhereInput>
   }, "id">
@@ -8158,6 +9324,8 @@ export namespace Prisma {
     content?: SortOrder
     attachments?: SortOrderInput | SortOrder
     createTime?: SortOrder
+    isTop?: SortOrder
+    hidden?: SortOrder
     _count?: AnswerCountOrderByAggregateInput
     _avg?: AnswerAvgOrderByAggregateInput
     _max?: AnswerMaxOrderByAggregateInput
@@ -8175,6 +9343,8 @@ export namespace Prisma {
     content?: StringWithAggregatesFilter<"Answer"> | string
     attachments?: StringNullableWithAggregatesFilter<"Answer"> | string | null
     createTime?: DateTimeWithAggregatesFilter<"Answer"> | Date | string
+    isTop?: BoolWithAggregatesFilter<"Answer"> | boolean
+    hidden?: BoolWithAggregatesFilter<"Answer"> | boolean
   }
 
   export type NotificationWhereInput = {
@@ -8244,6 +9414,65 @@ export namespace Prisma {
     id?: IntWithAggregatesFilter<"Notification"> | number
   }
 
+  export type AdminLogWhereInput = {
+    AND?: AdminLogWhereInput | AdminLogWhereInput[]
+    OR?: AdminLogWhereInput[]
+    NOT?: AdminLogWhereInput | AdminLogWhereInput[]
+    id?: IntFilter<"AdminLog"> | number
+    adminId?: StringFilter<"AdminLog"> | string
+    actionType?: StringFilter<"AdminLog"> | string
+    targetId?: StringFilter<"AdminLog"> | string
+    details?: StringNullableFilter<"AdminLog"> | string | null
+    createTime?: DateTimeFilter<"AdminLog"> | Date | string
+  }
+
+  export type AdminLogOrderByWithRelationInput = {
+    id?: SortOrder
+    adminId?: SortOrder
+    actionType?: SortOrder
+    targetId?: SortOrder
+    details?: SortOrderInput | SortOrder
+    createTime?: SortOrder
+  }
+
+  export type AdminLogWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    AND?: AdminLogWhereInput | AdminLogWhereInput[]
+    OR?: AdminLogWhereInput[]
+    NOT?: AdminLogWhereInput | AdminLogWhereInput[]
+    adminId?: StringFilter<"AdminLog"> | string
+    actionType?: StringFilter<"AdminLog"> | string
+    targetId?: StringFilter<"AdminLog"> | string
+    details?: StringNullableFilter<"AdminLog"> | string | null
+    createTime?: DateTimeFilter<"AdminLog"> | Date | string
+  }, "id">
+
+  export type AdminLogOrderByWithAggregationInput = {
+    id?: SortOrder
+    adminId?: SortOrder
+    actionType?: SortOrder
+    targetId?: SortOrder
+    details?: SortOrderInput | SortOrder
+    createTime?: SortOrder
+    _count?: AdminLogCountOrderByAggregateInput
+    _avg?: AdminLogAvgOrderByAggregateInput
+    _max?: AdminLogMaxOrderByAggregateInput
+    _min?: AdminLogMinOrderByAggregateInput
+    _sum?: AdminLogSumOrderByAggregateInput
+  }
+
+  export type AdminLogScalarWhereWithAggregatesInput = {
+    AND?: AdminLogScalarWhereWithAggregatesInput | AdminLogScalarWhereWithAggregatesInput[]
+    OR?: AdminLogScalarWhereWithAggregatesInput[]
+    NOT?: AdminLogScalarWhereWithAggregatesInput | AdminLogScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"AdminLog"> | number
+    adminId?: StringWithAggregatesFilter<"AdminLog"> | string
+    actionType?: StringWithAggregatesFilter<"AdminLog"> | string
+    targetId?: StringWithAggregatesFilter<"AdminLog"> | string
+    details?: StringNullableWithAggregatesFilter<"AdminLog"> | string | null
+    createTime?: DateTimeWithAggregatesFilter<"AdminLog"> | Date | string
+  }
+
   export type UserCreateInput = {
     id?: string
     username: string
@@ -8253,6 +9482,9 @@ export namespace Prisma {
     avatar?: string | null
     email: string
     title?: string | null
+    employeeId?: string | null
+    uploads?: number
+    downloads?: number
     answers?: AnswerCreateNestedManyWithoutTeacherInput
     courses?: CourseCreateNestedManyWithoutTeacherInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
@@ -8269,6 +9501,9 @@ export namespace Prisma {
     avatar?: string | null
     email: string
     title?: string | null
+    employeeId?: string | null
+    uploads?: number
+    downloads?: number
     answers?: AnswerUncheckedCreateNestedManyWithoutTeacherInput
     courses?: CourseUncheckedCreateNestedManyWithoutTeacherInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
@@ -8285,6 +9520,9 @@ export namespace Prisma {
     avatar?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    uploads?: IntFieldUpdateOperationsInput | number
+    downloads?: IntFieldUpdateOperationsInput | number
     answers?: AnswerUpdateManyWithoutTeacherNestedInput
     courses?: CourseUpdateManyWithoutTeacherNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
@@ -8301,6 +9539,9 @@ export namespace Prisma {
     avatar?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    uploads?: IntFieldUpdateOperationsInput | number
+    downloads?: IntFieldUpdateOperationsInput | number
     answers?: AnswerUncheckedUpdateManyWithoutTeacherNestedInput
     courses?: CourseUncheckedUpdateManyWithoutTeacherNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
@@ -8317,6 +9558,9 @@ export namespace Prisma {
     avatar?: string | null
     email: string
     title?: string | null
+    employeeId?: string | null
+    uploads?: number
+    downloads?: number
   }
 
   export type UserUpdateManyMutationInput = {
@@ -8328,6 +9572,9 @@ export namespace Prisma {
     avatar?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    uploads?: IntFieldUpdateOperationsInput | number
+    downloads?: IntFieldUpdateOperationsInput | number
   }
 
   export type UserUncheckedUpdateManyInput = {
@@ -8339,6 +9586,9 @@ export namespace Prisma {
     avatar?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    uploads?: IntFieldUpdateOperationsInput | number
+    downloads?: IntFieldUpdateOperationsInput | number
   }
 
   export type CourseCreateInput = {
@@ -8411,6 +9661,7 @@ export namespace Prisma {
     fileSize?: string | null
     fileType?: string | null
     viewCount?: number
+    status?: string
     course: CourseCreateNestedOneWithoutResourcesInput
     uploader: UserCreateNestedOneWithoutResourcesInput
   }
@@ -8428,6 +9679,7 @@ export namespace Prisma {
     fileSize?: string | null
     fileType?: string | null
     viewCount?: number
+    status?: string
   }
 
   export type ResourceUpdateInput = {
@@ -8440,6 +9692,7 @@ export namespace Prisma {
     fileSize?: NullableStringFieldUpdateOperationsInput | string | null
     fileType?: NullableStringFieldUpdateOperationsInput | string | null
     viewCount?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
     course?: CourseUpdateOneRequiredWithoutResourcesNestedInput
     uploader?: UserUpdateOneRequiredWithoutResourcesNestedInput
   }
@@ -8457,6 +9710,7 @@ export namespace Prisma {
     fileSize?: NullableStringFieldUpdateOperationsInput | string | null
     fileType?: NullableStringFieldUpdateOperationsInput | string | null
     viewCount?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
   }
 
   export type ResourceCreateManyInput = {
@@ -8472,6 +9726,7 @@ export namespace Prisma {
     fileSize?: string | null
     fileType?: string | null
     viewCount?: number
+    status?: string
   }
 
   export type ResourceUpdateManyMutationInput = {
@@ -8484,6 +9739,7 @@ export namespace Prisma {
     fileSize?: NullableStringFieldUpdateOperationsInput | string | null
     fileType?: NullableStringFieldUpdateOperationsInput | string | null
     viewCount?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
   }
 
   export type ResourceUncheckedUpdateManyInput = {
@@ -8499,6 +9755,7 @@ export namespace Prisma {
     fileSize?: NullableStringFieldUpdateOperationsInput | string | null
     fileType?: NullableStringFieldUpdateOperationsInput | string | null
     viewCount?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
   }
 
   export type QuestionCreateInput = {
@@ -8581,6 +9838,8 @@ export namespace Prisma {
     content: string
     attachments?: string | null
     createTime?: Date | string
+    isTop?: boolean
+    hidden?: boolean
     question: QuestionCreateNestedOneWithoutAnswersInput
     teacher: UserCreateNestedOneWithoutAnswersInput
   }
@@ -8592,12 +9851,16 @@ export namespace Prisma {
     content: string
     attachments?: string | null
     createTime?: Date | string
+    isTop?: boolean
+    hidden?: boolean
   }
 
   export type AnswerUpdateInput = {
     content?: StringFieldUpdateOperationsInput | string
     attachments?: NullableStringFieldUpdateOperationsInput | string | null
     createTime?: DateTimeFieldUpdateOperationsInput | Date | string
+    isTop?: BoolFieldUpdateOperationsInput | boolean
+    hidden?: BoolFieldUpdateOperationsInput | boolean
     question?: QuestionUpdateOneRequiredWithoutAnswersNestedInput
     teacher?: UserUpdateOneRequiredWithoutAnswersNestedInput
   }
@@ -8609,6 +9872,8 @@ export namespace Prisma {
     content?: StringFieldUpdateOperationsInput | string
     attachments?: NullableStringFieldUpdateOperationsInput | string | null
     createTime?: DateTimeFieldUpdateOperationsInput | Date | string
+    isTop?: BoolFieldUpdateOperationsInput | boolean
+    hidden?: BoolFieldUpdateOperationsInput | boolean
   }
 
   export type AnswerCreateManyInput = {
@@ -8618,12 +9883,16 @@ export namespace Prisma {
     content: string
     attachments?: string | null
     createTime?: Date | string
+    isTop?: boolean
+    hidden?: boolean
   }
 
   export type AnswerUpdateManyMutationInput = {
     content?: StringFieldUpdateOperationsInput | string
     attachments?: NullableStringFieldUpdateOperationsInput | string | null
     createTime?: DateTimeFieldUpdateOperationsInput | Date | string
+    isTop?: BoolFieldUpdateOperationsInput | boolean
+    hidden?: BoolFieldUpdateOperationsInput | boolean
   }
 
   export type AnswerUncheckedUpdateManyInput = {
@@ -8633,6 +9902,8 @@ export namespace Prisma {
     content?: StringFieldUpdateOperationsInput | string
     attachments?: NullableStringFieldUpdateOperationsInput | string | null
     createTime?: DateTimeFieldUpdateOperationsInput | Date | string
+    isTop?: BoolFieldUpdateOperationsInput | boolean
+    hidden?: BoolFieldUpdateOperationsInput | boolean
   }
 
   export type NotificationCreateInput = {
@@ -8701,6 +9972,66 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
   }
 
+  export type AdminLogCreateInput = {
+    adminId: string
+    actionType: string
+    targetId: string
+    details?: string | null
+    createTime?: Date | string
+  }
+
+  export type AdminLogUncheckedCreateInput = {
+    id?: number
+    adminId: string
+    actionType: string
+    targetId: string
+    details?: string | null
+    createTime?: Date | string
+  }
+
+  export type AdminLogUpdateInput = {
+    adminId?: StringFieldUpdateOperationsInput | string
+    actionType?: StringFieldUpdateOperationsInput | string
+    targetId?: StringFieldUpdateOperationsInput | string
+    details?: NullableStringFieldUpdateOperationsInput | string | null
+    createTime?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AdminLogUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    adminId?: StringFieldUpdateOperationsInput | string
+    actionType?: StringFieldUpdateOperationsInput | string
+    targetId?: StringFieldUpdateOperationsInput | string
+    details?: NullableStringFieldUpdateOperationsInput | string | null
+    createTime?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AdminLogCreateManyInput = {
+    id?: number
+    adminId: string
+    actionType: string
+    targetId: string
+    details?: string | null
+    createTime?: Date | string
+  }
+
+  export type AdminLogUpdateManyMutationInput = {
+    adminId?: StringFieldUpdateOperationsInput | string
+    actionType?: StringFieldUpdateOperationsInput | string
+    targetId?: StringFieldUpdateOperationsInput | string
+    details?: NullableStringFieldUpdateOperationsInput | string | null
+    createTime?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AdminLogUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    adminId?: StringFieldUpdateOperationsInput | string
+    actionType?: StringFieldUpdateOperationsInput | string
+    targetId?: StringFieldUpdateOperationsInput | string
+    details?: NullableStringFieldUpdateOperationsInput | string | null
+    createTime?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type StringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -8729,6 +10060,17 @@ export namespace Prisma {
     endsWith?: string | StringFieldRefInput<$PrismaModel>
     mode?: QueryMode
     not?: NestedStringNullableFilter<$PrismaModel> | string | null
+  }
+
+  export type IntFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntFilter<$PrismaModel> | number
   }
 
   export type AnswerListRelationFilter = {
@@ -8795,6 +10137,14 @@ export namespace Prisma {
     avatar?: SortOrder
     email?: SortOrder
     title?: SortOrder
+    employeeId?: SortOrder
+    uploads?: SortOrder
+    downloads?: SortOrder
+  }
+
+  export type UserAvgOrderByAggregateInput = {
+    uploads?: SortOrder
+    downloads?: SortOrder
   }
 
   export type UserMaxOrderByAggregateInput = {
@@ -8806,6 +10156,9 @@ export namespace Prisma {
     avatar?: SortOrder
     email?: SortOrder
     title?: SortOrder
+    employeeId?: SortOrder
+    uploads?: SortOrder
+    downloads?: SortOrder
   }
 
   export type UserMinOrderByAggregateInput = {
@@ -8817,6 +10170,14 @@ export namespace Prisma {
     avatar?: SortOrder
     email?: SortOrder
     title?: SortOrder
+    employeeId?: SortOrder
+    uploads?: SortOrder
+    downloads?: SortOrder
+  }
+
+  export type UserSumOrderByAggregateInput = {
+    uploads?: SortOrder
+    downloads?: SortOrder
   }
 
   export type StringWithAggregatesFilter<$PrismaModel = never> = {
@@ -8855,7 +10216,7 @@ export namespace Prisma {
     _max?: NestedStringNullableFilter<$PrismaModel>
   }
 
-  export type IntFilter<$PrismaModel = never> = {
+  export type IntWithAggregatesFilter<$PrismaModel = never> = {
     equals?: number | IntFieldRefInput<$PrismaModel>
     in?: number[] | ListIntFieldRefInput<$PrismaModel>
     notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
@@ -8863,7 +10224,12 @@ export namespace Prisma {
     lte?: number | IntFieldRefInput<$PrismaModel>
     gt?: number | IntFieldRefInput<$PrismaModel>
     gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntFilter<$PrismaModel> | number
+    not?: NestedIntWithAggregatesFilter<$PrismaModel> | number
+    _count?: NestedIntFilter<$PrismaModel>
+    _avg?: NestedFloatFilter<$PrismaModel>
+    _sum?: NestedIntFilter<$PrismaModel>
+    _min?: NestedIntFilter<$PrismaModel>
+    _max?: NestedIntFilter<$PrismaModel>
   }
 
   export type UserRelationFilter = {
@@ -8903,22 +10269,6 @@ export namespace Prisma {
     id?: SortOrder
   }
 
-  export type IntWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: number | IntFieldRefInput<$PrismaModel>
-    in?: number[] | ListIntFieldRefInput<$PrismaModel>
-    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
-    lt?: number | IntFieldRefInput<$PrismaModel>
-    lte?: number | IntFieldRefInput<$PrismaModel>
-    gt?: number | IntFieldRefInput<$PrismaModel>
-    gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntWithAggregatesFilter<$PrismaModel> | number
-    _count?: NestedIntFilter<$PrismaModel>
-    _avg?: NestedFloatFilter<$PrismaModel>
-    _sum?: NestedIntFilter<$PrismaModel>
-    _min?: NestedIntFilter<$PrismaModel>
-    _max?: NestedIntFilter<$PrismaModel>
-  }
-
   export type DateTimeFilter<$PrismaModel = never> = {
     equals?: Date | string | DateTimeFieldRefInput<$PrismaModel>
     in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
@@ -8948,6 +10298,7 @@ export namespace Prisma {
     fileSize?: SortOrder
     fileType?: SortOrder
     viewCount?: SortOrder
+    status?: SortOrder
   }
 
   export type ResourceAvgOrderByAggregateInput = {
@@ -8970,6 +10321,7 @@ export namespace Prisma {
     fileSize?: SortOrder
     fileType?: SortOrder
     viewCount?: SortOrder
+    status?: SortOrder
   }
 
   export type ResourceMinOrderByAggregateInput = {
@@ -8985,6 +10337,7 @@ export namespace Prisma {
     fileSize?: SortOrder
     fileType?: SortOrder
     viewCount?: SortOrder
+    status?: SortOrder
   }
 
   export type ResourceSumOrderByAggregateInput = {
@@ -9051,6 +10404,11 @@ export namespace Prisma {
     courseId?: SortOrder
   }
 
+  export type BoolFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolFilter<$PrismaModel> | boolean
+  }
+
   export type QuestionRelationFilter = {
     is?: QuestionWhereInput
     isNot?: QuestionWhereInput
@@ -9063,6 +10421,8 @@ export namespace Prisma {
     content?: SortOrder
     attachments?: SortOrder
     createTime?: SortOrder
+    isTop?: SortOrder
+    hidden?: SortOrder
   }
 
   export type AnswerAvgOrderByAggregateInput = {
@@ -9077,6 +10437,8 @@ export namespace Prisma {
     content?: SortOrder
     attachments?: SortOrder
     createTime?: SortOrder
+    isTop?: SortOrder
+    hidden?: SortOrder
   }
 
   export type AnswerMinOrderByAggregateInput = {
@@ -9086,11 +10448,21 @@ export namespace Prisma {
     content?: SortOrder
     attachments?: SortOrder
     createTime?: SortOrder
+    isTop?: SortOrder
+    hidden?: SortOrder
   }
 
   export type AnswerSumOrderByAggregateInput = {
     id?: SortOrder
     questionId?: SortOrder
+  }
+
+  export type BoolWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedBoolFilter<$PrismaModel>
+    _max?: NestedBoolFilter<$PrismaModel>
   }
 
   export type IntNullableFilter<$PrismaModel = never> = {
@@ -9102,11 +10474,6 @@ export namespace Prisma {
     gt?: number | IntFieldRefInput<$PrismaModel>
     gte?: number | IntFieldRefInput<$PrismaModel>
     not?: NestedIntNullableFilter<$PrismaModel> | number | null
-  }
-
-  export type BoolFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolFilter<$PrismaModel> | boolean
   }
 
   export type NotificationCountOrderByAggregateInput = {
@@ -9167,12 +10534,39 @@ export namespace Prisma {
     _max?: NestedIntNullableFilter<$PrismaModel>
   }
 
-  export type BoolWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
-    _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedBoolFilter<$PrismaModel>
-    _max?: NestedBoolFilter<$PrismaModel>
+  export type AdminLogCountOrderByAggregateInput = {
+    id?: SortOrder
+    adminId?: SortOrder
+    actionType?: SortOrder
+    targetId?: SortOrder
+    details?: SortOrder
+    createTime?: SortOrder
+  }
+
+  export type AdminLogAvgOrderByAggregateInput = {
+    id?: SortOrder
+  }
+
+  export type AdminLogMaxOrderByAggregateInput = {
+    id?: SortOrder
+    adminId?: SortOrder
+    actionType?: SortOrder
+    targetId?: SortOrder
+    details?: SortOrder
+    createTime?: SortOrder
+  }
+
+  export type AdminLogMinOrderByAggregateInput = {
+    id?: SortOrder
+    adminId?: SortOrder
+    actionType?: SortOrder
+    targetId?: SortOrder
+    details?: SortOrder
+    createTime?: SortOrder
+  }
+
+  export type AdminLogSumOrderByAggregateInput = {
+    id?: SortOrder
   }
 
   export type AnswerCreateNestedManyWithoutTeacherInput = {
@@ -9251,6 +10645,14 @@ export namespace Prisma {
 
   export type NullableStringFieldUpdateOperationsInput = {
     set?: string | null
+  }
+
+  export type IntFieldUpdateOperationsInput = {
+    set?: number
+    increment?: number
+    decrement?: number
+    multiply?: number
+    divide?: number
   }
 
   export type AnswerUpdateManyWithoutTeacherNestedInput = {
@@ -9463,14 +10865,6 @@ export namespace Prisma {
     deleteMany?: ResourceScalarWhereInput | ResourceScalarWhereInput[]
   }
 
-  export type IntFieldUpdateOperationsInput = {
-    set?: number
-    increment?: number
-    decrement?: number
-    multiply?: number
-    divide?: number
-  }
-
   export type QuestionUncheckedUpdateManyWithoutCourseNestedInput = {
     create?: XOR<QuestionCreateWithoutCourseInput, QuestionUncheckedCreateWithoutCourseInput> | QuestionCreateWithoutCourseInput[] | QuestionUncheckedCreateWithoutCourseInput[]
     connectOrCreate?: QuestionCreateOrConnectWithoutCourseInput | QuestionCreateOrConnectWithoutCourseInput[]
@@ -9613,6 +11007,10 @@ export namespace Prisma {
     connect?: UserWhereUniqueInput
   }
 
+  export type BoolFieldUpdateOperationsInput = {
+    set?: boolean
+  }
+
   export type QuestionUpdateOneRequiredWithoutAnswersNestedInput = {
     create?: XOR<QuestionCreateWithoutAnswersInput, QuestionUncheckedCreateWithoutAnswersInput>
     connectOrCreate?: QuestionCreateOrConnectWithoutAnswersInput
@@ -9641,10 +11039,6 @@ export namespace Prisma {
     decrement?: number
     multiply?: number
     divide?: number
-  }
-
-  export type BoolFieldUpdateOperationsInput = {
-    set?: boolean
   }
 
   export type UserUpdateOneRequiredWithoutNotificationsNestedInput = {
@@ -9683,6 +11077,17 @@ export namespace Prisma {
     not?: NestedStringNullableFilter<$PrismaModel> | string | null
   }
 
+  export type NestedIntFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntFilter<$PrismaModel> | number
+  }
+
   export type NestedStringWithAggregatesFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -9698,17 +11103,6 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedStringFilter<$PrismaModel>
     _max?: NestedStringFilter<$PrismaModel>
-  }
-
-  export type NestedIntFilter<$PrismaModel = never> = {
-    equals?: number | IntFieldRefInput<$PrismaModel>
-    in?: number[] | ListIntFieldRefInput<$PrismaModel>
-    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
-    lt?: number | IntFieldRefInput<$PrismaModel>
-    lte?: number | IntFieldRefInput<$PrismaModel>
-    gt?: number | IntFieldRefInput<$PrismaModel>
-    gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntFilter<$PrismaModel> | number
   }
 
   export type NestedStringNullableWithAggregatesFilter<$PrismaModel = never> = {
@@ -9796,6 +11190,14 @@ export namespace Prisma {
     not?: NestedBoolFilter<$PrismaModel> | boolean
   }
 
+  export type NestedBoolWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedBoolFilter<$PrismaModel>
+    _max?: NestedBoolFilter<$PrismaModel>
+  }
+
   export type NestedIntNullableWithAggregatesFilter<$PrismaModel = never> = {
     equals?: number | IntFieldRefInput<$PrismaModel> | null
     in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
@@ -9823,18 +11225,12 @@ export namespace Prisma {
     not?: NestedFloatNullableFilter<$PrismaModel> | number | null
   }
 
-  export type NestedBoolWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
-    _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedBoolFilter<$PrismaModel>
-    _max?: NestedBoolFilter<$PrismaModel>
-  }
-
   export type AnswerCreateWithoutTeacherInput = {
     content: string
     attachments?: string | null
     createTime?: Date | string
+    isTop?: boolean
+    hidden?: boolean
     question: QuestionCreateNestedOneWithoutAnswersInput
   }
 
@@ -9844,6 +11240,8 @@ export namespace Prisma {
     content: string
     attachments?: string | null
     createTime?: Date | string
+    isTop?: boolean
+    hidden?: boolean
   }
 
   export type AnswerCreateOrConnectWithoutTeacherInput = {
@@ -9951,6 +11349,7 @@ export namespace Prisma {
     fileSize?: string | null
     fileType?: string | null
     viewCount?: number
+    status?: string
     course: CourseCreateNestedOneWithoutResourcesInput
   }
 
@@ -9966,6 +11365,7 @@ export namespace Prisma {
     fileSize?: string | null
     fileType?: string | null
     viewCount?: number
+    status?: string
   }
 
   export type ResourceCreateOrConnectWithoutUploaderInput = {
@@ -10004,6 +11404,8 @@ export namespace Prisma {
     content?: StringFilter<"Answer"> | string
     attachments?: StringNullableFilter<"Answer"> | string | null
     createTime?: DateTimeFilter<"Answer"> | Date | string
+    isTop?: BoolFilter<"Answer"> | boolean
+    hidden?: BoolFilter<"Answer"> | boolean
   }
 
   export type CourseUpsertWithWhereUniqueWithoutTeacherInput = {
@@ -10124,6 +11526,7 @@ export namespace Prisma {
     fileSize?: StringNullableFilter<"Resource"> | string | null
     fileType?: StringNullableFilter<"Resource"> | string | null
     viewCount?: IntFilter<"Resource"> | number
+    status?: StringFilter<"Resource"> | string
   }
 
   export type UserCreateWithoutCoursesInput = {
@@ -10135,6 +11538,9 @@ export namespace Prisma {
     avatar?: string | null
     email: string
     title?: string | null
+    employeeId?: string | null
+    uploads?: number
+    downloads?: number
     answers?: AnswerCreateNestedManyWithoutTeacherInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
     questions?: QuestionCreateNestedManyWithoutStudentInput
@@ -10150,6 +11556,9 @@ export namespace Prisma {
     avatar?: string | null
     email: string
     title?: string | null
+    employeeId?: string | null
+    uploads?: number
+    downloads?: number
     answers?: AnswerUncheckedCreateNestedManyWithoutTeacherInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
     questions?: QuestionUncheckedCreateNestedManyWithoutStudentInput
@@ -10202,6 +11611,7 @@ export namespace Prisma {
     fileSize?: string | null
     fileType?: string | null
     viewCount?: number
+    status?: string
     uploader: UserCreateNestedOneWithoutResourcesInput
   }
 
@@ -10217,6 +11627,7 @@ export namespace Prisma {
     fileSize?: string | null
     fileType?: string | null
     viewCount?: number
+    status?: string
   }
 
   export type ResourceCreateOrConnectWithoutCourseInput = {
@@ -10249,6 +11660,9 @@ export namespace Prisma {
     avatar?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    uploads?: IntFieldUpdateOperationsInput | number
+    downloads?: IntFieldUpdateOperationsInput | number
     answers?: AnswerUpdateManyWithoutTeacherNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
     questions?: QuestionUpdateManyWithoutStudentNestedInput
@@ -10264,6 +11678,9 @@ export namespace Prisma {
     avatar?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    uploads?: IntFieldUpdateOperationsInput | number
+    downloads?: IntFieldUpdateOperationsInput | number
     answers?: AnswerUncheckedUpdateManyWithoutTeacherNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
     questions?: QuestionUncheckedUpdateManyWithoutStudentNestedInput
@@ -10333,6 +11750,9 @@ export namespace Prisma {
     avatar?: string | null
     email: string
     title?: string | null
+    employeeId?: string | null
+    uploads?: number
+    downloads?: number
     answers?: AnswerCreateNestedManyWithoutTeacherInput
     courses?: CourseCreateNestedManyWithoutTeacherInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
@@ -10348,6 +11768,9 @@ export namespace Prisma {
     avatar?: string | null
     email: string
     title?: string | null
+    employeeId?: string | null
+    uploads?: number
+    downloads?: number
     answers?: AnswerUncheckedCreateNestedManyWithoutTeacherInput
     courses?: CourseUncheckedCreateNestedManyWithoutTeacherInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
@@ -10407,6 +11830,9 @@ export namespace Prisma {
     avatar?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    uploads?: IntFieldUpdateOperationsInput | number
+    downloads?: IntFieldUpdateOperationsInput | number
     answers?: AnswerUpdateManyWithoutTeacherNestedInput
     courses?: CourseUpdateManyWithoutTeacherNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
@@ -10422,6 +11848,9 @@ export namespace Prisma {
     avatar?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    uploads?: IntFieldUpdateOperationsInput | number
+    downloads?: IntFieldUpdateOperationsInput | number
     answers?: AnswerUncheckedUpdateManyWithoutTeacherNestedInput
     courses?: CourseUncheckedUpdateManyWithoutTeacherNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
@@ -10432,6 +11861,8 @@ export namespace Prisma {
     content: string
     attachments?: string | null
     createTime?: Date | string
+    isTop?: boolean
+    hidden?: boolean
     teacher: UserCreateNestedOneWithoutAnswersInput
   }
 
@@ -10441,6 +11872,8 @@ export namespace Prisma {
     content: string
     attachments?: string | null
     createTime?: Date | string
+    isTop?: boolean
+    hidden?: boolean
   }
 
   export type AnswerCreateOrConnectWithoutQuestionInput = {
@@ -10484,6 +11917,9 @@ export namespace Prisma {
     avatar?: string | null
     email: string
     title?: string | null
+    employeeId?: string | null
+    uploads?: number
+    downloads?: number
     answers?: AnswerCreateNestedManyWithoutTeacherInput
     courses?: CourseCreateNestedManyWithoutTeacherInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
@@ -10499,6 +11935,9 @@ export namespace Prisma {
     avatar?: string | null
     email: string
     title?: string | null
+    employeeId?: string | null
+    uploads?: number
+    downloads?: number
     answers?: AnswerUncheckedCreateNestedManyWithoutTeacherInput
     courses?: CourseUncheckedCreateNestedManyWithoutTeacherInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
@@ -10574,6 +12013,9 @@ export namespace Prisma {
     avatar?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    uploads?: IntFieldUpdateOperationsInput | number
+    downloads?: IntFieldUpdateOperationsInput | number
     answers?: AnswerUpdateManyWithoutTeacherNestedInput
     courses?: CourseUpdateManyWithoutTeacherNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
@@ -10589,6 +12031,9 @@ export namespace Prisma {
     avatar?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    uploads?: IntFieldUpdateOperationsInput | number
+    downloads?: IntFieldUpdateOperationsInput | number
     answers?: AnswerUncheckedUpdateManyWithoutTeacherNestedInput
     courses?: CourseUncheckedUpdateManyWithoutTeacherNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
@@ -10630,6 +12075,9 @@ export namespace Prisma {
     avatar?: string | null
     email: string
     title?: string | null
+    employeeId?: string | null
+    uploads?: number
+    downloads?: number
     courses?: CourseCreateNestedManyWithoutTeacherInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
     questions?: QuestionCreateNestedManyWithoutStudentInput
@@ -10645,6 +12093,9 @@ export namespace Prisma {
     avatar?: string | null
     email: string
     title?: string | null
+    employeeId?: string | null
+    uploads?: number
+    downloads?: number
     courses?: CourseUncheckedCreateNestedManyWithoutTeacherInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
     questions?: QuestionUncheckedCreateNestedManyWithoutStudentInput
@@ -10708,6 +12159,9 @@ export namespace Prisma {
     avatar?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    uploads?: IntFieldUpdateOperationsInput | number
+    downloads?: IntFieldUpdateOperationsInput | number
     courses?: CourseUpdateManyWithoutTeacherNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
     questions?: QuestionUpdateManyWithoutStudentNestedInput
@@ -10723,6 +12177,9 @@ export namespace Prisma {
     avatar?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    uploads?: IntFieldUpdateOperationsInput | number
+    downloads?: IntFieldUpdateOperationsInput | number
     courses?: CourseUncheckedUpdateManyWithoutTeacherNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
     questions?: QuestionUncheckedUpdateManyWithoutStudentNestedInput
@@ -10738,6 +12195,9 @@ export namespace Prisma {
     avatar?: string | null
     email: string
     title?: string | null
+    employeeId?: string | null
+    uploads?: number
+    downloads?: number
     answers?: AnswerCreateNestedManyWithoutTeacherInput
     courses?: CourseCreateNestedManyWithoutTeacherInput
     questions?: QuestionCreateNestedManyWithoutStudentInput
@@ -10753,6 +12213,9 @@ export namespace Prisma {
     avatar?: string | null
     email: string
     title?: string | null
+    employeeId?: string | null
+    uploads?: number
+    downloads?: number
     answers?: AnswerUncheckedCreateNestedManyWithoutTeacherInput
     courses?: CourseUncheckedCreateNestedManyWithoutTeacherInput
     questions?: QuestionUncheckedCreateNestedManyWithoutStudentInput
@@ -10784,6 +12247,9 @@ export namespace Prisma {
     avatar?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    uploads?: IntFieldUpdateOperationsInput | number
+    downloads?: IntFieldUpdateOperationsInput | number
     answers?: AnswerUpdateManyWithoutTeacherNestedInput
     courses?: CourseUpdateManyWithoutTeacherNestedInput
     questions?: QuestionUpdateManyWithoutStudentNestedInput
@@ -10799,6 +12265,9 @@ export namespace Prisma {
     avatar?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    uploads?: IntFieldUpdateOperationsInput | number
+    downloads?: IntFieldUpdateOperationsInput | number
     answers?: AnswerUncheckedUpdateManyWithoutTeacherNestedInput
     courses?: CourseUncheckedUpdateManyWithoutTeacherNestedInput
     questions?: QuestionUncheckedUpdateManyWithoutStudentNestedInput
@@ -10811,6 +12280,8 @@ export namespace Prisma {
     content: string
     attachments?: string | null
     createTime?: Date | string
+    isTop?: boolean
+    hidden?: boolean
   }
 
   export type CourseCreateManyTeacherInput = {
@@ -10851,12 +12322,15 @@ export namespace Prisma {
     fileSize?: string | null
     fileType?: string | null
     viewCount?: number
+    status?: string
   }
 
   export type AnswerUpdateWithoutTeacherInput = {
     content?: StringFieldUpdateOperationsInput | string
     attachments?: NullableStringFieldUpdateOperationsInput | string | null
     createTime?: DateTimeFieldUpdateOperationsInput | Date | string
+    isTop?: BoolFieldUpdateOperationsInput | boolean
+    hidden?: BoolFieldUpdateOperationsInput | boolean
     question?: QuestionUpdateOneRequiredWithoutAnswersNestedInput
   }
 
@@ -10866,6 +12340,8 @@ export namespace Prisma {
     content?: StringFieldUpdateOperationsInput | string
     attachments?: NullableStringFieldUpdateOperationsInput | string | null
     createTime?: DateTimeFieldUpdateOperationsInput | Date | string
+    isTop?: BoolFieldUpdateOperationsInput | boolean
+    hidden?: BoolFieldUpdateOperationsInput | boolean
   }
 
   export type AnswerUncheckedUpdateManyWithoutTeacherInput = {
@@ -10874,6 +12350,8 @@ export namespace Prisma {
     content?: StringFieldUpdateOperationsInput | string
     attachments?: NullableStringFieldUpdateOperationsInput | string | null
     createTime?: DateTimeFieldUpdateOperationsInput | Date | string
+    isTop?: BoolFieldUpdateOperationsInput | boolean
+    hidden?: BoolFieldUpdateOperationsInput | boolean
   }
 
   export type CourseUpdateWithoutTeacherInput = {
@@ -10967,6 +12445,7 @@ export namespace Prisma {
     fileSize?: NullableStringFieldUpdateOperationsInput | string | null
     fileType?: NullableStringFieldUpdateOperationsInput | string | null
     viewCount?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
     course?: CourseUpdateOneRequiredWithoutResourcesNestedInput
   }
 
@@ -10982,6 +12461,7 @@ export namespace Prisma {
     fileSize?: NullableStringFieldUpdateOperationsInput | string | null
     fileType?: NullableStringFieldUpdateOperationsInput | string | null
     viewCount?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
   }
 
   export type ResourceUncheckedUpdateManyWithoutUploaderInput = {
@@ -10996,6 +12476,7 @@ export namespace Prisma {
     fileSize?: NullableStringFieldUpdateOperationsInput | string | null
     fileType?: NullableStringFieldUpdateOperationsInput | string | null
     viewCount?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
   }
 
   export type QuestionCreateManyCourseInput = {
@@ -11020,6 +12501,7 @@ export namespace Prisma {
     fileSize?: string | null
     fileType?: string | null
     viewCount?: number
+    status?: string
   }
 
   export type QuestionUpdateWithoutCourseInput = {
@@ -11063,6 +12545,7 @@ export namespace Prisma {
     fileSize?: NullableStringFieldUpdateOperationsInput | string | null
     fileType?: NullableStringFieldUpdateOperationsInput | string | null
     viewCount?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
     uploader?: UserUpdateOneRequiredWithoutResourcesNestedInput
   }
 
@@ -11078,6 +12561,7 @@ export namespace Prisma {
     fileSize?: NullableStringFieldUpdateOperationsInput | string | null
     fileType?: NullableStringFieldUpdateOperationsInput | string | null
     viewCount?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
   }
 
   export type ResourceUncheckedUpdateManyWithoutCourseInput = {
@@ -11092,6 +12576,7 @@ export namespace Prisma {
     fileSize?: NullableStringFieldUpdateOperationsInput | string | null
     fileType?: NullableStringFieldUpdateOperationsInput | string | null
     viewCount?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
   }
 
   export type AnswerCreateManyQuestionInput = {
@@ -11100,12 +12585,16 @@ export namespace Prisma {
     content: string
     attachments?: string | null
     createTime?: Date | string
+    isTop?: boolean
+    hidden?: boolean
   }
 
   export type AnswerUpdateWithoutQuestionInput = {
     content?: StringFieldUpdateOperationsInput | string
     attachments?: NullableStringFieldUpdateOperationsInput | string | null
     createTime?: DateTimeFieldUpdateOperationsInput | Date | string
+    isTop?: BoolFieldUpdateOperationsInput | boolean
+    hidden?: BoolFieldUpdateOperationsInput | boolean
     teacher?: UserUpdateOneRequiredWithoutAnswersNestedInput
   }
 
@@ -11115,6 +12604,8 @@ export namespace Prisma {
     content?: StringFieldUpdateOperationsInput | string
     attachments?: NullableStringFieldUpdateOperationsInput | string | null
     createTime?: DateTimeFieldUpdateOperationsInput | Date | string
+    isTop?: BoolFieldUpdateOperationsInput | boolean
+    hidden?: BoolFieldUpdateOperationsInput | boolean
   }
 
   export type AnswerUncheckedUpdateManyWithoutQuestionInput = {
@@ -11123,6 +12614,8 @@ export namespace Prisma {
     content?: StringFieldUpdateOperationsInput | string
     attachments?: NullableStringFieldUpdateOperationsInput | string | null
     createTime?: DateTimeFieldUpdateOperationsInput | Date | string
+    isTop?: BoolFieldUpdateOperationsInput | boolean
+    hidden?: BoolFieldUpdateOperationsInput | boolean
   }
 
 
@@ -11166,6 +12659,10 @@ export namespace Prisma {
      * @deprecated Use NotificationDefaultArgs instead
      */
     export type NotificationArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = NotificationDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use AdminLogDefaultArgs instead
+     */
+    export type AdminLogArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = AdminLogDefaultArgs<ExtArgs>
 
   /**
    * Batch Payload for updateMany & deleteMany & createMany

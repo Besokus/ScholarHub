@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { 
   LayoutDashboard, BookOpen, Upload, MessageSquare, Bell, User, 
-  LogOut, GraduationCap, Settings, ChevronRight, Loader2
+  LogOut, GraduationCap, Settings, ChevronRight, Loader2, Shield
 } from 'lucide-react'
 import { AuthApi } from '../../services/api' // 确保引入了 API
 
@@ -69,13 +69,20 @@ export default function Sidebar() {
   }
 
   // 导航配置
-  const navItems = [
-    { to: "/student/dashboard", icon: LayoutDashboard, label: "学习中心" },
-    { to: "/student/resources", icon: BookOpen, label: "资源中心" },
-    { to: "/student/qa", icon: MessageSquare, label: "问答社区" },
-    { to: "/student/notifications", icon: Bell, label: "通知提醒", badge: 0 },
-    { to: "/student/profile", icon: User, label: "个人中心" },
-  ]
+  const navItems = user.role === 'ADMIN'
+    ? [
+        { to: "/admin/dashboard", icon: LayoutDashboard, label: "仪表盘" },
+        { to: "/admin/users", icon: User, label: "教师管理" },
+        { to: "/admin/audit", icon: Shield, label: "内容风控" },
+        { to: "/admin/config", icon: Settings, label: "系统配置" },
+      ]
+    : [
+        { to: "/student/dashboard", icon: LayoutDashboard, label: "学习中心" },
+        { to: "/student/resources", icon: BookOpen, label: "资源中心" },
+        { to: "/student/qa", icon: MessageSquare, label: "问答社区" },
+        { to: "/student/notifications", icon: Bell, label: "通知提醒", badge: 0 },
+        { to: "/student/profile", icon: User, label: "个人中心" },
+      ]
 
   // 获取头像首字母
   const avatarLetter = (user.fullName || user.username || 'U')[0].toUpperCase()
@@ -90,7 +97,7 @@ export default function Sidebar() {
         </div>
         <div>
           <h1 className="font-bold text-slate-800 text-lg leading-none">ScholarHub</h1>
-          <span className="text-[10px] font-bold text-indigo-500 tracking-widest uppercase">Student</span>
+          <span className="text-[10px] font-bold text-indigo-500 tracking-widest uppercase">{user.role === 'ADMIN' ? 'Admin' : 'Student'}</span>
         </div>
       </div>
 

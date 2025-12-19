@@ -59,6 +59,23 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB) {
 
     p.GET("/notifications", noti.Unread)
     p.POST("/notifications/:id/read", noti.Read)
-    p.POST("/notifications/read-all", noti.ReadAll)
+	p.POST("/notifications/read-all", noti.ReadAll)
+
+	adm := api.Group("/admin")
+	adm.Use(jwt, RequireAdmin())
+	admin := NewAdminController(db)
+	adm.GET("/stats", admin.Stats)
+	adm.GET("/teachers", admin.ListTeachers)
+	adm.POST("/teachers", admin.CreateTeacher)
+	adm.PUT("/teachers/:id", admin.UpdateTeacher)
+	adm.DELETE("/users/:id", admin.DeleteUser)
+
+	adm.GET("/resources", admin.ListAuditResources)
+	adm.PUT("/resources/:id", admin.AuditResource)
+	adm.DELETE("/resources/:id", admin.DeleteResource)
+
+	adm.GET("/questions", admin.ListAuditQuestions)
+	adm.PUT("/questions/:id", admin.AuditQuestion)
+	adm.PUT("/answers/:id", admin.AuditAnswer)
 }
 

@@ -105,3 +105,78 @@ export const NotiApi = {
   markRead: (id: string) => apiFetch(`/notifications/${id}/read`, { method: 'POST' }),
   readAll: () => apiFetch('/notifications/read-all', { method: 'POST' })
 }
+
+export const API_ADMIN_BASE = (import.meta as any).env?.VITE_ADMIN_API_URL || 'http://localhost:3000/api'
+
+export async function adminFetch(path: string, options?: RequestInit) {
+  const token = localStorage.getItem('token')
+  const uid = localStorage.getItem('id')
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(options?.headers || {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(uid ? { 'X-User-Id': uid } : {})
+  }
+  const ctrl = new AbortController()
+  const timeout = setTimeout(() => ctrl.abort(), 15000)
+  let res: Response
+  try {
+    res = await fetch(`${API_ADMIN_BASE}${path}`, { ...options, headers, signal: ctrl.signal })
+  } catch (err: any) {
+    clearTimeout(timeout)
+    const isAbort = err && (err.name === 'AbortError' || String(err).includes('aborted'))
+    const e: any = new Error(isAbort ? 'Request timeout' : (err?.message || 'Network error'))
+    e.status = 0
+    e.data = null
+    throw e
+  }
+  clearTimeout(timeout)
+  let data: any = null
+  try { data = await res.json() } catch {}
+  const normalized = (data && typeof data === 'object' && Object.prototype.hasOwnProperty.call(data, 'Data'))
+    ? { ...data, data: (data as any).Data }
+    : data
+  if (!res.ok) {
+    const message = (normalized && ((normalized as any).message || (normalized as any).error || (normalized as any).Msg)) || `HTTP ${res.status}`
+    const err: any = new Error(message)
+    err.status = res.status
+    err.data = normalized
+    throw err
+  }
+  return normalized
+}
+
+export const AdminApi = {
+  stats: () => adminFetch('/admin/stats'),
+  teachers: {
+    list: (params: any) => {
+      const q = new URLSearchParams()
+      if (params.q) q.set('q', params.q)
+      q.set('page', String(params.page || 1))
+      q.set('pageSize', String(params.pageSize || 20))
+      return adminFetch(`/admin/teachers?${q.toString()}`)
+    },
+    create: (body: any) => adminFetch('/admin/teachers', { method: 'POST', body: JSON.stringify(body) }),
+    update: (id: string, body: any) => adminFetch(`/admin/teachers/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    remove: (id: string) => adminFetch(`/admin/users/${id}`, { method: 'DELETE' })
+  },
+  audit: {
+    resources: (params: any) => {
+      const q = new URLSearchParams()
+      if (params.status) q.set('status', params.status)
+      q.set('page', String(params.page || 1))
+      return adminFetch(`/admin/resources?${q.toString()}`)
+    },
+    auditResource: (id: string, body: any) => adminFetch(`/admin/resources/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    deleteResource: (id: string) => adminFetch(`/admin/resources/${id}`, { method: 'DELETE' }),
+    
+    questions: (params: any) => {
+      const q = new URLSearchParams()
+      if (params.status) q.set('status', params.status)
+      q.set('page', String(params.page || 1))
+      return adminFetch(`/admin/questions?${q.toString()}`)
+    },
+    auditQuestion: (id: string, body: any) => adminFetch(`/admin/questions/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    auditAnswer: (id: string, body: any) => adminFetch(`/admin/answers/${id}`, { method: 'PUT', body: JSON.stringify(body) })
+  }
+}
