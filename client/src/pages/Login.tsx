@@ -7,9 +7,11 @@ import {
 } from 'lucide-react';
 import { AuthApi } from '../services/api';
 
+// 登录界面图片来源
 import LoginPage1 from '../assets/images/Login1.jpg';
 import LoginPage2 from '../assets/images/Login2.jpg';
 import LoginPage3 from '../assets/images/Login3.jpg';
+import LoginPage4 from '../assets/images/Login4.jpg';
 
 
 const Login: React.FC = () => {
@@ -22,7 +24,8 @@ const Login: React.FC = () => {
   const images = useMemo(() => [
     LoginPage1,
     LoginPage2,
-    LoginPage3
+    LoginPage3,
+    LoginPage4
   ], [])
   const [index, setIndex] = useState(0)
   const [paused, setPaused] = useState(false)
