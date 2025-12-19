@@ -5,9 +5,15 @@ go 1.23
 require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/golang-jwt/jwt/v4 v4.5.0
+	github.com/shirou/gopsutil/v3 v3.24.5
 	golang.org/x/crypto v0.23.0
 	gorm.io/driver/postgres v1.5.7
 	gorm.io/gorm v1.25.7
+)
+
+require (
+	github.com/go-ole/go-ole v1.2.6 // indirect
+	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 )
 
 require (

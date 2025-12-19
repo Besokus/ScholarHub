@@ -113,3 +113,17 @@ type AdminLog struct {
 }
 
 func (AdminLog) TableName() string { return "\"AdminLog\"" }
+
+type HealthSample struct {
+	ID          int       `gorm:"column:id;primaryKey" json:"id"`
+	Score       int       `gorm:"column:score" json:"score"`
+	Status      string    `gorm:"column:status" json:"status"`
+	CpuUsed     float64   `gorm:"column:cpuUsed" json:"cpuUsed"`
+	MemUsed     float64   `gorm:"column:memUsed" json:"memUsed"`
+	DiskUsed    float64   `gorm:"column:diskUsed" json:"diskUsed"`
+	DbLatencyMs int64     `gorm:"column:dbLatencyMs" json:"dbLatencyMs"`
+	EndpointMs  int64     `gorm:"column:endpointMs" json:"endpointMs"`
+	CreateTime  time.Time `gorm:"column:createTime;autoCreateTime" json:"createTime"`
+}
+
+func (HealthSample) TableName() string { return "\"HealthSample\"" }
