@@ -1,0 +1,17 @@
+# runtime logs
+server/req.log
+
+# uploads
+server/uploads/
+
+# Env files
+.env
+.env.*
+
+# Archives / Large Files
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.rar
