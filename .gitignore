@@ -1,5 +1,6 @@
 # runtime logs
 server/req.log
+*.log
 
 # uploads
 server/uploads/
