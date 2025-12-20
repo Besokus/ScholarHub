@@ -130,3 +130,151 @@ Notes:
 - Uses TLS when `SMTP_PORT=465`.
 - Logs are written to `mail.log` for auditing.
 - Retries are enabled with exponential backoff.
+---
+
+## 🧭 Usage (使用说明)
+- 前端入口：`http://localhost:3000`（默认开发端口，或 Docker 映射端口）
+- 后端入口：`http://localhost:3000` 或 `http://localhost:<PORT>`（`PORT` 由后端环境变量决定）
+- 角色与权限：
+  - 管理员：管理用户、课程、内容审核、公告发布
+  - 教师：发布资源、回答学生提问、管理课程
+  - 学生：浏览与检索资源、发布问题、查看通知
+- 资源上传：前端通过 `上传` 模块提交文件，后端在 `uploads/` 目录提供静态访问（受 `ALLOWED_ORIGINS` 控制）
+- 答疑模块：学生发布问题后，教师在工作台进行回复；支持富文本与附件
+- 邮件验证码：调用 `POST /api/send-email-code`，需配置 `SMTP_*` 环境变量
+
+## ⚙️ Installation (安装指南)
+- 系统要求：
+  - Node.js ≥ 18（推荐 20）
+  - PostgreSQL ≥ 14
+  - Redis（可选，用于缓存与限流，无 Redis 时自动降级为内存模式）
+  - 可选：Go ≥ 1.22（如需启用 Go 后端）
+- 依赖安装：
+  ```bash
+  # 根目录仅用于前端构建开发（vite）
+  npm install
+
+  # 前端
+  cd client
+  npm install
+
+  # 后端（Node + Express + Prisma）
+  cd ../server
+  npm install
+  npx prisma generate
+  ```
+- 环境配置：
+  在 `server/.env`（或根目录 `.env`）设置：
+  ```env
+  # 基础服务
+  PORT=3000
+  DATABASE_URL=postgresql://user:pass@localhost:5432/scholarhub
+  JWT_SECRET=replace-with-strong-secret
+  ALLOWED_ORIGINS=http://localhost:3000
+
+  # 管理员引导
+  ADMIN_EMAIL=admin@example.com
+  ADMIN_PASSWORD=admin123
+
+  # 邮件服务
+  SMTP_HOST=smtp.example.com
+  SMTP_PORT=465
+  SMTP_USER=your_account@example.com
+  SMTP_PASS=your_app_password
+  ```
+- 启动服务：
+  ```bash
+  # 启动学生端后端
+  cd server
+  npm run dev
+
+  # 启动管理员后端
+  go run backend-go/cmd/server/main.go
+
+  # 另启前端
+  cd ../client
+  npm run dev
+  ```
+  
+  根目录中提供了前后端一键启动的shell脚本（start.sh）
+  ```bash
+  ./start.sh
+  ```
+
+- Docker 一键启动（可选）：
+  ```bash
+  # 使用 backend-go 的 docker-compose（含 DB/Redis/可选 Go 后端）
+  cd backend-go
+  docker-compose up -d
+  ```
+
+## 🧱 Project Structure (项目结构)
+```text
+ScholarHub/
+├─ client/                 # 前端（React + Vite + Tailwind）
+│  ├─ src/
+│  │  ├─ assets/images/    # 静态资源（含 Logo、登录页截图）
+│  │  ├─ components/       # 通用组件、富文本编辑器等
+│  │  ├─ pages/            # 管理员/教师/学生模块页面
+│  │  ├─ services/         # API 封装（如 `server/src` 路由对应）
+│  │  ├─ utils/            # 工具（含时间本地化 `date.ts`）
+│  │  ├─ workers/          # Web Worker（健康状态采集）
+│  │  ├─ App.tsx           # 路由与应用框架
+│  │  └─ main.tsx          # 应用入口
+│  └─ vite.config.js       # Vite 配置
+├─ server/                 # 后端（Node + Express + Prisma）
+│  ├─ src/
+│  │  ├─ routes/           # 路由：auth/resources/qa/notifications/uploads 等
+│  │  ├─ middleware/       # 中间件（JWT 可选）
+│  │  ├─ db.ts             # Prisma 客户端实例（PostgreSQL）
+│  │  ├─ mail.ts           # 邮件发送模块（SMTP + 重试 + 日志）
+│  │  └─ index.ts          # Express 服务入口
+│  ├─ prisma/              # Prisma schema 与生成客户端
+│  └─ tests/               # 邮件等演示测试脚本
+├─ backend-go/             # 可选 Go 后端（Gin + GORM）
+│  ├─ internal/            # 业务与路由
+│  ├─ cmd/server/          # 程序入口
+│  └─ docker-compose.yml   # 一键启动栈
+├─ LICENSE                 # 开源许可证（MIT）
+└─ README.md               # 项目文档
+```
+
+## 👨‍💻 Development Guide (开发指南)
+- 代码规范：
+  - 前端：TypeScript，ESLint（`npm run lint`），Tailwind 设计规范
+  - 后端：TypeScript（`ts-node` + `nodemon`），Prisma 模型变更通过 `schema.prisma`
+- 提交约定：
+  - 使用语义化提交（feat/fix/docs/refactor/test/chore）
+  - 变更路由或数据结构时同步更新对应前端 `services/api.ts`
+- 测试方法：
+  - 轻量前端单元校验在开发模式自动执行（`client/src/utils/date.test.ts`）
+  - 后端邮件演示：
+    ```bash
+    cd server
+    npx ts-node tests/send_mail_demo.ts
+    node tests/mail.test.js
+    ```
+- 调试建议：
+  - 设置 `ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000` 以允许多端口联调
+  - 无 Redis 时自动切换为内存缓存（健康检查接口：`GET /api/health/redis`）
+
+## 📜 License (许可证)
+- 本项目使用 `MIT License`，详见根目录 `LICENSE`
+- 版权：© 2025 Besokus
+
+## 🙏 Acknowledgements (致谢)
+- 前端：React、Vite、TailwindCSS、Framer Motion、Lucide React
+- 后端：Express、Prisma、Nodemailer、ioredis、Gin、GORM（Go）
+- 数据库与缓存：PostgreSQL、Redis
+- 其他：社区生态与所有贡献者
+
+## 🖼 Screenshots (截图)
+- 项目 Logo：  
+  ![Logo](client/src/assets/images/usst_logo.jpg)
+- 登录页：  
+  ![Login 1](client/src/assets/images/loginpage1.jpg)  
+- 学生端：
+  ![Student](client/src/assets/images/student.jpg)
+- 管理员端
+  ![Admin](client/src/assets/images/admin.jpg)
+  ![health](client/src/assets/images/health.jpg)
