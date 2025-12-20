@@ -211,6 +211,7 @@ const Dashboard: React.FC = () => {
     cache: { size: 0, hits: 0, misses: 0, hitRate: 0 },
     lastUpdated: Date.now()
   });
+  const ringRef = useRef<{ buf: number[]; cap: number; idx: number; len: number }>({ buf: new Array(60).fill(0), cap: 60, idx: 0, len: 0 });
 
   const classify = useMemo(() => ({
     api: (score: number) => score >= 80 ? 'Healthy' : (score >= 60 ? 'Warning' : 'Critical'),
@@ -221,6 +222,18 @@ const Dashboard: React.FC = () => {
   const calcTrend = (cur: number, prev: number) => {
     if (!Number.isFinite(prev) || prev === 0) return cur > 0 ? 100 : 0;
     return ((cur - prev) / prev) * 100;
+  };
+  const calcNextInterval = (d: any) => {
+    const base = 1000;
+    const hidden = typeof document !== 'undefined' && (document as any).hidden;
+    if (hidden) return 3000;
+    const cpu = Number(d?.components?.cpu?.usedPercent || 0);
+    const mem = Number(d?.components?.memory?.usedPercent || 0);
+    const db = Number(d?.components?.db?.latencyMs || 0);
+    const score = Number(d?.score || 0);
+    if (cpu >= 85 || mem >= 85 || db >= 1000 || score < 60) return 3000;
+    if (cpu >= 75 || mem >= 75 || db >= 500 || score < 80) return 2000;
+    return base;
   };
 
   const getCache = (k: string, ttlMs: number) => {
@@ -322,109 +335,109 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     const token = localStorage.getItem('token') || '';
-    let es: EventSource | null = null;
-    let first = true;
+    const overrideMs = Number(localStorage.getItem('health_refresh_ms') || '');
+    const envMs = Number(((import.meta as any).env?.VITE_HEALTH_REFRESH_MS) || '');
+    const intervalMs = Number.isFinite(overrideMs) && overrideMs > 0
+      ? overrideMs : (Number.isFinite(envMs) && envMs > 0 ? envMs : 30000);
+    let worker: Worker | null = null;
     let lastAt = 0;
-    let fallbackTimer: any = null;
-    const lastVersionRef = { current: 0 };
+    const onMessage = (ev: MessageEvent<any>) => {
+      const msg = ev.data;
+      if (!msg || typeof msg !== 'object') return;
+      if (msg.type === 'status') {
+        console.log('[HealthWorker status]', msg);
+        setMetrics(m => ({ ...m, interval: { ...m.interval, health: msg.intervalMs }, lastUpdated: Date.now() }));
+        return;
+      }
+      if (msg.type === 'tick') {
+        setMetrics(m => ({ ...m, lastUpdated: msg.now }));
+        return;
+      }
+      if (msg.type === 'error') {
+        setWarn(true);
+        console.error('[HealthWorker error]', msg.message);
+        if (Date.now() - lastAlertTimeRef.current > 60 * 1000) {
+          notify('error', '健康检查后台服务异常', String(msg.message || '未知错误'));
+          lastAlertTimeRef.current = Date.now();
+        }
+        return;
+      }
+      if (msg.type === 'sample') {
+        const d = msg.data;
+        setHealth(d);
+        try {
+          localStorage.setItem('health:last', JSON.stringify({ d, ts: Date.now() }));
+        } catch {}
+        {
+          const s = Number(d?.score || 0);
+          const r = ringRef.current;
+          r.buf[r.idx] = s;
+          r.idx = (r.idx + 1) % r.cap;
+          r.len = Math.min(r.cap, r.len + 1);
+          const arr = r.len < r.cap ? r.buf.slice(0, r.len) : [...r.buf.slice(r.idx), ...r.buf.slice(0, r.idx)];
+          setHistory(arr);
+        }
+        try {
+          const histStr = localStorage.getItem('health:hist24');
+          const arr = histStr ? JSON.parse(histStr) : [];
+          const now = Date.now();
+          arr.push({ ts: now, score: Number(d?.score || 0) });
+          const cutoff = now - 24 * 60 * 60 * 1000;
+          const kept = arr.filter((x: any) => Number(x?.ts || 0) >= cutoff);
+          localStorage.setItem('health:hist24', JSON.stringify(kept));
+        } catch {}
+        pushDur('health', Number(d?.endpointMs || 0));
+        const now = Date.now();
+        if (lastAt) {
+          setMetrics(m => ({ ...m, interval: { ...m.interval, health: now - lastAt }, lastUpdated: now }));
+        } else {
+          setMetrics(m => ({ ...m, lastUpdated: now }));
+        }
+        lastAt = now;
+        try {
+          const next = calcNextInterval(d);
+          (window as any).__healthWorker__?.postMessage({ type: 'config', apiBase: API_ADMIN_BASE, token, intervalMs: next });
+        } catch {}
+        const score = Number(d?.score || 0);
+        const t = Date.now();
+        if (score < 60 && (t - lastAlertTimeRef.current > 60 * 1000)) {
+          notify('error', '系统健康度严重预警', `当前健康评分仅为 ${score}，请立即检查服务器负载。`);
+          lastAlertTimeRef.current = t;
+        } else if (score >= 60 && score < 80 && (t - lastAlertTimeRef.current > 120 * 1000)) {
+          notify('warning', '系统负载较高', `健康评分为 ${score}，请关注资源使用情况。`);
+          lastAlertTimeRef.current = t;
+        }
+      }
+    };
+    // 读取本地持久化最后结果
+    try {
+      const lastStr = localStorage.getItem('health:last');
+      if (lastStr) {
+        const obj = JSON.parse(lastStr);
+        if (obj && obj.d) setHealth(obj.d);
+      }
+    } catch {}
     busyHealthRef.current = true;
     setBusyHealth(true);
     setWarn(false);
-    try {
-      es = new EventSource(`${API_ADMIN_BASE}/admin/health/stream?token=${encodeURIComponent(token)}`);
-      es.onopen = () => {
-        console.log('[SSE health] open');
-        if (fallbackTimer) {
-          clearInterval(fallbackTimer);
-          fallbackTimer = null;
-        }
-      };
-      es.addEventListener('ready', (ev: any) => {
-        console.log('[SSE health] ready', ev?.data);
-      });
-      es.addEventListener('ping', () => {
-        console.log('[SSE health] ping');
-      });
-      es.addEventListener('sample', (ev: MessageEvent) => {
-        try {
-          const d = JSON.parse(ev.data);
-          setHealth(d);
-          setHistory(prevArr => {
-            const next = [...prevArr, Number(d?.score || 0)];
-            return next.length > 60 ? next.slice(next.length - 60) : next;
-          });
-          pushDur('health', Number(d?.endpointMs || 0));
-          const now = Date.now();
-          if (lastAt) {
-            setMetrics(m => ({ ...m, interval: { ...m.interval, health: now - lastAt }, lastUpdated: now }));
-          } else {
-            setMetrics(m => ({ ...m, lastUpdated: now }));
-          }
-          lastAt = now;
-          if (d?.createTime) {
-            const v = new Date(d.createTime).getTime();
-            if (Number.isFinite(v) && v > 0) lastVersionRef.current = v;
-          }
-          const score = Number(d?.score || 0);
-          const t = Date.now();
-          if (score < 60 && (t - lastAlertTimeRef.current > 60 * 1000)) {
-            notify('error', '系统健康度严重预警', `当前健康评分仅为 ${score}，请立即检查服务器负载。`);
-            lastAlertTimeRef.current = t;
-          } else if (score >= 60 && score < 80 && (t - lastAlertTimeRef.current > 120 * 1000)) {
-            notify('warning', '系统负载较高', `健康评分为 ${score}，请关注资源使用情况。`);
-            lastAlertTimeRef.current = t;
-          }
-          if (first) {
-            busyHealthRef.current = false;
-            setBusyHealth(false);
-            first = false;
-          }
-          console.log('[SSE health] sample', { score: d?.score, status: d?.status, endpointMs: d?.endpointMs });
-        } catch (e) {
-          console.error('[SSE health] parse error', e);
-        }
-      });
-      es.onerror = (e: any) => {
-        setWarn(true);
-        console.error('[SSE health] error', e);
-        if (Date.now() - lastAlertTimeRef.current > 60 * 1000) {
-          notify('error', 'SSE连接异常', '实时健康数据流中断，正在尝试重连');
-          lastAlertTimeRef.current = Date.now();
-        }
-        if (!fallbackTimer) {
-          fallbackTimer = setInterval(async () => {
-            try {
-              const res = await AdminApi.healthSamples(lastVersionRef.current, 50);
-              const payload: any = (res && (res as any).data) ? (res as any).data : res;
-              const items: any[] = Array.isArray(payload?.items) ? payload.items : [];
-              if (items.length > 0) {
-                items.forEach(d => {
-                  setHealth(d);
-                  setHistory(prevArr => {
-                    const next = [...prevArr, Number(d?.score || 0)];
-                    return next.length > 60 ? next.slice(next.length - 60) : next;
-                  });
-                  pushDur('health', Number(d?.endpointMs || 0));
-                  const v = d?.createTime ? new Date(d.createTime).getTime() : 0;
-                  if (Number.isFinite(v) && v > 0) lastVersionRef.current = v;
-                });
-                setMetrics(m => ({ ...m, lastUpdated: Date.now() }));
-              }
-            } catch (err) {
-              console.error('[Health fallback] fetch error', err);
-            }
-          }, 5000);
-        }
-      };
-    } catch (e) {
-      setWarn(true);
-      console.error('[SSE health] init error', e);
-      busyHealthRef.current = false;
-      setBusyHealth(false);
-    }
+    worker = new Worker(new URL('../../workers/healthWorker.ts', import.meta.url), { type: 'module' });
+    ;(window as any).__healthWorker__ = worker;
+    worker.addEventListener('message', onMessage);
+    worker.postMessage({ type: 'config', apiBase: API_ADMIN_BASE, token, intervalMs });
+    setBusyHealth(false);
+    busyHealthRef.current = false;
+    const onVis = () => {
+      const next = (document as any).hidden ? 3000 : 1000;
+      try { (window as any).__healthWorker__?.postMessage({ type: 'config', apiBase: API_ADMIN_BASE, token, intervalMs: next }) } catch {}
+    };
+    document.addEventListener('visibilitychange', onVis);
     return () => {
-      if (es) es.close();
-      if (fallbackTimer) clearInterval(fallbackTimer);
+      if (worker) {
+        worker.removeEventListener('message', onMessage);
+        worker.terminate();
+      }
+      try { delete (window as any).__healthWorker__ } catch {}
+      document.removeEventListener('visibilitychange', onVis);
     };
   }, []);
   
@@ -565,6 +578,17 @@ const Dashboard: React.FC = () => {
               {health?.status || '—'}
             </div>
             <div className="text-sm text-slate-600">分值 {typeof health?.score === 'number' ? health.score : '—'}</div>
+            <button
+              className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 active:scale-[0.98]"
+              onClick={() => {
+                try {
+                  // 立即检查：由 Worker 执行一次同步健康检查
+                  (window as any).__healthWorker__?.postMessage({ type: 'check_now' })
+                } catch {}
+              }}
+            >
+              立即检查
+            </button>
           </div>
         </div>
 
@@ -574,11 +598,54 @@ const Dashboard: React.FC = () => {
           <HealthItem label="Storage" status={classify.storage(Number(health?.components?.disk?.usedPercent || 0))} icon={Cpu} load={Math.round(Number(health?.components?.disk?.usedPercent || 0))} />
         </div>
 
+        <div className="mt-6 bg-slate-50 rounded-xl border border-slate-200 p-4">
+          <div className="text-sm font-bold text-slate-700 mb-3">评分明细</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {['cpu','memory','disk','db','net','svc'].map(key => {
+              const item: any = (health as any)?.breakdown?.[key] || null
+              if (!item) return (
+                <div key={key} className="p-3 bg-white rounded-lg border border-slate-100 text-xs text-slate-400">无数据</div>
+              )
+              const label = key === 'cpu' ? 'CPU' : key === 'memory' ? '内存' : key === 'disk' ? '磁盘' : key === 'db' ? '数据库' : key === 'net' ? '网络' : '服务响应'
+              const value = typeof item.value === 'number' ? Math.round(item.value) + (key==='db' || key==='net' || key==='svc' ? ' ms' : '%') : (typeof item.latencyMs === 'number' ? Math.round(item.latencyMs) + ' ms' : '—')
+              const sev = typeof item.severity === 'number' ? Math.round(item.severity) : 0
+              const w = typeof item.weight === 'number' ? Math.round(item.weight * 100) / 100 : 0
+              const pen = typeof item.penalty === 'number' ? Math.round(item.penalty * 100) / 100 : 0
+              return (
+                <div key={key} className="p-3 bg-white rounded-lg border border-slate-100">
+                  <div className="text-xs font-bold text-slate-700 mb-1">{label}</div>
+                  <div className="text-xs text-slate-600">值 {value}</div>
+                  <div className="mt-1 flex items-center justify-between text-[12px]">
+                    <span className="text-slate-500">严重度</span>
+                    <span className={`font-bold ${sev >= 80 ? 'text-rose-600' : sev >= 60 ? 'text-amber-600' : 'text-slate-700'}`}>{sev}</span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between text-[12px]">
+                    <span className="text-slate-500">权重</span>
+                    <span className="font-bold text-slate-700">{w}</span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between text-[12px]">
+                    <span className="text-slate-500">扣分</span>
+                    <span className={`font-bold ${pen >= 20 ? 'text-rose-600' : pen >= 10 ? 'text-amber-600' : 'text-emerald-600'}`}>{pen}</span>
+                  </div>
+                  {key === 'disk' && item?.type && (
+                    <div className="mt-1 text-[11px] text-slate-400">类型 {item.type} · 正常 {item.thresholds?.normal_low}–{item.thresholds?.normal_high}%</div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
         <div className="mt-8">
           <div className="text-sm text-slate-600 mb-2">健康度趋势（最近 {history.length} 次）</div>
           <div className="flex items-end gap-1 h-24">
             {history.map((s, i) => (
-              <div key={i} className={`flex-1 rounded-t ${s >= 80 ? 'bg-emerald-400' : s >= 60 ? 'bg-amber-400' : 'bg-rose-400'}`} style={{ height: `${Math.max(4, Math.min(100, s))}%` }} />
+              <motion.div
+                key={i}
+                className={`flex-1 rounded-t ${s >= 80 ? 'bg-emerald-400' : s >= 60 ? 'bg-amber-400' : 'bg-rose-400'}`}
+                animate={{ height: `${Math.max(4, Math.min(100, s))}%` }}
+                transition={{ duration: 0.25 }}
+              />
             ))}
           </div>
         </div>

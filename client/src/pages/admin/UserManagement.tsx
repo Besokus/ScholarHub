@@ -29,13 +29,19 @@ const TeacherManager: React.FC = () => {
 
   // Form State
   const [formData, setFormData] = useState({
-    username: '',
     password: '',
     fullName: '',
     employeeId: '',
     title: '讲师'
   });
   const [saving, setSaving] = useState(false);
+  const [empErr, setEmpErr] = useState('');
+  const autoAccount = formData.employeeId ? `${formData.employeeId}@edu` : '';
+  const fmtEmp = (x?: string) => {
+    const s = (x || '').trim();
+    if (/^\d+$/.test(s)) return s;
+    return s || '-';
+  };
 
   useEffect(() => { loadTeachers() }, [q]);
 
@@ -49,16 +55,28 @@ const TeacherManager: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const empOk = /^\d{6}$/.test(formData.employeeId.trim());
+    if (!empOk) { setEmpErr('工号必须为6位数字'); return; }
     setSaving(true);
     try {
       if (editing) {
         await AdminApi.teachers.update(editing.id, formData);
       } else {
+        try {
+          const res = await AdminApi.teachers.list({ q: autoAccount });
+          const items = res.data?.items || [];
+          const exists = items.some((t: any) => String(t?.username || '') === autoAccount);
+          if (exists) {
+            alert('自动生成的登录账号已存在，请更换工号');
+            setSaving(false);
+            return;
+          }
+        } catch {}
         await AdminApi.teachers.create(formData);
       }
       setModalOpen(false);
       loadTeachers();
-    } catch (err) { alert('操作失败'); } finally { setSaving(false); }
+    } catch (err: any) { alert(String(err?.message || '操作失败')); } finally { setSaving(false); }
   };
 
   const handleDelete = async (id: string) => {
@@ -72,15 +90,18 @@ const TeacherManager: React.FC = () => {
   const openEdit = (t: Teacher) => {
     setEditing(t);
     setFormData({
-      username: t.username, password: '', fullName: t.fullName || '',
-      employeeId: t.employeeId || '', title: t.title || '讲师'
+      password: '',
+      fullName: t.fullName || '',
+      employeeId: t.employeeId || '',
+      title: t.title || '讲师'
     });
     setModalOpen(true);
   };
 
   const openAdd = () => {
     setEditing(null);
-    setFormData({ username: '', password: '', fullName: '', employeeId: '', title: '讲师' });
+    setFormData({ password: '', fullName: '', employeeId: '', title: '讲师' });
+    setEmpErr('');
     setModalOpen(true);
   };
 
@@ -166,7 +187,7 @@ const TeacherManager: React.FC = () => {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
-                          <span className="font-mono text-slate-600">{t.employeeId || '-'}</span>
+                          <span className="font-mono text-slate-600" title="显示的是教师ID">{fmtEmp(t.id)}</span>
                           <span className="text-xs text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded w-fit mt-1">{t.title}</span>
                         </div>
                       </td>
@@ -249,22 +270,18 @@ const TeacherManager: React.FC = () => {
                       required
                       className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all text-sm font-mono"
                       value={formData.employeeId}
-                      onChange={e => setFormData({...formData, employeeId: e.target.value})}
-                      placeholder="e.g. 2023001"
+                      onChange={e => {
+                        const v = e.target.value.replace(/\D/g, '').slice(0, 6);
+                        setFormData({ ...formData, employeeId: v });
+                        setEmpErr(/^\d{6}$/.test(v) ? '' : '工号必须为6位数字');
+                      }}
+                      placeholder="e.g. 123456"
                     />
+                    {formData.employeeId && (
+                      <div className="text-xs text-slate-500">登录账号将自动生成：<span className="font-mono text-slate-700">{autoAccount}</span></div>
+                    )}
+                    {empErr && <div className="text-xs text-rose-600">{empErr}</div>}
                   </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 uppercase">登录账号 <span className="text-rose-500">*</span></label>
-                  <input 
-                    required
-                    disabled={!!editing}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all text-sm disabled:opacity-60"
-                    value={formData.username}
-                    onChange={e => setFormData({...formData, username: e.target.value})}
-                    placeholder="用于系统登录的唯一账号"
-                  />
                 </div>
 
                 <div className="space-y-1.5">

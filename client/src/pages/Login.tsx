@@ -64,7 +64,7 @@ const Login: React.FC = () => {
       setMessage({ type: 'success', text: '登录成功！正在进入工作台...' });
       navigate('/');
     } catch (err) {
-      setMessage({ type: 'error', text: '登录失败，请重试' });
+      setMessage({ type: 'error', text: '账号或密码错误，请重试！' });
     } finally {
       setIsLoading(false);
     }
