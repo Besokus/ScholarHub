@@ -69,6 +69,11 @@
 4.  **Questions**: `ID, Title, Content, Images (JSON/Array), Status, CreatedAt`
 5.  **Answers**: `ID, Content, Attachments (JSON/Array), TeacherID`
 
+## 📑 Admin API Notes
+- `POST /api/admin/teachers` 接收 `fullName, employeeId, password, title`，登录账号由系统自动生成为 `employeeId@edu`，`id` 字段为工号。
+- 工号需为 8 位数字，账号与工号均进行唯一校验；返回对象包含 `username`、`employeeId` 等字段。
+- `PUT /api/admin/teachers/:id` 支持更新 `fullName/employeeId/title/password`，不修改已生成的登录账号。
+
 ---
 
 ## 🚀 Quick Start (快速开始)
