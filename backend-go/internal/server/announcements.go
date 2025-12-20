@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -21,10 +22,11 @@ import (
 )
 
 type AnnouncementsController struct {
-	db    *gorm.DB
-	base  string
-	mu    sync.Mutex
-	locks sync.Map
+	db          *gorm.DB
+	base        string
+	mu          sync.Mutex
+	locks       sync.Map
+	legacyBases []string
 }
 
 type AnnouncementFile struct {
@@ -47,20 +49,36 @@ type AnnouncementFile struct {
 func NewAnnouncementsController(db *gorm.DB) *AnnouncementsController {
 	dir := os.Getenv("ANNOUNCE_DIR")
 	if dir == "" {
-		if runtimeOS() == "windows" {
+		if pr := os.Getenv("PROJECT_ROOT"); pr != "" {
+			dir = filepath.Join(pr, "announcements")
+		} else if runtimeOS() == "windows" {
 			dir = "announcements"
 		} else {
 			dir = "/var/announcements"
 		}
 	}
 	_ = os.MkdirAll(dir, 0755)
-	ac := &AnnouncementsController{db: db, base: dir}
+	legacy := make([]string, 0, 2)
+	if runtimeOS() == "windows" {
+		if dir != "announcements" {
+			if fi, err := os.Stat("announcements"); err == nil && fi.IsDir() {
+				legacy = append(legacy, "announcements")
+			}
+		}
+	} else {
+		if dir != "/var/announcements" {
+			if fi, err := os.Stat("/var/announcements"); err == nil && fi.IsDir() {
+				legacy = append(legacy, "/var/announcements")
+			}
+		}
+	}
+	ac := &AnnouncementsController{db: db, base: dir, legacyBases: legacy}
 	ac.startArchive(90)
 	return ac
 }
 
 func runtimeOS() string {
-	return strings.ToLower(os.Getenv("GOOS"))
+	return strings.ToLower(runtime.GOOS)
 }
 
 func (a *AnnouncementsController) AdminCreate(c *gin.Context) {
@@ -456,63 +474,82 @@ func (a *AnnouncementsController) writeJSON(path string, v AnnouncementFile) err
 }
 
 func (a *AnnouncementsController) scanAll() []AnnouncementFile {
-	items := make([]AnnouncementFile, 0, 64)
-	_ = filepath.WalkDir(a.base, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if d.IsDir() {
-			if strings.Contains(path, "archive") {
-				return filepath.SkipDir
+	roots := append([]string{a.base}, a.legacyBases...)
+	m := make(map[string]AnnouncementFile, 64)
+	for _, root := range roots {
+		_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return nil
 			}
+			if d.IsDir() {
+				if strings.Contains(path, "archive") {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if !strings.HasSuffix(strings.ToLower(path), ".json") {
+				return nil
+			}
+			b, err := os.ReadFile(path)
+			if err != nil {
+				return nil
+			}
+			var af AnnouncementFile
+			if err := json.Unmarshal(b, &af); err != nil {
+				return nil
+			}
+			if af.ID == "" {
+				return nil
+			}
+			if _, ok := m[af.ID]; ok {
+				return nil
+			}
+			m[af.ID] = af
 			return nil
-		}
-		if !strings.HasSuffix(strings.ToLower(path), ".json") {
-			return nil
-		}
-		b, err := os.ReadFile(path)
-		if err != nil {
-			return nil
-		}
-		var af AnnouncementFile
-		if err := json.Unmarshal(b, &af); err != nil {
-			return nil
-		}
-		items = append(items, af)
-		return nil
-	})
+		})
+	}
+	items := make([]AnnouncementFile, 0, len(m))
+	for _, v := range m {
+		items = append(items, v)
+	}
 	return items
 }
 
 func (a *AnnouncementsController) findByID(id string) (*AnnouncementFile, string) {
-	var found *AnnouncementFile
-	var foundPath string
-	_ = filepath.WalkDir(a.base, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
+	roots := append([]string{a.base}, a.legacyBases...)
+	for _, root := range roots {
+		var found *AnnouncementFile
+		var foundPath string
+		_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return nil
+			}
+			if d.IsDir() {
+				return nil
+			}
+			if !strings.HasSuffix(strings.ToLower(path), ".json") {
+				return nil
+			}
+			b, err := os.ReadFile(path)
+			if err != nil {
+				return nil
+			}
+			var af AnnouncementFile
+			if err := json.Unmarshal(b, &af); err != nil {
+				return nil
+			}
+			if af.ID == id {
+				found = &af
+				foundPath = path
+				return fmt.Errorf("stop")
+			}
 			return nil
+		})
+		if found != nil {
+			return found, foundPath
 		}
-		if d.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(strings.ToLower(path), ".json") {
-			return nil
-		}
-		b, err := os.ReadFile(path)
-		if err != nil {
-			return nil
-		}
-		var af AnnouncementFile
-		if err := json.Unmarshal(b, &af); err != nil {
-			return nil
-		}
-		if af.ID == id {
-			found = &af
-			foundPath = path
-			return fmt.Errorf("stop")
-		}
-		return nil
-	})
-	return found, foundPath
+	}
+	return nil, ""
 }
 
 type userState struct {
@@ -529,14 +566,22 @@ func (a *AnnouncementsController) userStatePath(uid string) string {
 func (a *AnnouncementsController) readUserState(uid string) *userState {
 	p := a.userStatePath(uid)
 	b, err := os.ReadFile(p)
-	if err != nil {
-		return nil
+	if err == nil {
+		var st userState
+		if err := json.Unmarshal(b, &st); err == nil {
+			return &st
+		}
 	}
-	var st userState
-	if err := json.Unmarshal(b, &st); err != nil {
-		return nil
+	for _, root := range a.legacyBases {
+		p2 := filepath.Join(root, "user_states", uid+".json")
+		if b2, err2 := os.ReadFile(p2); err2 == nil {
+			var st userState
+			if err := json.Unmarshal(b2, &st); err == nil {
+				return &st
+			}
+		}
 	}
-	return &st
+	return nil
 }
 
 func (a *AnnouncementsController) writeUserState(uid string, st userState) error {
