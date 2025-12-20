@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"runtime"
@@ -10,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"log"
 
@@ -129,25 +131,49 @@ func (a *AdminController) Health(c *gin.Context) {
 	dbStart := time.Now()
 	_ = a.db.Exec("SELECT 1")
 	dbLatency := time.Since(dbStart).Milliseconds()
-	latScore := 0.0
-	if dbLatency <= 50 {
-		latScore = 0
-	} else if dbLatency >= 1000 {
-		latScore = 100
-	} else {
-		latScore = (float64(dbLatency) - 50) / 950 * 100
-	}
-	score := 100.0 - (min(cpuPerc, 100)*0.3 + min(memPerc, 100)*0.3 + min(diskPerc, 100)*0.2 + min(latScore, 100)*0.2)
-	if score < 0 {
-		score = 0
+	pingURL := os.Getenv("PING_URL")
+	netLatency := int64(0)
+	if pingURL != "" {
+		netLatency = pingLatency(pingURL, 800)
+		if netLatency < 0 {
+			netLatency = 0
+		}
 	}
 	status := "Healthy"
+	totalMs := time.Since(start).Milliseconds()
+	severities := map[string]float64{
+		"cpu":  severityCPU(cpuPerc),
+		"mem":  severityMem(memPerc),
+		"disk": severityDisk(diskPerc, diskClass()),
+		"db":   severityDBLatency(dbLatency),
+		"net":  severityNetworkLatency(netLatency),
+		"svc":  severityServiceMs(totalMs),
+	}
+	baseWeights := map[string]float64{
+		"cpu": 0.22, "mem": 0.22, "disk": 0.20, "db": 0.16, "net": 0.12, "svc": 0.08,
+	}
+	weights := dynamicWeights(baseWeights, severities)
+	score := calcHealthScore(severities, weights)
 	if score < 60 {
 		status = "Critical"
 	} else if score < 80 {
 		status = "Warning"
 	}
-	totalMs := time.Since(start).Milliseconds()
+	breakdown := gin.H{
+		"cpu":    gin.H{"value": cpuPerc, "severity": severities["cpu"], "weight": weights["cpu"], "penalty": math.Round(severities["cpu"]*weights["cpu"]*100) / 100},
+		"memory": gin.H{"value": memPerc, "severity": severities["mem"], "weight": weights["mem"], "penalty": math.Round(severities["mem"]*weights["mem"]*100) / 100},
+		"disk": gin.H{
+			"value":      diskPerc,
+			"severity":   severities["disk"],
+			"weight":     weights["disk"],
+			"penalty":    math.Round(severities["disk"]*weights["disk"]*100) / 100,
+			"type":       diskClass(),
+			"thresholds": gin.H{"normal_low": 60, "normal_high": 80, "warn": 90, "crit": 95},
+		},
+		"db":  gin.H{"latencyMs": dbLatency, "severity": severities["db"], "weight": weights["db"], "penalty": math.Round(severities["db"]*weights["db"]*100) / 100},
+		"net": gin.H{"latencyMs": netLatency, "severity": severities["net"], "weight": weights["net"], "penalty": math.Round(severities["net"]*weights["net"]*100) / 100},
+		"svc": gin.H{"latencyMs": totalMs, "severity": severities["svc"], "weight": weights["svc"], "penalty": math.Round(severities["svc"]*weights["svc"]*100) / 100},
+	}
 	c.JSON(http.StatusOK, respOk(gin.H{
 		"score":     int(score + 0.5),
 		"status":    status,
@@ -155,29 +181,34 @@ func (a *AdminController) Health(c *gin.Context) {
 		"components": gin.H{
 			"cpu": gin.H{
 				"usedPercent": cpuPerc,
-				"weight":      0.3,
+				"weight":      weights["cpu"],
 				"thresholds":  gin.H{"warn": 75, "crit": 90},
 			},
 			"memory": gin.H{
 				"usedPercent": memPerc,
-				"weight":      0.3,
+				"weight":      weights["mem"],
 				"thresholds":  gin.H{"warn": 75, "crit": 90},
 			},
 			"disk": gin.H{
 				"usedPercent": diskPerc,
-				"weight":      0.2,
-				"thresholds":  gin.H{"warn": 80, "crit": 95},
+				"weight":      weights["disk"],
+				"type":        diskClass(),
+				"thresholds":  gin.H{"normal_low": 60, "normal_high": 80, "warn": 90, "crit": 95},
 			},
 			"db": gin.H{
 				"latencyMs":  dbLatency,
-				"weight":     0.2,
+				"weight":     weights["db"],
 				"thresholds": gin.H{"warn": 200, "crit": 1000},
 			},
 			"network": gin.H{
-				"inBps":  inBps,
-				"outBps": outBps,
+				"inBps":      inBps,
+				"outBps":     outBps,
+				"latencyMs":  netLatency,
+				"weight":     weights["net"],
+				"thresholds": gin.H{"warn": 100, "crit": 200},
 			},
 		},
+		"breakdown":  breakdown,
 		"endpointMs": totalMs,
 	}))
 	log.Printf("health status=%s score=%d endpointMs=%d cpu=%.1f mem=%.1f disk=%.1f db=%d",
@@ -320,6 +351,7 @@ func (a *AdminController) ListTeachers(c *gin.Context) {
 
 func (a *AdminController) CreateTeacher(c *gin.Context) {
 	var req struct {
+		Name       string
 		Username   string
 		Password   string
 		FullName   string
@@ -330,38 +362,78 @@ func (a *AdminController) CreateTeacher(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, respErr(1002, "bad_request"))
 		return
 	}
-	if req.Username == "" || req.Password == "" {
-		c.JSON(http.StatusBadRequest, respErr(1002, "username_password_required"))
+	name := strings.TrimSpace(firstNonEmpty(req.Name, req.Username, req.FullName))
+	if name == "" || strings.TrimSpace(req.Password) == "" {
+		c.JSON(http.StatusBadRequest, respErr(1002, "name_password_required"))
+		return
+	}
+	emp := strings.TrimSpace(req.EmployeeID)
+	if emp == "" {
+		c.JSON(http.StatusBadRequest, respErr(1002, "employee_id_required"))
+		return
+	}
+	if !isDigits(emp) || len(emp) != 6 {
+		c.JSON(http.StatusBadRequest, respErr(1002, "invalid_employee_id"))
+		return
+	}
+	name = sanitizeName(name)
+	title := normalizeTitle(strings.TrimSpace(req.Title))
+	if title == "" {
+		c.JSON(http.StatusBadRequest, respErr(1002, "invalid_title"))
 		return
 	}
 
-	// Check duplicates
-	var exist models.User
-	if err := a.db.Where("username = ? OR \"employeeId\" = ?", req.Username, req.EmployeeID).First(&exist).Error; err == nil {
-		c.JSON(http.StatusConflict, respErr(1003, "exists"))
-		return
-	}
+	emailLocal := toPinyinName(name)
+	email := emailLocal + "@edu.com"
+	username := emp + "@edu"
 
 	hash, _ := bcrypt.GenerateFromPassword([]byte(req.Password), 10)
-	u := models.User{
-		Username:   req.Username,
-		Password:   string(hash),
-		FullName:   &req.FullName,
-		Role:       "TEACHER",
-		Email:      req.Username + "@teacher.local", // Default email if not provided
-		Title:      &req.Title,
-		EmployeeID: &req.EmployeeID,
-	}
-
-	if err := a.db.Create(&u).Error; err != nil {
+	var created models.User
+	retries := 0
+	for {
+		err := a.db.Transaction(func(tx *gorm.DB) error {
+			var exist models.User
+			if err := tx.Where("(id = ? OR \"employeeId\" = ? OR username = ?)", emp, emp, username).First(&exist).Error; err == nil {
+				return fmt.Errorf("conflict")
+			}
+			u := models.User{
+				ID:         emp,
+				Username:   username,
+				Password:   string(hash),
+				Role:       "TEACHER",
+				Email:      email,
+				FullName:   &name,
+				Title:      &title,
+				EmployeeID: &emp,
+			}
+			if err := tx.Create(&u).Error; err != nil {
+				return err
+			}
+			created = u
+			return nil
+		})
+		if err == nil {
+			break
+		}
+		msg := strings.ToLower(err.Error())
+		if strings.Contains(msg, "conflict") || strings.Contains(msg, "duplicate") || strings.Contains(msg, "23505") {
+			if retries < 2 {
+				time.Sleep(time.Duration(200*(retries+1)) * time.Millisecond)
+				retries++
+				continue
+			}
+			c.JSON(http.StatusConflict, respErr(1003, "employee_exists"))
+			return
+		}
+		log.Printf("create_teacher error: %v", err)
 		c.JSON(http.StatusInternalServerError, respErr(1004, "db_error"))
 		return
 	}
 
 	adminID := c.GetString("user_id")
-	a.logAction(adminID, "CREATE_TEACHER", u.ID, req)
+	a.logAction(adminID, "CREATE_TEACHER", created.ID, gin.H{"name": name, "employeeId": emp, "title": title, "email": email, "username": username})
 
-	c.JSON(http.StatusOK, respOk(u))
+	c.JSON(http.StatusOK, respOk(created))
 }
 
 func (a *AdminController) UpdateTeacher(c *gin.Context) {
@@ -564,4 +636,136 @@ func (a *AdminController) AuditAnswer(c *gin.Context) {
 	adminID := c.GetString("user_id")
 	a.logAction(adminID, "AUDIT_ANSWER", id, req)
 	c.JSON(http.StatusOK, respOk(gin.H{"ok": true}))
+}
+
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func sanitizeName(s string) string {
+	x := strings.TrimSpace(s)
+	x = strings.ReplaceAll(x, "<", "")
+	x = strings.ReplaceAll(x, ">", "")
+	x = strings.ReplaceAll(x, "\"", "")
+	x = strings.ReplaceAll(x, "'", "")
+	x = strings.ReplaceAll(x, "&", "")
+	return x
+}
+
+func normalizeTitle(t string) string {
+	if t == "" {
+		return ""
+	}
+	m := map[string]string{
+		"讲师":                  "LECTURER",
+		"助理教授":                "ASSISTANT_PROFESSOR",
+		"副教授":                 "ASSOCIATE_PROFESSOR",
+		"教授":                  "PROFESSOR",
+		"lecturer":            "LECTURER",
+		"assistant":           "ASSISTANT",
+		"assistant_professor": "ASSISTANT_PROFESSOR",
+		"associate_professor": "ASSOCIATE_PROFESSOR",
+		"professor":           "PROFESSOR",
+	}
+	l := strings.ToLower(t)
+	if v, ok := m[l]; ok {
+		return v
+	}
+	return ""
+}
+
+func toEmailLocal(name string) string {
+	surnames := map[rune]string{
+		'张': "zhang", '王': "wang", '李': "li", '赵': "zhao", '刘': "liu",
+		'陈': "chen", '杨': "yang", '黄': "huang", '吴': "wu", '周': "zhou",
+		'徐': "xu", '孙': "sun", '马': "ma", '朱': "zhu", '胡': "hu",
+		'郭': "guo", '何': "he", '高': "gao", '林': "lin", '罗': "luo",
+		'郑': "zheng", '梁': "liang", '谢': "xie", '宋': "song", '唐': "tang",
+	}
+	n := strings.TrimSpace(name)
+	ln := strings.ToLower(n)
+	r, _ := utf8.DecodeRuneInString(ln)
+	if v, ok := surnames[r]; ok {
+		return v
+	}
+	buf := make([]rune, 0, len(ln))
+	for _, ch := range ln {
+		if (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') {
+			buf = append(buf, ch)
+		}
+	}
+	if len(buf) == 0 {
+		return "teacher"
+	}
+	return string(buf)
+}
+
+func toPinyinName(name string) string {
+	n := strings.TrimSpace(name)
+	if n == "" {
+		return "teacher"
+	}
+	// polyphonic & special surname handling
+	surnameMap := map[rune]string{
+		'曾': "zeng", '单': "shan", '重': "chong", '区': "ou", '仇': "qiu", '柏': "bai", '薄': "bo",
+		'任': "ren", '沈': "shen", '闫': "yan", '乐': "yue", '覃': "qin",
+		'漆': "qi", '查': "zha", '折': "zhe",
+		'张': "zhang", '王': "wang", '李': "li", '赵': "zhao", '刘': "liu",
+		'陈': "chen", '杨': "yang", '黄': "huang", '吴': "wu", '周': "zhou",
+		'徐': "xu", '孙': "sun", '马': "ma", '朱': "zhu", '胡': "hu",
+		'郭': "guo", '何': "he", '高': "gao", '林': "lin", '罗': "luo",
+		'郑': "zheng", '梁': "liang", '谢': "xie", '宋': "song", '唐': "tang",
+	}
+	givenMap := map[rune]string{
+		'一': "yi", '二': "er", '三': "san", '四': "si", '五': "wu", '六': "liu", '七': "qi", '八': "ba", '九': "jiu", '十': "shi",
+		'伟': "wei", '强': "qiang", '刚': "gang", '杰': "jie", '明': "ming", '华': "hua", '芳': "fang", '军': "jun",
+		'磊': "lei", '洋': "yang", '艳': "yan", '超': "chao", '勇': "yong", '兵': "bing", '玲': "ling", '丹': "dan", '倩': "qian",
+		'娟': "juan", '静': "jing", '丽': "li", '萍': "ping", '婷': "ting", '霞': "xia",
+		'玉': "yu", '秋': "qiu", '春': "chun", '夏': "xia", '冬': "dong",
+		'雪': "xue", '月': "yue", '星': "xing",
+		'佳': "jia", '美': "mei", '爱': "ai", '乐': "le",
+		'俊': "jun", '博': "bo", '晓': "xiao", '鑫': "xin", '琳': "lin",
+		'文': "wen", '斌': "bin", '达': "da", '宁': "ning", '康': "kang",
+		'祥': "xiang", '远': "yuan", '平': "ping", '航': "hang", '荣': "rong",
+		'建': "jian", '国': "guo", '志': "zhi", '洁': "jie", '颖': "ying", '宇': "yu",
+	}
+	ln := strings.ToLower(n)
+	r, size := utf8.DecodeRuneInString(ln)
+	out := make([]string, 0, len(ln))
+	if size > 0 {
+		if v, ok := surnameMap[r]; ok {
+			out = append(out, v)
+			ln = ln[size:]
+		}
+	}
+	for _, ch := range ln {
+		if (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') {
+			out = append(out, string(ch))
+			continue
+		}
+		if v, ok := givenMap[ch]; ok {
+			out = append(out, v)
+		}
+	}
+	if len(out) == 0 {
+		return toEmailLocal(name)
+	}
+	return strings.Join(out, "")
+}
+
+func isDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return true
 }

@@ -1,10 +1,14 @@
 package server
 
 import (
+	"context"
 	"log"
+	"math"
+	"net/http"
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -55,7 +59,7 @@ type HealthCollector struct {
 }
 
 func NewHealthCollector(db *gorm.DB) *HealthCollector {
-	ms := 5000
+	ms := 30000
 	if v := os.Getenv("HEALTH_INTERVAL_MS"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			ms = n
@@ -142,25 +146,35 @@ func (hc *HealthCollector) sampleOnce() {
 	dbStart := time.Now()
 	_ = hc.db.Exec("SELECT 1")
 	dbLatency := time.Since(dbStart).Milliseconds()
-	latScore := 0.0
-	if dbLatency <= 50 {
-		latScore = 0
-	} else if dbLatency >= 1000 {
-		latScore = 100
-	} else {
-		latScore = (float64(dbLatency) - 50) / 950 * 100
+	pingURL := os.Getenv("PING_URL")
+	netLatency := int64(0)
+	if pingURL != "" {
+		netLatency = pingLatency(pingURL, 800)
+		if netLatency < 0 {
+			netLatency = 0
+		}
 	}
-	score := 100.0 - (minf(cpuPerc, 100)*0.3 + minf(memPerc, 100)*0.3 + minf(diskPerc, 100)*0.2 + minf(latScore, 100)*0.2)
-	if score < 0 {
-		score = 0
+	totalMs := time.Since(start).Milliseconds()
+
+	severities := map[string]float64{
+		"cpu":  severityCPU(cpuPerc),
+		"mem":  severityMem(memPerc),
+		"disk": severityDisk(diskPerc, diskClass()),
+		"db":   severityDBLatency(dbLatency),
+		"net":  severityNetworkLatency(netLatency),
+		"svc":  severityServiceMs(totalMs),
 	}
+	baseWeights := map[string]float64{
+		"cpu": 0.22, "mem": 0.22, "disk": 0.20, "db": 0.16, "net": 0.12, "svc": 0.08,
+	}
+	weights := dynamicWeights(baseWeights, severities)
+	score := calcHealthScore(severities, weights)
 	status := "Healthy"
 	if score < 60 {
 		status = "Critical"
 	} else if score < 80 {
 		status = "Warning"
 	}
-	totalMs := time.Since(start).Milliseconds()
 	sample := models.HealthSample{
 		Score:       int(score + 0.5),
 		Status:      status,
@@ -172,8 +186,8 @@ func (hc *HealthCollector) sampleOnce() {
 	}
 	_ = hc.db.Create(&sample)
 	publishHealth(sample)
-	log.Printf("health_collect status=%s score=%d endpointMs=%d cpu=%.1f mem=%.1f disk=%.1f db=%d",
-		status, int(score+0.5), totalMs, cpuPerc, memPerc, diskPerc, dbLatency)
+	log.Printf("health_collect status=%s score=%d endpointMs=%d cpu=%.1f mem=%.1f disk=%.1f db=%d net=%d",
+		status, int(score+0.5), totalMs, cpuPerc, memPerc, diskPerc, dbLatency, netLatency)
 }
 
 func minf(a, b float64) float64 {
@@ -181,4 +195,131 @@ func minf(a, b float64) float64 {
 		return a
 	}
 	return b
+}
+
+func piecewise(x float64, pts [][2]float64) float64 {
+	if len(pts) == 0 {
+		return 0
+	}
+	if x <= pts[0][0] {
+		return pts[0][1]
+	}
+	if x >= pts[len(pts)-1][0] {
+		return pts[len(pts)-1][1]
+	}
+	for i := 1; i < len(pts); i++ {
+		x0, y0 := pts[i-1][0], pts[i-1][1]
+		x1, y1 := pts[i][0], pts[i][1]
+		if x >= x0 && x <= x1 {
+			if x1 == x0 {
+				return y1
+			}
+			r := (x - x0) / (x1 - x0)
+			return y0 + r*(y1-y0)
+		}
+	}
+	return pts[len(pts)-1][1]
+}
+
+func severityDisk(used float64, cls string) float64 {
+	if strings.ToUpper(cls) == "HDD" {
+		return piecewise(used, [][2]float64{
+			{0, 0}, {50, 10}, {75, 40}, {90, 80}, {95, 95}, {100, 100},
+		})
+	}
+	return piecewise(used, [][2]float64{
+		{0, 0}, {60, 10}, {80, 30}, {90, 70}, {95, 90}, {100, 100},
+	})
+}
+
+func severityCPU(p float64) float64 {
+	return piecewise(p, [][2]float64{
+		{0, 0}, {40, 10}, {60, 30}, {80, 65}, {90, 85}, {100, 100},
+	})
+}
+
+func severityMem(p float64) float64 {
+	return piecewise(p, [][2]float64{
+		{0, 0}, {50, 10}, {70, 40}, {85, 75}, {95, 95}, {100, 100},
+	})
+}
+
+func severityDBLatency(ms int64) float64 {
+	return piecewise(float64(ms), [][2]float64{
+		{0, 0}, {50, 5}, {200, 30}, {500, 60}, {1000, 90}, {2000, 100},
+	})
+}
+
+func severityNetworkLatency(ms int64) float64 {
+	if ms <= 0 {
+		return 0
+	}
+	return piecewise(float64(ms), [][2]float64{
+		{0, 0}, {20, 5}, {50, 20}, {100, 40}, {200, 70}, {500, 100},
+	})
+}
+
+func severityServiceMs(ms int64) float64 {
+	return piecewise(float64(ms), [][2]float64{
+		{0, 0}, {50, 5}, {150, 20}, {300, 40}, {600, 80}, {1000, 100},
+	})
+}
+
+func dynamicWeights(base map[string]float64, sev map[string]float64) map[string]float64 {
+	sum := 0.0
+	out := map[string]float64{}
+	for k, w := range base {
+		a := 0.5
+		s := sev[k] / 100.0
+		adj := w * (1 + a*s)
+		out[k] = adj
+		sum += adj
+	}
+	if sum <= 0 {
+		return base
+	}
+	for k := range out {
+		out[k] = out[k] / sum
+	}
+	return out
+}
+
+func calcHealthScore(sev map[string]float64, w map[string]float64) float64 {
+	pen := 0.0
+	for k, s := range sev {
+		pen += s * (w[k])
+	}
+	score := 100.0 - pen
+	if score < 0 {
+		score = 0
+	}
+	if score > 100 {
+		score = 100
+	}
+	return math.Round(score*10) / 10
+}
+
+func diskClass() string {
+	if v := os.Getenv("DISK_CLASS"); v != "" {
+		return v
+	}
+	if v := os.Getenv("DISK_TYPE"); v != "" {
+		return v
+	}
+	return "SSD"
+}
+
+func pingLatency(url string, timeoutMs int) int64 {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutMs)*time.Millisecond)
+	defer cancel()
+	req, _ := http.NewRequestWithContext(ctx, http.MethodHead, url, nil)
+	t0 := time.Now()
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return -1
+	}
+	if resp != nil && resp.Body != nil {
+		_ = resp.Body.Close()
+	}
+	return time.Since(t0).Milliseconds()
 }
