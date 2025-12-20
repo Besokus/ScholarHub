@@ -94,7 +94,6 @@ export default function Sidebar() {
         { to: "/student/dashboard", icon: LayoutDashboard, label: "学习中心" },
         { to: "/student/resources", icon: BookOpen, label: "资源中心" },
         { to: "/student/qa", icon: MessageSquare, label: "问答社区" },
-        { to: "/student/announcements", icon: Bell, label: "系统公告", badge: annUnread },
         { to: "/student/notifications", icon: Bell, label: "通知提醒", badge: 0 },
         { to: "/student/profile", icon: User, label: "个人中心" },
       ]

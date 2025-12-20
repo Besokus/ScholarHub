@@ -10,11 +10,20 @@ type Message = {
   questionId?: string; 
   severity?: string;
   pinned?: boolean;
+  summary?: string;
 }
 
 export default function useNotifications() {
   const [unread, setUnread] = useState<Message[]>([])
   const timer = useRef<number | null>(null)
+  const stripHtml = (html: string) => {
+    try {
+      const div = document.createElement('div')
+      div.innerHTML = html || ''
+      const txt = (div.textContent || '').trim()
+      return txt
+    } catch { return '' }
+  }
   const fetchMessages = async () => {
     try {
       const ans = await NotiApi.unreadAnswers().catch(() => ({ items: [] }))
@@ -34,7 +43,8 @@ export default function useNotifications() {
         createdAt: new Date(x.publishAt).getTime(),
         read: Boolean(x.read),
         severity: String(x.severity || 'NORMAL'),
-        pinned: Boolean(x.pinned)
+        pinned: Boolean(x.pinned),
+        summary: stripHtml(String(x.html || '')).slice(0, 120)
       }))
       const merged: Message[] = [...a1, ...items].filter(Boolean)
       merged.sort((a, b) => {

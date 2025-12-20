@@ -196,7 +196,6 @@ const App: React.FC = () => {
                 <Route path="/student/qa/publish" element={<StudentQAPublish />} />
                 <Route path="/student/qa/:questionId" element={<StudentQAQuestion />} />
                 <Route path="/student/notifications" element={<StudentNotifications />} />
-                <Route path="/student/announcements" element={<StudentAnnouncements />} />
                 <Route path="/student/announcements/:id" element={<StudentAnnouncementDetail />} />
                 <Route path="/student/profile" element={<StudentProfile />} />
                 <Route path="/student/profile/settings" element={<ProfileSettings />} />
