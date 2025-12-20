@@ -9,6 +9,7 @@ import {
 import { QaApi, AnswersApi, API_ORIGIN } from '../../services/api'
 import { useToast } from '../../components/common/Toast'
 import RichText from '../../components/editor/RichText'
+import { formatDateTimeLocal } from '../../utils/date'
 
 // --- 辅助组件：头像占位符 ---
 const Avatar = ({ name, role }: { name: string, role?: string }) => {
@@ -245,7 +246,7 @@ export default function QAQuestion() {
             {q.askerName || '匿名同学'}
           </span>
           <span className="flex items-center gap-1.5">
-            <Clock size={14} /> {new Date(q.createTime || Date.now()).toLocaleString()}
+            <Clock size={14} /> {formatDateTimeLocal((q.updatedAt ?? q.createdAt ?? q.createTime ?? Date.now()))}
           </span>
           <span className="flex items-center gap-1.5">
             <MessageCircle size={14} /> {answers.length} 回答

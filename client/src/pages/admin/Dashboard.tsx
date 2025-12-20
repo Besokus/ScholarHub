@@ -235,6 +235,19 @@ const Dashboard: React.FC = () => {
     if (cpu >= 75 || mem >= 75 || db >= 500 || score < 80) return 2000;
     return base;
   };
+  const scoreStats = useMemo(() => {
+    const arr = history || [];
+    const len = arr.length;
+    if (len === 0) return { avg: 0, max: 0, min: 0, dist: { healthy: 0, warning: 0, critical: 0 } };
+    const sum = arr.reduce((a, b) => a + b, 0);
+    const avg = Math.round(sum / len);
+    const max = Math.round(Math.max(...arr));
+    const min = Math.round(Math.min(...arr));
+    let h = 0, w = 0, c = 0;
+    arr.forEach(s => { if (s >= 80) h++; else if (s >= 60) w++; else c++; });
+    const toPct = (n: number) => Math.round((n / len) * 100);
+    return { avg, max, min, dist: { healthy: toPct(h), warning: toPct(w), critical: toPct(c) } };
+  }, [history]);
 
   const getCache = (k: string, ttlMs: number) => {
     const hit = cacheRef.current.get(k);
@@ -598,43 +611,7 @@ const Dashboard: React.FC = () => {
           <HealthItem label="Storage" status={classify.storage(Number(health?.components?.disk?.usedPercent || 0))} icon={Cpu} load={Math.round(Number(health?.components?.disk?.usedPercent || 0))} />
         </div>
 
-        <div className="mt-6 bg-slate-50 rounded-xl border border-slate-200 p-4">
-          <div className="text-sm font-bold text-slate-700 mb-3">评分明细</div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {['cpu','memory','disk','db','net','svc'].map(key => {
-              const item: any = (health as any)?.breakdown?.[key] || null
-              if (!item) return (
-                <div key={key} className="p-3 bg-white rounded-lg border border-slate-100 text-xs text-slate-400">无数据</div>
-              )
-              const label = key === 'cpu' ? 'CPU' : key === 'memory' ? '内存' : key === 'disk' ? '磁盘' : key === 'db' ? '数据库' : key === 'net' ? '网络' : '服务响应'
-              const value = typeof item.value === 'number' ? Math.round(item.value) + (key==='db' || key==='net' || key==='svc' ? ' ms' : '%') : (typeof item.latencyMs === 'number' ? Math.round(item.latencyMs) + ' ms' : '—')
-              const sev = typeof item.severity === 'number' ? Math.round(item.severity) : 0
-              const w = typeof item.weight === 'number' ? Math.round(item.weight * 100) / 100 : 0
-              const pen = typeof item.penalty === 'number' ? Math.round(item.penalty * 100) / 100 : 0
-              return (
-                <div key={key} className="p-3 bg-white rounded-lg border border-slate-100">
-                  <div className="text-xs font-bold text-slate-700 mb-1">{label}</div>
-                  <div className="text-xs text-slate-600">值 {value}</div>
-                  <div className="mt-1 flex items-center justify-between text-[12px]">
-                    <span className="text-slate-500">严重度</span>
-                    <span className={`font-bold ${sev >= 80 ? 'text-rose-600' : sev >= 60 ? 'text-amber-600' : 'text-slate-700'}`}>{sev}</span>
-                  </div>
-                  <div className="mt-1 flex items-center justify-between text-[12px]">
-                    <span className="text-slate-500">权重</span>
-                    <span className="font-bold text-slate-700">{w}</span>
-                  </div>
-                  <div className="mt-1 flex items-center justify-between text-[12px]">
-                    <span className="text-slate-500">扣分</span>
-                    <span className={`font-bold ${pen >= 20 ? 'text-rose-600' : pen >= 10 ? 'text-amber-600' : 'text-emerald-600'}`}>{pen}</span>
-                  </div>
-                  {key === 'disk' && item?.type && (
-                    <div className="mt-1 text-[11px] text-slate-400">类型 {item.type} · 正常 {item.thresholds?.normal_low}–{item.thresholds?.normal_high}%</div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </div>
+        
 
         <div className="mt-8">
           <div className="text-sm text-slate-600 mb-2">健康度趋势（最近 {history.length} 次）</div>
@@ -651,21 +628,45 @@ const Dashboard: React.FC = () => {
         </div>
 
         <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="grid grid-cols-1 gap-6">
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-              <div className="text-sm font-bold text-slate-700 mb-3">指标详情</div>
-              <div className="text-sm text-slate-600 space-y-2">
-                <div>CPU 使用率：{Math.round(Number(health?.components?.cpu?.usedPercent || 0))}%</div>
-                <div>内存占用：{Math.round(Number(health?.components?.memory?.usedPercent || 0))}%</div>
-                <div>磁盘使用率：{Math.round(Number(health?.components?.disk?.usedPercent || 0))}%</div>
-                <div>数据库延迟：{Math.round(Number(health?.components?.db?.latencyMs || 0))} ms</div>
-                <div>网络吞吐：↑ {Math.round(Number(health?.components?.network?.outBps || 0))} B/s · ↓ {Math.round(Number(health?.components?.network?.inBps || 0))} B/s</div>
+            <div className="grid grid-cols-1 gap-6">
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="text-sm font-bold text-slate-700 mb-3">指标详情</div>
+                <div className="text-sm text-slate-600 space-y-2">
+                  <div>CPU 使用率：{Math.round(Number(health?.components?.cpu?.usedPercent || 0))}%</div>
+                  <div>内存占用：{Math.round(Number(health?.components?.memory?.usedPercent || 0))}%</div>
+                  <div>磁盘使用率：{Math.round(Number(health?.components?.disk?.usedPercent || 0))}%</div>
+                  <div>数据库延迟：{Math.round(Number(health?.components?.db?.latencyMs || 0))} ms</div>
+                  <div>网络吞吐：↑ {Math.round(Number(health?.components?.network?.outBps || 0))} B/s · ↓ {Math.round(Number(health?.components?.network?.inBps || 0))} B/s</div>
+                </div>
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="bg-white p-3 rounded-lg border border-slate-100">
+                    <div className="text-xs text-slate-400 mb-1">平均分</div>
+                    <div className={`text-xl font-bold ${scoreStats.avg < 60 ? 'text-rose-600' : scoreStats.avg < 80 ? 'text-amber-600' : 'text-slate-700'}`}>{scoreStats.avg}</div>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg border border-slate-100">
+                    <div className="text-xs text-slate-400 mb-1">最高/最低</div>
+                    <div className="text-xl font-bold text-slate-700">{scoreStats.max} / {scoreStats.min}</div>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg border border-slate-100">
+                    <div className="text-xs text-slate-400 mb-1">评分分布</div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-emerald-500" style={{ width: `${scoreStats.dist.healthy}%` }} />
+                      </div>
+                      <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-amber-500" style={{ width: `${scoreStats.dist.warning}%` }} />
+                      </div>
+                      <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-rose-500" style={{ width: `${scoreStats.dist.critical}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-              <div className="text-sm font-bold text-slate-700 mb-3">告警阈值</div>
-              <div className="text-sm text-slate-600 space-y-2">
-                <div>CPU 警告 ≥ 75%，严重 ≥ 90%</div>
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="text-sm font-bold text-slate-700 mb-3">告警阈值</div>
+                <div className="text-sm text-slate-600 space-y-2">
+                  <div>CPU 警告 ≥ 75%，严重 ≥ 90%</div>
                 <div>内存 警告 ≥ 75%，严重 ≥ 90%</div>
                 <div>磁盘 警告 ≥ 80%，严重 ≥ 95%</div>
                 <div>数据库延迟 警告 ≥ 200ms</div>
