@@ -199,4 +199,35 @@ export const AdminApi = {
     auditQuestion: (id: string, body: any) => adminFetch(`/admin/questions/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     auditAnswer: (id: string, body: any) => adminFetch(`/admin/answers/${id}`, { method: 'PUT', body: JSON.stringify(body) })
   }
+  ,
+  announcements: {
+    list: (params: { severity?: string; page?: number; pageSize?: number }) => {
+      const q = new URLSearchParams()
+      if (params.severity) q.set('severity', params.severity)
+      q.set('page', String(params.page || 1))
+      q.set('pageSize', String(params.pageSize || 10))
+      return adminFetch(`/admin/announcements?${q.toString()}`)
+    },
+    create: (body: { title: string; markdown: string; scope?: string; severity?: string; pinned?: boolean; validFrom?: number | null; validTo?: number | null }) =>
+      adminFetch('/admin/announcements', { method: 'POST', body: JSON.stringify(body) }),
+    update: (id: string, body: Partial<{ title: string; markdown: string; scope: string; severity: string; pinned: boolean; validFrom: number; validTo: number }>) =>
+      adminFetch(`/admin/announcements/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    remove: (id: string) => adminFetch(`/admin/announcements/${id}`, { method: 'DELETE' })
+  }
+}
+
+export const AnnApi = {
+  list: (params: { severity?: string; page?: number; pageSize?: number; status?: string }) => {
+    const q = new URLSearchParams()
+    if (params.severity) q.set('severity', params.severity)
+    if (params.status) q.set('status', params.status)
+    q.set('page', String(params.page || 1))
+    q.set('pageSize', String(params.pageSize || 10))
+    return adminFetch(`/announcements?${q.toString()}`)
+  },
+  detail: (id: string) => adminFetch(`/announcements/${id}`),
+  markRead: (id: string) => adminFetch(`/announcements/${id}/read`, { method: 'POST' }),
+  markReadBatch: (ids: string[]) => adminFetch(`/announcements/read-batch`, { method: 'POST', body: JSON.stringify({ ids }) }),
+  toggleFav: (id: string) => adminFetch(`/announcements/${id}/fav`, { method: 'POST' }),
+  unreadCount: () => adminFetch('/announcements/unread-count')
 }

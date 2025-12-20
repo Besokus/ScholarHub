@@ -5,7 +5,7 @@ import {
   LayoutDashboard, BookOpen, Upload, MessageSquare, Bell, User, 
   LogOut, GraduationCap, Settings, ChevronRight, Loader2, Shield
 } from 'lucide-react'
-import { AuthApi } from '../../services/api' // 确保引入了 API
+import { AuthApi, AnnApi } from '../../services/api'
 
 // 定义用户类型
 interface UserInfo {
@@ -23,6 +23,7 @@ export default function Sidebar() {
     role: 'Student'
   })
   const [loading, setLoading] = useState(true)
+  const [annUnread, setAnnUnread] = useState(0)
 
   // --- 2. 获取当前用户信息 ---
   useEffect(() => {
@@ -62,6 +63,18 @@ export default function Sidebar() {
 
     fetchUser()
   }, [])
+  useEffect(() => {
+    const loadUnread = async () => {
+      try {
+        const d = await AnnApi.unreadCount()
+        const cnt = (d.Data?.count ?? d.count ?? 0) as number
+        setAnnUnread(cnt)
+      } catch {}
+    }
+    loadUnread()
+    const t = setInterval(loadUnread, 30000)
+    return () => clearInterval(t)
+  }, [])
 
   const handleLogout = () => {
     localStorage.clear()
@@ -72,6 +85,7 @@ export default function Sidebar() {
   const navItems = user.role === 'ADMIN'
     ? [
         { to: "/admin/dashboard", icon: LayoutDashboard, label: "仪表盘" },
+        { to: "/admin/announcements", icon: Bell, label: "系统公告" },
         { to: "/admin/users", icon: User, label: "教师管理" },
         { to: "/admin/audit", icon: Shield, label: "内容风控" },
         { to: "/admin/config", icon: Settings, label: "系统配置" },
@@ -80,6 +94,7 @@ export default function Sidebar() {
         { to: "/student/dashboard", icon: LayoutDashboard, label: "学习中心" },
         { to: "/student/resources", icon: BookOpen, label: "资源中心" },
         { to: "/student/qa", icon: MessageSquare, label: "问答社区" },
+        { to: "/student/announcements", icon: Bell, label: "系统公告", badge: annUnread },
         { to: "/student/notifications", icon: Bell, label: "通知提醒", badge: 0 },
         { to: "/student/profile", icon: User, label: "个人中心" },
       ]

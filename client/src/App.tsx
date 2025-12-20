@@ -22,6 +22,9 @@ const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
 const AdminUsers = lazy(() => import('./pages/admin/UserManagement'));
 const AdminConfig = lazy(() => import('./pages/admin/SystemConfig'));
 const AdminContentAudit = lazy(() => import('./pages/admin/ContentAudit'));
+const AdminAnnouncements = lazy(() => import('./pages/admin/Announcements'));
+const StudentAnnouncements = lazy(() => import('./pages/student/Announcements'));
+const StudentAnnouncementDetail = lazy(() => import('./pages/student/AnnouncementDetail'));
 
 // ✅ 新增：懒加载不同角色的首页
 // (实际项目中请创建这些文件，这里暂时用简单的占位组件演示)
@@ -193,12 +196,15 @@ const App: React.FC = () => {
                 <Route path="/student/qa/publish" element={<StudentQAPublish />} />
                 <Route path="/student/qa/:questionId" element={<StudentQAQuestion />} />
                 <Route path="/student/notifications" element={<StudentNotifications />} />
+                <Route path="/student/announcements" element={<StudentAnnouncements />} />
+                <Route path="/student/announcements/:id" element={<StudentAnnouncementDetail />} />
                 <Route path="/student/profile" element={<StudentProfile />} />
                 <Route path="/student/profile/settings" element={<ProfileSettings />} />
               </Route>
               <Route path="/teacher/dashboard" element={<TeacherHome />} />
               <Route element={<AdminRoute />}>
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                <Route path="/admin/announcements" element={<AdminAnnouncements />} />
                 <Route path="/admin/users" element={<AdminUsers />} />
                 <Route path="/admin/config" element={<AdminConfig />} />
                 <Route path="/admin/audit" element={<AdminContentAudit />} />

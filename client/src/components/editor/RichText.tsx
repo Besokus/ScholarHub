@@ -13,9 +13,10 @@ interface RichTextProps {
   maxLength?: number
   storageKey?: string // For auto-save
   readOnly?: boolean
+  className?: string
 }
 
-export default function RichText({ value, onChange, maxLength = 2000, storageKey, readOnly = false }: RichTextProps) {
+export default function RichText({ value, onChange, maxLength = 2000, storageKey, readOnly = false, className }: RichTextProps) {
   const [showPreview, setShowPreview] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
 
@@ -87,7 +88,7 @@ export default function RichText({ value, onChange, maxLength = 2000, storageKey
   )
 
   return (
-    <div className="border rounded-lg overflow-hidden bg-white shadow-sm">
+    <div className={`border rounded-lg overflow-hidden bg-white shadow-sm ${className || ''}`}>
       {/* Toolbar */}
       <div className="flex items-center gap-1 p-2 border-b bg-gray-50 flex-wrap sticky top-0 z-10">
         <ToolbarButton onClick={() => editor.chain().focus().toggleBold().run()} isActive={editor.isActive('bold')} title="加粗 (Ctrl+B)">

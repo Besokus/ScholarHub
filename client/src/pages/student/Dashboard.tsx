@@ -7,10 +7,10 @@ import {
   CheckCircle2, Clock, Inbox, ChevronRight,
   Sun, Moon, CloudSun, Calendar
 } from 'lucide-react'
-import { QaApi, ResourcesApi, NotiApi, AuthApi } from '../../services/api'
+import { QaApi, ResourcesApi, NotiApi, AuthApi, AnnApi } from '../../services/api'
 
 // --- 动画配置 ---
-const containerVariants = {
+const containerVariants: Record<string, any> = {
   hidden: { opacity: 0 },
   visible: { 
     opacity: 1, 
@@ -18,7 +18,7 @@ const containerVariants = {
   }
 }
 
-const cardVariants = {
+const cardVariants: Record<string, any> = {
   hidden: { y: 20, opacity: 0, scale: 0.98 },
   visible: { 
     y: 0, 
@@ -169,17 +169,39 @@ export default function Dashboard() {
 
     const fetchData = async () => {
       try {
-        const [qsData, allResData, notiData] = await Promise.all([
+        const [qsData, allResData, notiData, annData] = await Promise.all([
           QaApi.list({ my: true, sort: 'latest', page: 1, pageSize: 3 }).catch(() => ({ items: [] })),
           ResourcesApi.list({ page: 1, pageSize: 50 }).catch(() => ({ items: [] })),
-          NotiApi.unreadAnswers().catch(() => ({ items: [] }))
+          NotiApi.unreadAnswers().catch(() => ({ items: [] })),
+          AnnApi.list({ status: 'unread', page: 1, pageSize: 5 }).catch(() => ({ items: [] }))
         ])
         
         setMyQs(qsData.items || [])
         setAllRes(allResData.items || [])
         const mine = (allResData.items || []).filter((r: any) => r.uploaderId === uid)
         setUploads(mine)
-        setAlerts(notiData.items || [])
+        const ans = (notiData.items || []).map((n: any) => ({ 
+          id: n.id, 
+          type: 'answer', 
+          title: n.title, 
+          createdAt: Number(n.createdAt || Date.now()), 
+          questionId: n.questionId 
+        }))
+        const anns = (annData.items || annData.Data?.items || []).map((x: any) => ({
+          id: x.id,
+          type: 'announcement',
+          title: x.title,
+          createdAt: new Date(x.publishAt).getTime(),
+          severity: x.severity,
+          pinned: Boolean(x.pinned)
+        }))
+        const merged = [...ans, ...anns].sort((a, b) => {
+          const ap = a.type === 'announcement' && a.pinned
+          const bp = b.type === 'announcement' && b.pinned
+          if (ap !== bp) return ap ? -1 : 1
+          return b.createdAt - a.createdAt
+        }).slice(0, 3)
+        setAlerts(merged)
         try {
           const me = await AuthApi.me()
           const u = me.user || {}
@@ -191,6 +213,27 @@ export default function Dashboard() {
       }
     }
     fetchData()
+    const timer = setInterval(async () => {
+      try {
+        const [notiData, annData] = await Promise.all([
+          NotiApi.unreadAnswers().catch(() => ({ items: [] })),
+          AnnApi.list({ status: 'unread', page: 1, pageSize: 5 }).catch(() => ({ items: [] }))
+        ])
+        const ans = (notiData.items || []).map((n: any) => ({ 
+          id: n.id, type: 'answer', title: n.title, createdAt: Number(n.createdAt || Date.now()), questionId: n.questionId 
+        }))
+        const anns = (annData.items || annData.Data?.items || []).map((x: any) => ({
+          id: x.id, type: 'announcement', title: x.title, createdAt: new Date(x.publishAt).getTime(), severity: x.severity, pinned: Boolean(x.pinned)
+        }))
+        const merged = [...ans, ...anns].sort((a, b) => {
+          const ap = a.type === 'announcement' && a.pinned
+          const bp = b.type === 'announcement' && b.pinned
+          if (ap !== bp) return ap ? -1 : 1
+          return b.createdAt - a.createdAt
+        }).slice(0, 3)
+        setAlerts(merged)
+      } catch {}
+    }, 15000)
     const onStats = () => {
       AuthApi.stats().then((s) => {
         setMyUploadsCount(Number(s.uploads || 0))
@@ -198,7 +241,10 @@ export default function Dashboard() {
       }).catch(() => {})
     }
     window.addEventListener('SH_STATS_UPDATED', onStats)
-    return () => window.removeEventListener('SH_STATS_UPDATED', onStats)
+    return () => { 
+      window.removeEventListener('SH_STATS_UPDATED', onStats)
+      clearInterval(timer)
+    }
   }, [uid])
 
   // Computed
@@ -392,13 +438,28 @@ export default function Dashboard() {
                       className="bg-white hover:bg-slate-50 p-3 rounded-2xl border border-slate-100 hover:border-slate-200 transition-all group/msg cursor-pointer shadow-sm hover:shadow-md"
                     >
                       <div className="flex justify-between items-start mb-1.5">
-                        <span className="text-[10px] font-bold text-rose-500 uppercase tracking-wider bg-rose-50 px-2 py-0.5 rounded-full">New Answer</span>
+                        <div className="flex items-center gap-1.5">
+                          {n.type === 'announcement' ? (
+                            <>
+                              <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${n.severity === 'EMERGENCY' ? 'bg-rose-50 text-rose-600' : n.severity === 'WARNING' ? 'bg-amber-50 text-amber-600' : 'bg-slate-50 text-slate-600'}`}>Announcement</span>
+                              {n.pinned && <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600">置顶</span>}
+                            </>
+                          ) : (
+                            <span className="text-[10px] font-bold text-rose-500 uppercase tracking-wider bg-rose-50 px-2 py-0.5 rounded-full">New Answer</span>
+                          )}
+                        </div>
                         <span className="text-[10px] text-slate-300 group-hover/msg:text-slate-400 transition-colors">Now</span>
                       </div>
                       <div className="text-sm font-semibold text-slate-700 line-clamp-1 mb-2 group-hover/msg:text-indigo-600 transition-colors">{n.title}</div>
-                      <Link to={`/student/qa/${n.questionId}`} className="flex items-center text-xs text-indigo-500 font-bold opacity-60 group-hover/msg:opacity-100 transition-all gap-1">
-                        查看回复 <ArrowRight size={10} className="translate-x-0 group-hover/msg:translate-x-1 transition-transform"/>
-                      </Link>
+                      {n.type === 'announcement' ? (
+                        <Link to={`/student/announcements/${n.id}`} className="flex items-center text-xs text-indigo-500 font-bold opacity-60 group-hover/msg:opacity-100 transition-all gap-1">
+                          查看公告 <ArrowRight size={10} className="translate-x-0 group-hover/msg:translate-x-1 transition-transform"/>
+                        </Link>
+                      ) : (
+                        <Link to={`/student/qa/${n.questionId}`} className="flex items-center text-xs text-indigo-500 font-bold opacity-60 group-hover/msg:opacity-100 transition-all gap-1">
+                          查看回复 <ArrowRight size={10} className="translate-x-0 group-hover/msg:translate-x-1 transition-transform"/>
+                        </Link>
+                      )}
                     </motion.li>
                   ))}
                 </AnimatePresence>
