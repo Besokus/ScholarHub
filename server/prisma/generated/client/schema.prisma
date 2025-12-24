@@ -33,9 +33,22 @@ model Course {
   description String?
   department  String
   teacherId   String
+  categoryId  Int?
   teacher     User       @relation(fields: [teacherId], references: [id])
+  category    Category?  @relation(fields: [categoryId], references: [id])
   questions   Question[]
   resources   Resource[]
+}
+
+model Category {
+  id        Int        @id @default(autoincrement())
+  name      String
+  code      String     @unique
+  parentId  Int?
+  sortOrder Int        @default(0)
+  parent    Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryHierarchy")
+  courses   Course[]
 }
 
 model Resource {
@@ -65,9 +78,12 @@ model Question {
   status     String   @default("UNANSWERED")
   createTime DateTime @default(now())
   images     String?
+  viewCount  Int      @default(0) @map("viewcount")
   answers    Answer[]
   course     Course   @relation(fields: [courseId], references: [id])
   student    User     @relation(fields: [studentId], references: [id])
+
+  @@index([viewCount])
 }
 
 model Answer {

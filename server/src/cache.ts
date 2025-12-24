@@ -84,3 +84,21 @@ export async function incrWithTTL(key: string, ttlSec: number): Promise<number> 
     return incrVal
   } catch { return 1 }
 }
+
+export async function getAndResetWithTTL(key: string, resetTo: string, ttlSec: number): Promise<string> {
+  if (useMemory) {
+    const prev = mem.get(key)
+    const old = prev?.v || '0'
+    mem.set(key, { v: resetTo, exp: Date.now() + ttlSec * 1000 })
+    return old
+  }
+  try {
+    if (!redis || (redis.status && redis.status !== 'ready')) { return '0' }
+    const pipe = redis.pipeline()
+    pipe.getset(key, resetTo)
+    pipe.expire(key, ttlSec)
+    const res = await pipe.exec()
+    const old = (res && res[0] && typeof res[0][1] === 'string') ? (res[0][1] as string) : '0'
+    return old || '0'
+  } catch { return '0' }
+}

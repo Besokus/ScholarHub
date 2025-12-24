@@ -38,3 +38,7 @@
 [OK ] 2025-12-18T02:50:18.648Z {"userId":"2235051230"}
 [REQ] 2025-12-18T06:31:54.871Z {"body":{"id":"user01","username":"user01","email":"user01@example.com","role":"STUDENT"},"data":{"id":"user01","username":"user01","password":"$2b$12$aaGJensjY9rzdTg3kvegB.JEUe.ZvHptQ1ahpV8iTgKywcKcLPKq6","email":"user01@example.com","role":"STUDENT"}}
 [OK ] 2025-12-18T06:31:54.888Z {"userId":"user01"}
+[REQ] 2025-12-23T13:45:04.299Z {"body":{"id":"s1766497503975","username":"stu1766497503975","email":"s1766497503975@test.com","role":"STUDENT"},"data":{"id":"s1766497503975","username":"stu1766497503975","password":"$2b$12$Gf70rwc07I9X6HKQvKijL.VNaI/tL7rBRayl1/QsotaZ6sdBTuvCm","email":"s1766497503975@test.com","role":"STUDENT"}}
+[OK ] 2025-12-23T13:45:04.319Z {"userId":"s1766497503975"}
+[REQ] 2025-12-23T13:46:39.487Z {"body":{"id":"s1766497599097","username":"stu1766497599097","email":"s1766497599097@test.com","role":"STUDENT"},"data":{"id":"s1766497599097","username":"stu1766497599097","password":"$2b$12$spF4.Gv6v5ZEX6ouH/lGC.wWeYdhsYL.kkBwlSbvY4MOL.IdGuGV2","email":"s1766497599097@test.com","role":"STUDENT"}}
+[OK ] 2025-12-23T13:46:39.499Z {"userId":"s1766497599097"}

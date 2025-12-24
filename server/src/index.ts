@@ -11,11 +11,13 @@ import { sendMail } from './mail';
 import bcrypt from 'bcryptjs';
 import path from 'path';
 import uploadsRouter from './routes/uploads';
+import categoryRoutes from './routes/categories';
+import courseCategoriesRouter from './routes/courseCategories';
 import { registerSwagger } from './swagger';
 import answersRouter from './routes/answers';
 import { authOptional } from './middleware/auth';
 import fs from 'fs';
-import { redis, cacheGet, cacheSet, incrWithTTL } from './cache';
+import { redis, cacheGet, cacheSet, incrWithTTL, delByPrefix } from './cache';
 
 dotenv.config();
 
@@ -58,6 +60,8 @@ app.use('/api/qa', qaRouter);
 app.use('/api', answersRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/courses', coursesRouter);
+app.use('/api/course-categories', courseCategoriesRouter);
+app.use('/api/categories', categoryRoutes);
 app.use('/api/uploads', uploadsRouter);
 registerSwagger(app);
 
@@ -84,6 +88,8 @@ app.listen(port, () => {
   }
   if (process.env.DATABASE_URL) {
     void bootstrapAdmin();
+    void bootstrapCourseCategories();
+    void bootstrapCourseAssignments();
   } else {
     console.warn('DATABASE_URL not set; skipping admin bootstrap');
   }
@@ -110,6 +116,95 @@ async function bootstrapAdmin() {
   } catch (err) {
     console.error('Failed to bootstrap admin user', err);
   }
+}
+
+async function bootstrapCourseCategories() {
+  try {
+    const names = [
+      '计算机与信息技术类',
+      '数学与统计类',
+      '电子信息与通信类',
+      '自动化与控制工程类',
+      '机械与工程技术类',
+      '电气与能源类',
+      '经济管理与商科类',
+      '人文社科与通识教育类',
+      '外语与语言类',
+      '艺术与设计类',
+      '体育与健康类',
+      '创新创业与实践类'
+    ]
+    const existing = await prisma.courseCategory.findMany({ select: { name: true } })
+    const ex = new Set(existing.map(x => x.name))
+    const missing = names.filter(n => !ex.has(n))
+    if (missing.length) {
+      await prisma.courseCategory.createMany({
+        data: missing.map(n => ({ name: n }))
+      })
+    }
+    const all = await prisma.courseCategory.findMany({ orderBy: { id: 'asc' } })
+    const seen = new Set<string>()
+    const dupIds: number[] = []
+    for (const c of all) {
+      if (seen.has(c.name)) dupIds.push((c as any).id as number)
+      else seen.add(c.name)
+    }
+    if (dupIds.length) {
+      for (const id of dupIds) {
+        try { await prisma.courseCategory.delete({ where: { id } }) } catch {}
+      }
+    }
+    try { await delByPrefix('course_categories') } catch {}
+    const count = await prisma.courseCategory.count()
+    console.log(`Course categories ensured. Total: ${count}`)
+  } catch (err) {
+    console.error('Failed to bootstrap course categories', err)
+  }
+}
+
+async function bootstrapCourseAssignments() {
+  try {
+    const ccNames = ['计算机与信息技术类', '体育与健康类']
+    const ccList = await prisma.courseCategory.findMany({ where: { name: { in: ccNames } } })
+    const ccMap = new Map(ccList.map(c => [c.name, c.id]))
+    const csBasic = await ensureCat('基础课', 'basic')
+    const csMajor = await ensureCat('专业课', 'major')
+    const csSport = await ensureCat('体育课', 'sport')
+    const courses = await prisma.course.findMany({ where: { name: { in: ['数据结构','软件工程','web开发','击剑'] } } })
+    for (const c of courses) {
+      let categoryId: number | null = null
+      let courseCategoryId: number | null = null
+      if (c.name === '数据结构') {
+        categoryId = csBasic.id
+        courseCategoryId = ccMap.get('计算机与信息技术类') || null
+      } else if (c.name === '软件工程') {
+        categoryId = csBasic.id
+        courseCategoryId = ccMap.get('计算机与信息技术类') || null
+      } else if (c.name.toLowerCase() === 'web开发' || c.name.toLowerCase() === 'web') {
+        categoryId = csMajor.id
+        courseCategoryId = ccMap.get('计算机与信息技术类') || null
+      } else if (c.name === '击剑') {
+        categoryId = csSport.id
+        courseCategoryId = ccMap.get('体育与健康类') || null
+      }
+      const data: any = {}
+      if (categoryId !== null) data.categoryId = categoryId
+      if (courseCategoryId !== null) data.courseCategoryId = courseCategoryId
+      if (Object.keys(data).length) {
+        await prisma.course.update({ where: { id: c.id }, data })
+      }
+    }
+    try { await delByPrefix('courses:list') } catch {}
+    console.log('Course assignments ensured')
+  } catch (err) {
+    console.error('Failed to bootstrap course assignments', err)
+  }
+}
+
+async function ensureCat(name: string, code: string, parentId?: number, sortOrder?: number) {
+  const exists = await prisma.category.findUnique({ where: { code } })
+  if (exists) return exists
+  return prisma.category.create({ data: { name, code, parentId: parentId || null, sortOrder: sortOrder || 0 } })
 }
 app.post('/api/send-email-code', async (req, res) => {
   try {

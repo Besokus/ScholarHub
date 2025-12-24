@@ -1,0 +1,69 @@
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const db_1 = __importDefault(require("../db"));
+const cache_1 = require("../cache");
+const router = (0, express_1.Router)();
+router.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const type = String(req.query.type || 'answer');
+        const status = String(req.query.status || 'unread');
+        const uid = req.userId || '';
+        const where = { type };
+        if (uid)
+            where.userId = uid;
+        if (status === 'unread')
+            where.read = false;
+        const cacheKey = `noti:list:${JSON.stringify({ type, status, uid })}`;
+        const cached = yield (0, cache_1.cacheGet)(cacheKey);
+        if (cached)
+            return res.json(JSON.parse(cached));
+        const items = yield db_1.default.notification.findMany({ where, orderBy: { id: 'desc' } });
+        const payload = { items };
+        yield (0, cache_1.cacheSet)(cacheKey, JSON.stringify(payload), 30);
+        res.json(payload);
+    }
+    catch (err) {
+        res.status(500).json({ message: err.message || 'Server error' });
+    }
+}));
+router.post('/:id/read', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const id = parseInt(req.params.id, 10);
+        yield db_1.default.notification.update({ where: { id }, data: { read: true } });
+        yield (0, cache_1.delByPrefix)('noti:list:');
+        res.json({ ok: true });
+    }
+    catch (err) {
+        if (err.code === 'P2025')
+            return res.status(404).json({ message: 'Not found' });
+        res.status(500).json({ message: err.message || 'Server error' });
+    }
+}));
+router.post('/read-all', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const uid = req.userId || '';
+        const where = {};
+        if (uid)
+            where.userId = uid;
+        yield db_1.default.notification.updateMany({ where, data: { read: true } });
+        yield (0, cache_1.delByPrefix)('noti:list:');
+        res.json({ ok: true });
+    }
+    catch (err) {
+        res.status(500).json({ message: err.message || 'Server error' });
+    }
+}));
+exports.default = router;

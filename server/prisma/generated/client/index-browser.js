@@ -141,7 +141,24 @@ exports.Prisma.CourseScalarFieldEnum = {
   name: 'name',
   description: 'description',
   department: 'department',
-  teacherId: 'teacherId'
+  teacherId: 'teacherId',
+  courseCategoryId: 'courseCategoryId',
+  categoryId: 'categoryId'
+};
+
+exports.Prisma.CategoryScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  code: 'code',
+  parentId: 'parentId',
+  sortOrder: 'sortOrder'
+};
+
+exports.Prisma.CourseCategoryScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  description: 'description',
+  createdAt: 'createdAt'
 };
 
 exports.Prisma.ResourceScalarFieldEnum = {
@@ -168,7 +185,8 @@ exports.Prisma.QuestionScalarFieldEnum = {
   courseId: 'courseId',
   status: 'status',
   createTime: 'createTime',
-  images: 'images'
+  images: 'images',
+  viewCount: 'viewCount'
 };
 
 exports.Prisma.AnswerScalarFieldEnum = {
@@ -220,6 +238,8 @@ exports.Prisma.NullsOrder = {
 exports.Prisma.ModelName = {
   User: 'User',
   Course: 'Course',
+  Category: 'Category',
+  CourseCategory: 'CourseCategory',
   Resource: 'Resource',
   Question: 'Question',
   Answer: 'Answer',

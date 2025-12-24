@@ -19,3 +19,9 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
   if (!(req as any).userId) return res.status(401).json({ message: 'Unauthorized' })
   next()
 }
+
+export function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  if (!(req as any).userId) return res.status(401).json({ message: 'Unauthorized' })
+  if ((req as any).userRole !== 'ADMIN') return res.status(403).json({ message: 'Forbidden: Admin only' })
+  next()
+}
