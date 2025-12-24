@@ -9,27 +9,11 @@ import {
 } from 'lucide-react'
 import Pagination from '../../components/common/Pagination'
 import TreeView from '../../components/common/TreeView'
-import { ResourcesApi, API_ORIGIN } from '../../services/api'
+import { ResourcesApi, API_ORIGIN, CourseCategoryApi } from '../../services/api'
 import { CoursesApi } from '../../services/courses'
 import { useToast } from '../../components/common/Toast'
 
-// --- 1. 配置课程分类与关键词映射 ---
-const COURSE_CATEGORIES = [
-  { name: "思想政治", keywords: ["毛泽东", "思修", "近代史", "马克思", "形势与政策", "党"] },
-  { name: "体育与健康", keywords: ["体育", "篮球", "足球", "羽毛球", "健康", "运动","击剑"] },
-  { name: "艺术与人文素养", keywords: ["艺术", "音乐", "美术", "鉴赏", "语文", "写作", "英语", "日语", "德语", "历史", "文化"] },
-  { name: "数学", keywords: ["高数", "高等数学", "线性代数", "概率论", "统计", "微积分", "复变函数"] },
-  { name: "物理", keywords: ["大学物理", "大物", "力学", "电磁学", "光学", "热学", "量子"] },
-  { name: "化学", keywords: ["化学", "有机", "无机", "分析化学"] },
-  { name: "程序设计基础", keywords: ["C语言", "C++", "Java", "Python", "程序设计", "编程", "Go", "Rust"] },
-  { name: "计算机理论", keywords: ["数据结构", "算法", "离散", "操作系统", "组成原理", "网络", "体系结构", "编译"] },
-  { name: "软件工程与开发", keywords: ["软件工程", "数据库", "Web", "前端", "后端", "移动应用", "测试", "设计模式"] },
-  { name: "电路与硬件基础", keywords: ["电路", "模电", "数电", "电子", "微机", "单片机", "嵌入式", "EDA"] },
-  { name: "信号与控制", keywords: ["信号", "系统", "控制", "通信", "数字信号"] },
-  { name: "机械与材料", keywords: ["机械", "制图", "工程图学", "材料", "力学"] },
-  { name: "经济与管理类课程", keywords: ["经济", "管理", "会计", "金融", "市场", "营销"] },
-  { name: "生命科学与医药", keywords: ["生物", "医学", "生理", "解剖", "药理"] },
-]
+
 
 // --- UI Components (Skeleton & Icon) ---
 const SkeletonCard = () => (
@@ -76,7 +60,7 @@ const ACTIVITIES = [
   "今日新增资源 12 份，活跃用户 65+ 人"
 ]
 
-const RESOURCE_TAGS = ['全部', '课件', '真题', '作业', '代码', '答案', '笔记', '教材', '其他']
+const RESOURCE_TAGS = ['全部', '课件', '真题', '作业', '代码',  '笔记', '教材', '其他']
 
 // 辅助函数：根据文件名或类型简单的推断 Tag
 const guessTag = (fileName: string, fileExt: string): string => {
@@ -87,8 +71,6 @@ const guessTag = (fileName: string, fileExt: string): string => {
   const codeExts = ['c', 'cpp', 'java', 'py', 'js', 'ts', 'go', 'rs', 'html', 'css', 'sql', 'sh', 'json', 'xml', 'yaml']
   if (codeExts.includes(ext) || name.includes('代码') || name.includes('源码') || name.includes('project') || name.includes('demo')) return '代码'
   
-  // 2. 答案 (Answer/Solution)
-  if (name.includes('答案') || name.includes('解析') || name.includes('题解') || name.includes('参考') || name.includes('key') || name.includes('solution')) return '答案'
   
   // 3. 真题 (Exam Paper)
   if (name.includes('期末') || name.includes('期中') || name.includes('试卷') || name.includes('真题') || name.includes('考试') || name.includes('exam') || name.includes('test')) return '真题'
@@ -133,46 +115,29 @@ export default function Resources() {
     return () => clearInterval(timer)
   }, [])
 
-  // 1. 获取课程并构建分类树
   useEffect(() => {
-    CoursesApi.list().then(d => {
-      const allCourses = d.items || []
-      
-      // 构建 ID 到 Name 的映射字典
+    Promise.all([
+      CourseCategoryApi.list(),
+      CoursesApi.list()
+    ]).then(([catRes, courseRes]) => {
+      const categories = (catRes.items || []).map((x: any) => ({ id: x.id, name: x.name }))
+      const allCourses = courseRes.items || []
+
       const map: Record<string, string> = {}
-      allCourses.forEach((c: any) => {
-        map[c.id] = c.name
-      })
+      allCourses.forEach((c: any) => { map[String(c.id)] = c.name })
       setCourseMap(map)
-      
-      // 构建分类树结构
-      const categorizedTree = COURSE_CATEGORIES.map((cat, index) => {
-         const subCourses = allCourses.filter((course: any) => 
-          cat.keywords.some(k => course.name.includes(k))
-        ).map((c: any) => ({ 
-          id: c.id, 
-          name: c.name,
-          isLeaf: true 
-        }))
-        return {
-          id: `cat-${index}`, 
-          name: cat.name, 
-          children: subCourses, 
-          isCategory: true
-        }
+
+      const treeData = categories.map(cat => {
+        const courses = allCourses
+          .filter((c: any) => c.majorCategoryId === cat.id)
+          .map((c: any) => ({ id: String(c.id), name: c.name }))
+        return { id: `cc-${cat.id}`, name: cat.name, children: courses }
       })
 
-      // 找出未分类的课程
-      const categorizedIds = new Set(categorizedTree.flatMap(cat => cat.children.map((c: any) => c.id)))
-      const otherCourses = allCourses.filter((c: any) => !categorizedIds.has(c.id))
-        .map((c: any) => ({ id: c.id, name: c.name, isLeaf: true }))
-
-      if (otherCourses.length > 0) {
-        categorizedTree.push({ id: 'cat-others', name: '其他通识课程', children: otherCourses, isCategory: true } as any)
-      }
-      setTree([{ id: 'all', name: '全部课程资源', children: categorizedTree, isOpen: true }])
-
-    }).catch(() => {})
+      setTree(treeData)
+    }).catch(() => {
+      show('加载分类失败', 'error')
+    })
   }, [])
 
   // 2. 加载资源列表
@@ -181,9 +146,14 @@ export default function Resources() {
       try {
         setLoading(true)
         setError('')
-        const queryCourseId = courseId.startsWith('cat-') || courseId === 'all' ? 'all' : courseId
         
-        const res = await ResourcesApi.list({ q: keyword, courseId: queryCourseId, page, pageSize })
+        const params: any = { q: keyword, page, pageSize }
+        
+        if (courseId && courseId !== 'all') {
+          params.courseId = courseId
+        }
+        
+        const res = await ResourcesApi.list(params)
         
         // 映射数据
         setRemote(res.items.map((x: any) => ({ 
@@ -328,7 +298,7 @@ export default function Resources() {
         
         {/* --- 左侧边栏: 分类目录 (Sticky) --- */}
         <div className="hidden lg:block lg:col-span-3 sticky top-6 z-10">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col h-[calc(100vh-140px)] max-h-[650px] transition-all hover:shadow-md">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col h-[calc(100vh-140px)] max-h-[650px] transition-all hover:shadow-md w-[240px]">
             
             {/* Sidebar Header */}
             <div className="p-4 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between backdrop-blur-sm">
@@ -431,7 +401,7 @@ export default function Resources() {
                             <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-500 truncate max-w-full border border-slate-200">
                               <Folder size={10} className="mr-1"/> 
                               {/* 使用 courseMap 进行查找，如果找不到(比如还没加载完)则显示 ID */}
-                              {courseMap[r.course] || r.course}
+                              {courseMap[String(r.course)] || r.course}
                             </span>
                           </div>
                         </div>

@@ -4,17 +4,22 @@ export const API_ORIGIN = new URL(API_BASE).origin
 export async function apiFetch(path: string, options?: RequestInit) {
   const token = localStorage.getItem('token')
   const uid = localStorage.getItem('id')
+  const method = String(options?.method || 'GET').toUpperCase()
   const headers = {
     'Content-Type': 'application/json',
     ...(options?.headers || {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(uid ? { 'X-User-Id': uid } : {})
+    ...(uid ? { 'X-User-Id': uid } : {}),
+    ...(method === 'GET' ? { 'Cache-Control': 'no-cache', Pragma: 'no-cache' } : {})
   }
   const ctrl = new AbortController()
   const timeout = setTimeout(() => ctrl.abort(), 15000)
   let res: Response
   try {
-    res = await fetch(`${API_BASE}${path}`, { ...options, headers, signal: ctrl.signal })
+    if ((import.meta as any).env?.DEV) {
+      try { console.debug('[apiFetch] request', { method, path }) } catch {}
+    }
+    res = await fetch(`${API_BASE}${path}`, { ...options, headers, signal: ctrl.signal, cache: 'no-store' as RequestCache })
   } catch (err: any) {
     clearTimeout(timeout)
     const isAbort = err && (err.name === 'AbortError' || String(err).includes('aborted'))
@@ -26,11 +31,21 @@ export async function apiFetch(path: string, options?: RequestInit) {
   clearTimeout(timeout)
   let data: any = null
   try { data = await res.json() } catch {}
+  if ((import.meta as any).env?.DEV) {
+    try { console.debug('[apiFetch] response', { method, path, status: res.status }) } catch {}
+    try {
+      const sample = (() => {
+        try { return JSON.stringify(data).slice(0, 500) } catch { return String(data).slice(0, 200) }
+      })()
+      console.debug('[apiFetch] payload', { path, sample })
+    } catch {}
+  }
   if (!res.ok) {
     const message = (data && (data.message || data.error)) || `HTTP ${res.status}`
     const err: any = new Error(message)
     err.status = res.status
     err.data = data
+    if ((import.meta as any).env?.DEV) { try { console.debug('[apiFetch] error', { path, status: res.status, message, data }) } catch {} }
     throw err
   }
   return data
@@ -57,11 +72,25 @@ export const AuthApi = {
   ,checkUsername: (u: string) => apiFetch(`/auth/username/check?u=${encodeURIComponent(u)}`)
 }
  
+export const CategoryApi = {
+  tree: () => apiFetch('/categories/tree'),
+  list: () => apiFetch('/categories'),
+  create: (body: any) => apiFetch('/categories', { method: 'POST', body: JSON.stringify(body) }),
+  update: (id: number, body: any) => apiFetch(`/categories/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  remove: (id: number) => apiFetch(`/categories/${id}`, { method: 'DELETE' })
+}
+
+export const CourseCategoryApi = {
+  list: () => apiFetch('/course-categories'),
+  courses: (id: number) => apiFetch(`/course-categories/${id}/courses`),
+}
+
 export const ResourcesApi = {
-  list: (params: { q?: string; courseId?: string; page?: number; pageSize?: number }) => {
+  list: (params: { q?: string; courseId?: string; categoryId?: number; page?: number; pageSize?: number }) => {
     const q = new URLSearchParams()
     if (params.q) q.set('q', params.q)
     if (params.courseId) q.set('courseId', params.courseId)
+    if (params.categoryId) q.set('categoryId', String(params.categoryId))
     q.set('page', String(params.page || 1))
     q.set('pageSize', String(params.pageSize || 20))
     return apiFetch(`/resources?${q.toString()}`)
@@ -87,9 +116,16 @@ export const QaApi = {
     return apiFetch(`/qa/questions?${q.toString()}`)
   },
   create: (body: any) => apiFetch('/qa/questions', { method: 'POST', body: JSON.stringify(body) }),
-  detail: (id: string | number) => apiFetch(`/qa/questions/${id}`),
+  detail: (id: string | number) => apiFetch(`/qa/questions/${id}?_=${Date.now()}`),
   update: (id: string | number, body: any) => apiFetch(`/qa/questions/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   remove: (id: string | number) => apiFetch(`/qa/questions/${id}`, { method: 'DELETE' })
+  ,
+  boardsRankByViews: (params: { range?: '7d' | '30d' | 'all'; limit?: number }) => {
+    const q = new URLSearchParams()
+    q.set('range', String(params.range || 'all'))
+    q.set('limit', String(params.limit || 10))
+    return apiFetch(`/qa/boards/rank/viewed?${q.toString()}`)
+  }
 }
 
 export const AnswersApi = {
@@ -97,7 +133,8 @@ export const AnswersApi = {
   createForQuestion: (id: string | number, body: { content: string; attachments?: string | null }) =>
     apiFetch(`/questions/${id}/answers`, { method: 'POST', body: JSON.stringify(body) }),
   detail: (id: string | number) => apiFetch(`/answers/${id}`),
-  remove: (id: string | number) => apiFetch(`/answers/${id}`, { method: 'DELETE' })
+  remove: (id: string | number) => apiFetch(`/answers/${id}`, { method: 'DELETE' }),
+  trackView: (id: string | number) => apiFetch(`/questions/${id}/view?_=${Date.now()}`, { method: 'POST' })
 }
 
 export const NotiApi = {

@@ -10,6 +10,11 @@ import { QaApi, AnswersApi, API_ORIGIN } from '../../services/api'
 import { useToast } from '../../components/common/Toast'
 import RichText from '../../components/editor/RichText'
 import { formatDateTimeLocal } from '../../utils/date'
+import ImageUploader from '../../components/common/ImageUploader'
+import { UploadsApi } from '../../services/uploads'
+import { sanitizeHTML } from '../../utils/sanitize'
+
+import { formatNumber } from '../../utils/number'
 
 // --- 辅助组件：头像占位符 ---
 const Avatar = ({ name, role }: { name: string, role?: string }) => {
@@ -41,6 +46,11 @@ export default function QAQuestion() {
   const [q, setQ] = useState<any>(null)
   const [answers, setAnswers] = useState<any[]>([])
   const [content, setContent] = useState('')
+  const [mdMode, setMdMode] = useState(false)
+  const [answerImages, setAnswerImages] = useState<File[]>([])
+  const [answerImageUrls, setAnswerImageUrls] = useState<string[]>([])
+  const [mdPreview, setMdPreview] = useState<string>('')
+  const [answersHtmlMap, setAnswersHtmlMap] = useState<Record<string | number, string>>({})
   const [submitting, setSubmitting] = useState(false)
   const [loading, setLoading] = useState(true)
   const [updatingStatus, setUpdatingStatus] = useState(false)
@@ -48,11 +58,12 @@ export default function QAQuestion() {
   const [editTitle, setEditTitle] = useState('')
   const [editContent, setEditContent] = useState('')
   const [removing, setRemoving] = useState(false)
-  
   // Preview State (New Feature)
   const [preview, setPreview] = useState<{ url: string, type: 'image' | 'pdf' } | null>(null)
-  
   const role = typeof window !== 'undefined' ? localStorage.getItem('role') : null
+  const [views, setViews] = useState<number>(0)
+  const [viewsDisplay, setViewsDisplay] = useState<number>(0)
+  const [viewsLoading, setViewsLoading] = useState<boolean>(false)
 
   // Load Data
   useEffect(() => {
@@ -65,6 +76,8 @@ export default function QAQuestion() {
           AnswersApi.listByQuestion(questionId)
         ])
         setQ(qData)
+        setViews(typeof qData?.viewCount === 'number' ? qData.viewCount : (typeof qData?.hot === 'number' ? qData.hot : 0))
+        setViewsDisplay(typeof qData?.viewCount === 'number' ? qData.viewCount : (typeof qData?.hot === 'number' ? qData.hot : 0))
         setEditTitle(qData.title || '')
         setEditContent(qData.content || '')
         setAnswers(ansData.items || [])
@@ -76,6 +89,114 @@ export default function QAQuestion() {
     }
     fetchData()
   }, [questionId])
+
+  useEffect(() => {
+    let canceled = false
+    ;(async () => {
+      if (!questionId) return
+      try {
+        setViewsLoading(true)
+        if ((import.meta as any).env?.DEV) { try { console.debug('[trackView] start', { questionId }) } catch {} }
+        const r = await AnswersApi.trackView(questionId)
+        const n = (r && typeof r.viewCount === 'number') ? r.viewCount : null
+        if ((import.meta as any).env?.DEV) { try { console.debug('[trackView] response', { questionId, viewCount: n, limited: r?.limited, flushed: r?.flushed }) } catch {} }
+        if (!canceled && n !== null) setViews(n)
+      } catch (e) {
+        if ((import.meta as any).env?.DEV) { try { console.debug('[trackView] error', { questionId, e }) } catch {} }
+      } finally {
+        if (!canceled) setViewsLoading(false)
+      }
+      if (canceled) return
+    })()
+    return () => { canceled = true }
+  }, [questionId])
+
+  useEffect(() => {
+    let anim: any = null
+    const target = views
+    const start = viewsDisplay
+    const diff = target - start
+    if (diff === 0) return
+    const steps = Math.min(30, Math.max(5, Math.abs(diff)))
+    const stepVal = diff / steps
+    let i = 0
+    const tick = () => {
+      i++
+      const next = Math.round(start + stepVal * i)
+      setViewsDisplay(i >= steps ? target : next)
+      if (i < steps) anim = requestAnimationFrame(tick)
+    }
+    anim = requestAnimationFrame(tick)
+    return () => { if (anim) cancelAnimationFrame(anim) }
+  }, [views])
+
+  useEffect(() => {
+    let timer: any = null
+    if (questionId) {
+      timer = setInterval(async () => {
+        try {
+          const qData = await QaApi.detail(questionId)
+          const n = (qData && typeof qData.viewCount === 'number') ? qData.viewCount : (typeof qData?.hot === 'number' ? qData.hot : null)
+          if (n !== null) setViews(n as number)
+        } catch {}
+      }, 15000)
+    }
+    return () => { if (timer) clearInterval(timer) }
+  }, [questionId])
+
+  useEffect(() => {
+    let timer: any = null
+    if (questionId) {
+      timer = setInterval(async () => {
+        try {
+          const d = await AnswersApi.listByQuestion(questionId)
+          setAnswers(d.items || [])
+        } catch {}
+      }, 10000)
+    }
+    return () => { if (timer) clearInterval(timer) }
+  }, [questionId])
+
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      try {
+        const md = (await import('markdown-it')).default
+        const parser = md({ html: true, linkify: true })
+        const next: Record<string | number, string> = {}
+        for (const a of answers) {
+          const c = String(a.content || '')
+          if (c.includes('<')) next[a.id] = sanitizeHTML(c)
+          else next[a.id] = sanitizeHTML(parser.render(c))
+        }
+        if (mounted) setAnswersHtmlMap(next)
+      } catch {
+        const next: Record<string | number, string> = {}
+        for (const a of answers) {
+          const c = String(a.content || '')
+          next[a.id] = c.replace(/\n/g, '<br/>')
+        }
+        if (mounted) setAnswersHtmlMap(next)
+      }
+    })()
+    return () => { mounted = false }
+  }, [answers])
+
+  useEffect(() => {
+    if (!mdMode) { setMdPreview(''); return }
+    let mounted = true
+    ;(async () => {
+      try {
+        const md = (await import('markdown-it')).default
+        const parser = md({ html: true, linkify: true })
+        const html = sanitizeHTML(parser.render(content || ''))
+        if (mounted) setMdPreview(html)
+      } catch {
+        if (mounted) setMdPreview((content || '').replace(/\n/g, '<br/>'))
+      }
+    })()
+    return () => { mounted = false }
+  }, [mdMode, content])
 
   useEffect(() => {
     if (!questionId) return
@@ -153,8 +274,33 @@ export default function QAQuestion() {
     if (!questionId || !content.trim()) return
     setSubmitting(true)
     try {
-      await AnswersApi.createForQuestion(questionId, { content })
+      let finalContent = content
+      if (mdMode) {
+        try {
+          const md = (await import('markdown-it')).default
+          const parser = md({ html: true, linkify: true })
+          finalContent = sanitizeHTML(parser.render(content))
+        } catch {
+          finalContent = content
+        }
+      }
+      let attachments: string | null = null
+      if ((answerImages && answerImages.length) || (answerImageUrls && answerImageUrls.length)) {
+        let uploaded: string[] = []
+        if (answerImages.length) {
+          try {
+            const res = await UploadsApi.uploadImageBatch(answerImages)
+            const urls = Array.isArray(res?.urls) ? res.urls.map((u: any) => u?.url).filter((u: any) => typeof u === 'string') : []
+            uploaded = urls
+          } catch {}
+        }
+        const all = [...(answerImageUrls || []), ...uploaded].filter(u => typeof u === 'string')
+        if (all.length) attachments = JSON.stringify(all)
+      }
+      await AnswersApi.createForQuestion(questionId, { content: finalContent, attachments: attachments || undefined })
       setContent('')
+      setAnswerImages([])
+      setAnswerImageUrls([])
       const d = await AnswersApi.listByQuestion(questionId)
       setAnswers(d.items || [])
     } catch {
@@ -235,23 +381,26 @@ export default function QAQuestion() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 pb-6 border-b border-slate-200">
-          <StatusBadge status={q.status} />
-          <span className="flex items-center gap-1.5">
-            {askerAvatarAbs ? (
-              <img src={askerAvatarAbs} alt="头像" className="w-5 h-5 rounded-full object-cover" />
-            ) : (
-              <User size={14} />
-            )}
-            {q.askerName || '匿名同学'}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Clock size={14} /> {formatDateTimeLocal((q.updatedAt ?? q.createdAt ?? q.createTime ?? Date.now()))}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <MessageCircle size={14} /> {answers.length} 回答
-          </span>
-        </div>
+          <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 pb-6 border-b border-slate-200">
+            <StatusBadge status={q.status} />
+            <span className="flex items-center gap-1.5">
+              {askerAvatarAbs ? (
+                <img src={askerAvatarAbs} alt="头像" className="w-5 h-5 rounded-full object-cover" />
+              ) : (
+                <User size={14} />
+              )}
+              {q.askerName || '匿名同学'}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Clock size={14} /> {formatDateTimeLocal((q.updatedAt ?? q.createdAt ?? q.createTime ?? Date.now()))}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Eye size={14} /> {viewsLoading ? '...' : formatNumber(viewsDisplay)} 浏览
+            </span>
+            <span className="flex items-center gap-1.5">
+              <MessageCircle size={14} /> {answers.length} 回答
+            </span>
+          </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -307,7 +456,7 @@ export default function QAQuestion() {
             )}
           </div>
 
-          {/* 2. Answer List (保持不变) */}
+          {/* 2. Answer List */}
           <div className="space-y-6">
             <div className="flex items-center justify-between px-2">
               <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
@@ -337,9 +486,33 @@ export default function QAQuestion() {
                               <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded uppercase">Teacher</span>
                             )}
                           </div>
-                          <span className="text-xs text-slate-400">{new Date(a.createTime || Date.now()).toLocaleDateString()}</span>
+                          <span className="text-xs text-slate-400">{formatDateTimeLocal(new Date(a.createTime || Date.now()).getTime())}</span>
                         </div>
-                        <div className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap">{a.content}</div>
+                        <div className="prose prose-sm max-w-none text-slate-700" dangerouslySetInnerHTML={{ __html: answersHtmlMap[a.id] || '' }} />
+                        {a.attachments && (() => {
+                          let arr: string[] = []
+                          try { arr = JSON.parse(a.attachments) } catch {}
+                          if (!Array.isArray(arr) || !arr.length) return null
+                          return (
+                            <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+                              {arr.map((src, i) => {
+                                const abs = /^https?:\/\//.test(src) ? src : `${API_ORIGIN}${src.startsWith('/') ? src : '/' + src}`
+                                const isPdf = src.toLowerCase().endsWith('.pdf')
+                                return (
+                                  <div key={`${src}-${i}`} className="relative aspect-square rounded-xl overflow-hidden bg-slate-50 border">
+                                    {isPdf ? (
+                                      <div className="flex items-center justify-center h-full text-slate-400">
+                                        <FileText size={22} />
+                                      </div>
+                                    ) : (
+                                      <img src={abs} alt="" className="w-full h-full object-cover" />
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )
+                        })()}
                       </div>
                     </div>
                   </motion.div>
@@ -355,16 +528,38 @@ export default function QAQuestion() {
             </AnimatePresence>
           </div>
 
-          {/* 3. Reply Editor (保持不变) */}
-          {(role === 'TEACHER' || role === 'ADMIN') && (
+          {/* 3. Reply Editor */}
+          {(role === 'TEACHER' || role === 'ADMIN' || role === 'STUDENT') && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white rounded-2xl p-6 shadow-lg shadow-indigo-100/50 border border-slate-100 sticky bottom-6 z-20">
               <h4 className="font-bold text-slate-800 mb-3 flex items-center gap-2"><User size={18} className="text-indigo-500"/> 撰写回答</h4>
+              <div className="flex items-center gap-3 mb-3">
+                <label className="inline-flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={mdMode} onChange={e=>setMdMode(e.target.checked)} />
+                  Markdown 模式
+                </label>
+              </div>
               <div className="relative group">
-                <textarea 
-                  value={content} onChange={e => setContent(e.target.value)} rows={4} 
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all resize-none text-slate-700"
-                  placeholder="请输入您的专业解答..." 
-                />
+                {mdMode ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <textarea 
+                      value={content} onChange={e => setContent(e.target.value)} rows={6}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all resize-none text-slate-700"
+                      placeholder="支持 Markdown 语法"
+                    />
+                    <div className="p-3 bg-gray-50 border border-slate-200 rounded-xl overflow-auto max-h-[240px] prose prose-sm">
+                      {mdPreview ? <div dangerouslySetInnerHTML={{ __html: mdPreview }} /> : <div className="text-slate-400 text-sm">实时预览</div>}
+                    </div>
+                  </div>
+                ) : (
+                  <textarea 
+                    value={content} onChange={e => setContent(e.target.value)} rows={4} 
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all resize-none text-slate-700"
+                    placeholder="请输入您的专业解答..." 
+                  />
+                )}
+                <div className="mt-4">
+                  <ImageUploader images={answerImages} onChange={setAnswerImages} maxCount={6} initialUrls={answerImageUrls} onInitialUrlsChange={setAnswerImageUrls} />
+                </div>
                 <button 
                   onClick={submit} disabled={submitting || !content.trim()}
                   className="absolute bottom-3 right-3 flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-bold transition-all shadow-md"

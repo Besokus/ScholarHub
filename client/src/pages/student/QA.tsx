@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { 
   MessageSquare, Flame, Clock, Plus, HelpCircle, 
   CheckCircle2, MoreHorizontal, MessageCircle, 
-  Search, Hash, Zap, ChevronRight, Filter
+  Search, Hash, Zap, ChevronRight, Filter, Eye
 } from 'lucide-react'
 import PageHeader from '../../components/common/PageHeader' // 稍后我们会替换掉这个默认头部
 import Pagination from '../../components/common/Pagination'
@@ -13,7 +13,8 @@ import { useToast } from '../../components/common/Toast'
 import RichText from '../../components/editor/RichText'
 
 // --- 类型定义 (保持不变) ---
-type QAItem = { id: string; title: string; content: string; contentHTML?: string; status: 'open' | 'solved'; hot: number; createdAt: number }
+type QAItem = { id: string; title: string; content: string; contentHTML?: string; status: 'open' | 'solved'; hot: number; createdAt: number; viewCount?: number }
+type BoardRankItem = { id: number; name: string; description: string; views: number }
 
 // --- 纯 UI 组件：骨架屏 ---
 const QASkeleton = () => (
@@ -48,48 +49,79 @@ const EmptyState = ({ tab }: { tab: string }) => (
   </div>
 )
 
+import { formatNumber } from '../../utils/number'
+
 export default function QA() {
   const { show } = useToast()
   
   // --- 原始逻辑保持不变 ---
   const [list, setList] = useState<QAItem[]>([])
-  const [sort, setSort] = useState<'latest' | 'hot' | 'unanswered'>('latest')
+  const [sort, setSort] = useState<'latest' | 'hot' | 'unanswered' | 'viewCount'>('latest')
   const [page, setPage] = useState(1)
   const pageSize = 20
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [total, setTotal] = useState(0)
+  const [boards, setBoards] = useState<BoardRankItem[]>([])
+  const [boardsLoading, setBoardsLoading] = useState(false)
+  const [range, setRange] = useState<'all' | '7d' | '30d'>('all')
+  const [limit, setLimit] = useState(10)
 
   useEffect(() => {
     const load = async () => {
       try {
+        if (sort === 'viewCount') {
+          setBoardsLoading(true)
+          setError('')
+          const res = await QaApi.boardsRankByViews({ range, limit })
+          setBoards((res.items || []) as BoardRankItem[])
+          setTotal((res.items || []).length)
+          if ((import.meta as any).env?.DEV) {
+            try {
+              const sample = Array.isArray(res.items) && res.items.length ? res.items[0] : null
+              console.debug('[QA] boardsRankByViews ok', { range, limit, count: (res.items || []).length, sample })
+            } catch {}
+          }
+          setBoardsLoading(false)
+          return
+        }
         setLoading(true)
         setError('')
         const res = await QaApi.list({ sort, status: sort === 'unanswered' ? 'unanswered' : '', page, pageSize })
-        setList(res.items as QAItem[])
-      } catch {
+        const normalized = Array.isArray(res.items) ? (res.items as QAItem[]).map((i: any) => {
+          const base = typeof i.viewCount === 'number' ? i.viewCount : (typeof i.hot === 'number' ? i.hot : 0)
+          return { ...i, viewCount: base }
+        }) : []
+        setList(normalized)
+        setTotal(res.total || 0)
+        if ((import.meta as any).env?.DEV) {
+          try {
+            const sample = Array.isArray(res.items) && res.items.length ? res.items[0] : null
+            console.debug('[QA] list ok', { sort, page, pageSize, total: res.total || 0, sample })
+          } catch {}
+        }
+      } catch (e: any) {
         setError('加载失败')
+        if ((import.meta as any).env?.DEV) { try { console.debug('[QA] list error', { sort, page, pageSize, e }) } catch {} }
       } finally {
         setLoading(false)
       }
     }
     load()
-  }, [sort, page])
+  }, [sort, page, range, limit])
 
   const filtered = useMemo(() => {
-    let arr = [...list]
-    if (sort === 'latest') arr.sort((a, b) => b.createdAt - a.createdAt)
-    if (sort === 'hot') arr.sort((a, b) => b.hot - a.hot)
-    if (sort === 'unanswered') arr = arr.filter(i => i.status === 'open')
-    return arr
-  }, [list, sort])
+    return list
+  }, [list])
 
-  const pageList = filtered.slice((page - 1) * pageSize, page * pageSize)
+  const pageList = filtered
 
   // --- UI 配置 ---
   const tabs = [
     { id: 'latest', label: '最新动态', icon: Clock },
     { id: 'hot', label: '热门讨论', icon: Flame },
     { id: 'unanswered', label: '等待解答', icon: HelpCircle },
+    { id: 'viewCount', label: '浏览最多', icon: Eye },
   ]
 
   const containerVariants = {
@@ -168,7 +200,69 @@ export default function QA() {
               </div>
             )}
 
-            {loading ? (
+            {sort === 'viewCount' ? (
+              boardsLoading ? (
+                <div className="space-y-4">
+                  {[1,2,3,4].map(i => <QASkeleton key={i} />)}
+                </div>
+              ) : boards.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => { setRange('all'); setPage(1) }}
+                        className={`px-3 py-1.5 rounded-lg text-sm ${range === 'all' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700'}`}
+                      >
+                        全部
+                      </button>
+                      <button
+                        onClick={() => { setRange('7d'); setPage(1) }}
+                        className={`px-3 py-1.5 rounded-lg text-sm ${range === '7d' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700'}`}
+                      >
+                        7天
+                      </button>
+                      <button
+                        onClick={() => { setRange('30d'); setPage(1) }}
+                        className={`px-3 py-1.5 rounded-lg text-sm ${range === '30d' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700'}`}
+                      >
+                        30天
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={limit}
+                        onChange={(e) => setLimit(parseInt(e.target.value, 10) || 10)}
+                        className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm"
+                      >
+                        <option value={10}>Top 10</option>
+                        <option value={20}>Top 20</option>
+                        <option value={50}>Top 50</option>
+                      </select>
+                    </div>
+                  </div>
+                  {boards.map((b, idx) => (
+                    <div key={`${b.id}-${idx}`} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                            {String(idx + 1).padStart(2, '0')}
+                          </div>
+                          <div>
+                            <div className="text-slate-900 font-bold">{b.name}</div>
+                            <div className="text-slate-500 text-sm">{b.description || '暂无描述'}</div>
+                          </div>
+                        </div>
+                        <div className="text-slate-700 text-sm font-mono flex items-center gap-1">
+                          <Eye size={16} className="text-indigo-500"/>{formatNumber(b.views)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState tab={sort} />
+              )
+            ) : loading ? (
               <div className="space-y-4">
                 {[1,2,3,4].map(i => <QASkeleton key={i} />)}
               </div>
@@ -230,14 +324,14 @@ export default function QA() {
                                     {i.status === 'open' ? '待回答' : '已解决'}
                                   </span>
                                   {i.hot > 100 && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-rose-50 text-rose-600">
-                                      <Flame size={12}/> 热门
-                                    </span>
+                                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-rose-50 text-rose-600">
+                                    <Flame size={12}/> 热门
+                                  </span>
                                   )}
                                 </div>
                                 <div className="flex items-center gap-4 text-xs text-slate-400 font-medium">
-                                   <span className="flex items-center gap-1 group-hover:text-rose-500 transition-colors">
-                                     <Flame size={14} className={i.hot > 50 ? "text-rose-400" : ""}/> {i.hot} 热度
+                                   <span className="flex items-center gap-1 group-hover:text-indigo-600 transition-colors">
+                                      <Eye size={14} className={(i.viewCount ?? i.hot) > 50 ? "text-indigo-500" : ""}/> {formatNumber(i.viewCount ?? i.hot)} 浏览
                                    </span>
                                    <span className="flex items-center gap-1 group-hover:text-indigo-600 transition-colors">
                                       点击查看详情 <ChevronRight size={12} />
@@ -257,9 +351,11 @@ export default function QA() {
             )}
           </div>
 
-          <div className="flex justify-center pt-4 pb-8">
-            <Pagination page={page} pageSize={pageSize} total={filtered.length} onChange={setPage} />
-          </div>
+          {sort !== 'viewCount' && (
+            <div className="flex justify-center pt-4 pb-8">
+              <Pagination page={page} pageSize={pageSize} total={total} onChange={setPage} />
+            </div>
+          )}
         </div>
 
         {/* --- Sidebar (Right Column) --- */}

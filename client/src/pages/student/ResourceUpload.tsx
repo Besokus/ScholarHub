@@ -3,14 +3,15 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { 
   X, Eye, FileText, Image as ImageIcon, Package, FileVideo, Music, File, 
-  CloudUpload, Trash2, CheckCircle2, AlertCircle, ChevronDown, Layers, ChevronRight, Upload,
+  CloudUpload, Trash2, CheckCircle2, AlertCircle, Layers, ChevronRight,
   BookOpen, Type, ArrowLeft, Sparkles, Loader2, Zap, Send
 } from 'lucide-react'
 import { ResourcesApi } from '../../services/api'
-import { CoursesApi } from '../../services/courses'
 import { UploadsApi } from '../../services/uploads'
 import { useToast } from '../../components/common/Toast'
 import RichText from '../../components/editor/RichText'
+
+import CourseCascaderSelect from '../../components/common/CourseCascaderSelect'
 
 // --- 静态配置 ---
 const EXT_TO_TYPE: Record<string, string> = {
@@ -28,7 +29,6 @@ export default function ResourceUpload() {
   const [title, setTitle] = useState('')
   const [summary, setSummary] = useState('')
   const [courseId, setCourseId] = useState<number | string>('') 
-  const [courses, setCourses] = useState<{id: number, name: string}[]>([])
   const [file, setFile] = useState<File | null>(null)
   const [fileType, setFileType] = useState<string>('')
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -82,15 +82,6 @@ export default function ResourceUpload() {
     if (file && file.size > 50 * 1024 * 1024) return '文件大小超过50MB'
     return ''
   }
-
-  // 【修改 3】Effect 获取课程列表，存 ID 和 Name
-  useEffect(() => {
-    CoursesApi.list().then(d => {
-      const list = d.items || []
-      setCourses(list)
-      if (list.length) setCourseId(list[0].id) // 默认选中第一个
-    }).catch(() => {})
-  }, [])
 
   useEffect(() => {
     return () => {
@@ -271,21 +262,16 @@ export default function ResourceUpload() {
         <div className="lg:col-span-4 space-y-6">
           
           {/* Course Select 部分 */}
-          <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-100">
-             <label className="block text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
-               <BookOpen size={18} className="text-indigo-500"/> 所属课程
-             </label>
-             <div className="relative group">
-                <select 
-                  className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-xl text-slate-700 appearance-none cursor-pointer transition-all outline-none font-medium pr-10 hover:border-slate-300" 
-                  value={courseId} 
-                  onChange={e => setCourseId(Number(e.target.value))} // 转换为数字
-                >
-                  {courses.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option> // Value 是 ID
-                  ))}
-                </select>
-                {/* ... icons ... */}
+          <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-100 space-y-4">
+             <div>
+               <label className="block text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+                 <BookOpen size={18} className="text-indigo-500"/> 所属课程
+               </label>
+               <CourseCascaderSelect
+                 value={typeof courseId === 'number' ? courseId : undefined}
+                 onChange={(id) => setCourseId(id)}
+                 placeholder="选择课程..."
+               />
              </div>
           </div>
 

@@ -4,7 +4,7 @@ import {
   Loader2, LogOut, User, BookOpen, LayoutDashboard, Bell, 
   GraduationCap, Settings, ChevronRight, Shield, MessageSquare, 
   ShieldCheck, Upload, Sparkles, Command, 
-  Sun, Moon, Calendar, Clock // ✅ 新增图标
+  Sun, Moon, Calendar, Clock, Layers // ✅ 新增图标
 } from 'lucide-react';
 
 import { motion, AnimatePresence } from 'framer-motion';
@@ -42,6 +42,7 @@ const ProfileSettings = lazy(() => import('./pages/student/ProfileSettings'));
 const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
 const AdminUsers = lazy(() => import('./pages/admin/UserManagement'));
 const AdminContentAudit = lazy(() => import('./pages/admin/ContentAudit'));
+const AdminCategoryManagement = lazy(() => import('./pages/admin/CategoryManagement'));
 const AdminAnnouncements = lazy(() => import('./pages/admin/Announcements'));
 
 const TeacherHome = () => (
@@ -148,6 +149,7 @@ const Sidebar = () => {
     ? [
         { to: "/admin/dashboard", icon: LayoutDashboard, label: "仪表盘" },
         { to: "/admin/announcements", icon: Bell, label: "系统公告" },
+        { to: "/admin/categories", icon: Layers, label: "分类管理" },
         { to: "/admin/users", icon: User, label: "教师管理" },
         { to: "/admin/audit", icon: Shield, label: "内容风控" },
       ]
@@ -459,6 +461,7 @@ const App: React.FC = () => {
               <Route element={<AdminRoute />}>
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
                 <Route path="/admin/announcements" element={<AdminAnnouncements />} />
+                <Route path="/admin/categories" element={<AdminCategoryManagement />} />
                 <Route path="/admin/users" element={<AdminUsers />} />
                 <Route path="/admin/audit" element={<AdminContentAudit />} />
               </Route>
