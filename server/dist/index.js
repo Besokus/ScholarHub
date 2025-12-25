@@ -97,6 +97,7 @@ app.listen(port, () => {
     }
     if (process.env.DATABASE_URL) {
         void bootstrapAdmin();
+        void bootstrapResourceCategories();
     }
     else {
         console.warn('DATABASE_URL not set; skipping admin bootstrap');
@@ -124,6 +125,60 @@ function bootstrapAdmin() {
         }
         catch (err) {
             console.error('Failed to bootstrap admin user', err);
+        }
+    });
+}
+function bootstrapResourceCategories() {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            yield db_1.default.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "ResourceCategoryDict" (code TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE)`);
+            yield db_1.default.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "ResourceCategoryMap" (resource_id INTEGER PRIMARY KEY, category_code TEXT NOT NULL, FOREIGN KEY(category_code) REFERENCES "ResourceCategoryDict"(code))`);
+            const defaults = ['课件', '真题', '作业', '代码', '答案', '笔记', '教材', '其他'];
+            let rows = [];
+            try {
+                rows = yield db_1.default.$queryRawUnsafe(`SELECT code FROM "ResourceCategoryDict"`);
+            }
+            catch (_a) {
+                rows = [];
+            }
+            const existing = new Set((rows || []).map((r) => r.code));
+            for (const name of defaults) {
+                const code = name;
+                if (!existing.has(code)) {
+                    try {
+                        yield db_1.default.$executeRawUnsafe(`INSERT INTO "ResourceCategoryDict"(code, name) VALUES ($1, $2)`, code, name);
+                    }
+                    catch (_b) { }
+                }
+            }
+            let resRows = [];
+            try {
+                resRows = yield db_1.default.$queryRawUnsafe(`SELECT id FROM "Resource"`);
+            }
+            catch (_c) {
+                resRows = [];
+            }
+            let mappedRows = [];
+            try {
+                mappedRows = yield db_1.default.$queryRawUnsafe(`SELECT resource_id FROM "ResourceCategoryMap"`);
+            }
+            catch (_d) {
+                mappedRows = [];
+            }
+            const mapped = new Set((mappedRows || []).map((r) => r.resource_id));
+            for (const r of resRows || []) {
+                const rid = r.id;
+                if (!mapped.has(rid)) {
+                    try {
+                        yield db_1.default.$executeRawUnsafe(`INSERT INTO "ResourceCategoryMap"(resource_id, category_code) VALUES ($1, $2)`, rid, '其他');
+                    }
+                    catch (_e) { }
+                }
+            }
+            console.log('Resource categories ensured and backfilled');
+        }
+        catch (err) {
+            console.error('Failed to bootstrap resource categories', err);
         }
     });
 }

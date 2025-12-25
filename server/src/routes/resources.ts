@@ -7,6 +7,8 @@ import { cacheGet, cacheSet, delByPrefix } from '../cache'
 
 const router = Router()
 
+const RESOURCE_TAGS = ['课件', '真题', '作业', '代码', '答案', '笔记', '教材', '其他']
+
 function toClientShape(r: any) {
   const date = new Date(r.createTime)
   const formattedDate = date.getFullYear() + '-' +
@@ -68,6 +70,25 @@ async function resolveCourseId(input: string | number, teacherId: string): Promi
   return (await ensureCourseByName(name, teacherId)).id
 }
 
+// 分类字典
+router.get('/categories', async (_req, res) => {
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "ResourceCategory" (
+        code TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        sort INTEGER NOT NULL DEFAULT 0
+      );
+    `)
+    const rows: Array<{ code: string; name: string; sort: number }> = await prisma.$queryRawUnsafe(
+      `SELECT code, name, sort FROM "ResourceCategory" ORDER BY sort ASC, name ASC`
+    )
+    res.json({ items: rows.length ? rows : RESOURCE_TAGS.map((t, i) => ({ code: t, name: t, sort: i })) })
+  } catch (err: any) {
+    res.status(500).json({ message: err.message || 'Server error' })
+  }
+})
+
 router.get('/', async (req, res) => {
   try {
     const q = String(req.query.q || '').trim().toLowerCase()
@@ -109,7 +130,20 @@ router.get('/', async (req, res) => {
       prisma.resource.findMany({ where, include: { course: true, uploader: true }, orderBy: { id: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
       prisma.resource.count({ where })
     ])
-    const payload = { items: items.map(toClientShape), total }
+    // 读取分类映射
+    let tagMap: Record<number, string> = {}
+    try {
+      if (items.length) {
+        const ids = items.map(i => i.id)
+        const placeholders = ids.map((_, i) => `$${i + 1}`).join(',')
+        const rows: Array<{ resource_id: number; category_code: string }> = await prisma.$queryRawUnsafe(
+          `SELECT resource_id, category_code FROM "ResourceCategoryMap" WHERE resource_id IN (${placeholders})`,
+          ...ids
+        )
+        tagMap = Object.fromEntries(rows.map(r => [r.resource_id, r.category_code]))
+      }
+    } catch {}
+    const payload = { items: items.map(r => ({ ...toClientShape(r), tag: tagMap[r.id] || null })), total }
     await cacheSet(cacheKey, JSON.stringify(payload), 60)
     res.json(payload)
   } catch (err: any) {
@@ -163,9 +197,9 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', requireAuth, async (req, res) => {
   try {
-    const { title, summary, courseId, fileUrl, type, size } = req.body || {}
+    const { title, summary, courseId, fileUrl, type, size, category } = req.body || {}
     if (!title || !summary || !courseId || !fileUrl) return res.status(400).json({ message: 'Invalid' })
-    
+    if (!category || !RESOURCE_TAGS.includes(String(category))) return res.status(400).json({ message: 'Invalid category' })
     const uploaderId = (req as any).userId as string
     const finalCourseId = await resolveCourseId(courseId, uploaderId)
     
@@ -182,11 +216,23 @@ router.post('/', requireAuth, async (req, res) => {
       },
       include: { course: true, uploader: true }
     })
+    // 保存分类映射
+    try {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "ResourceCategoryMap" (
+          resource_id INTEGER PRIMARY KEY,
+          category_code TEXT NOT NULL
+        );
+        INSERT INTO "ResourceCategoryMap"(resource_id, category_code) VALUES ($1, $2)
+        ON CONFLICT (resource_id) DO UPDATE SET category_code = EXCLUDED.category_code
+      `, created.id, String(category))
+      await delByPrefix('res:list:')
+    } catch (e) { console.warn('[ResourceCategoryMap] failed to save', e) }
     try {
       await prisma.$executeRawUnsafe(`UPDATE "User" SET uploads = uploads + 1 WHERE id = $1`, uploaderId)
     } catch (e) { console.warn('[uploads counter] failed', e) }
     await delByPrefix('res:list:')
-    res.json(toClientShape(created))
+    res.json({ ...toClientShape(created), tag: String(category) })
   } catch (err: any) {
     res.status(500).json({ message: err.message || 'Server error' })
   }
@@ -195,7 +241,7 @@ router.post('/', requireAuth, async (req, res) => {
 router.put('/:id', requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10)
-    const { title, summary, courseId, fileUrl } = req.body || {}
+    const { title, summary, courseId, fileUrl, category } = req.body || {}
     const data: any = {}
     if (title) data.title = title
     if (summary) data.description = summary
@@ -205,8 +251,17 @@ router.put('/:id', requireAuth, async (req, res) => {
       data.courseId = course.id
     }
     const updated = await prisma.resource.update({ where: { id }, data, include: { course: true, uploader: true } })
+    // 更新分类映射（可选）
+    if (category && RESOURCE_TAGS.includes(String(category))) {
+      try {
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO "ResourceCategoryMap"(resource_id, category_code) VALUES ($1, $2)
+          ON CONFLICT (resource_id) DO UPDATE SET category_code = EXCLUDED.category_code
+        `, id, String(category))
+      } catch (e) { console.warn('[ResourceCategoryMap] update failed', e) }
+    }
     await delByPrefix('res:list:')
-    res.json(toClientShape(updated))
+    res.json({ ...toClientShape(updated), tag: String(category || '') || null })
   } catch (err: any) {
     if (err.code === 'P2025') return res.status(404).json({ message: 'Not found' })
     res.status(500).json({ message: err.message || 'Server error' })

@@ -90,6 +90,7 @@ app.listen(port, () => {
     void bootstrapAdmin();
     void bootstrapCourseCategories();
     void bootstrapCourseAssignments();
+    void bootstrapResourceCategoriesDict();
   } else {
     console.warn('DATABASE_URL not set; skipping admin bootstrap');
   }
@@ -205,6 +206,38 @@ async function ensureCat(name: string, code: string, parentId?: number, sortOrde
   const exists = await prisma.category.findUnique({ where: { code } })
   if (exists) return exists
   return prisma.category.create({ data: { name, code, parentId: parentId || null, sortOrder: sortOrder || 0 } })
+}
+
+async function bootstrapResourceCategoriesDict() {
+  try {
+    const TAGS = ['课件', '真题', '作业', '代码', '答案', '笔记', '教材', '其他']
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "ResourceCategory" (
+        code TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        sort INTEGER NOT NULL DEFAULT 0
+      );
+    `)
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "ResourceCategoryMap" (
+        resource_id INTEGER PRIMARY KEY,
+        category_code TEXT NOT NULL REFERENCES "ResourceCategory"(code) ON UPDATE CASCADE ON DELETE RESTRICT
+      );
+    `)
+    for (let i = 0; i < TAGS.length; i++) {
+      const code = TAGS[i]
+      const name = TAGS[i]
+      const sort = i
+      await prisma.$executeRawUnsafe(`
+        INSERT INTO "ResourceCategory"(code, name, sort) VALUES ($1, $2, $3)
+        ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, sort = EXCLUDED.sort
+      `, code, name, sort)
+    }
+    try { await delByPrefix('res:list:') } catch {}
+    console.log('Resource category dictionary ensured')
+  } catch (err) {
+    console.error('Failed to bootstrap resource category dict', err)
+  }
 }
 app.post('/api/send-email-code', async (req, res) => {
   try {

@@ -79,10 +79,26 @@ function resolveCourseId(input, teacherId) {
         return (yield ensureCourseByName(name, teacherId)).id;
     });
 }
+router.get('/categories', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        let rows = [];
+        try {
+            rows = yield db_1.default.$queryRawUnsafe(`SELECT code, name FROM "ResourceCategoryDict" ORDER BY name ASC`);
+        }
+        catch (_a) {
+            rows = [];
+        }
+        res.json({ items: rows.map((r) => ({ code: r.code, name: r.name })) });
+    }
+    catch (err) {
+        res.status(500).json({ message: err.message || 'Server error' });
+    }
+}));
 router.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const q = String(req.query.q || '').trim().toLowerCase();
         const courseId = String(req.query.courseId || '');
+        const category = String(req.query.category || '').trim();
         const page = parseInt(String(req.query.page || '1')) || 1;
         const pageSize = parseInt(String(req.query.pageSize || '20')) || 20;
         const where = {};
@@ -95,7 +111,21 @@ router.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
             else
                 where.courseId = -1;
         }
-        const cacheKey = `res:list:${JSON.stringify({ q, courseId, page, pageSize })}`;
+        if (category) {
+            let idRows = [];
+            try {
+                idRows = yield db_1.default.$queryRawUnsafe(`SELECT resource_id FROM "ResourceCategoryMap" WHERE category_code = $1`, category);
+            }
+            catch (_b) {
+                idRows = [];
+            }
+            const ids = (idRows || []).map((r) => r.resource_id);
+            if (ids.length === 0) {
+                return res.json({ items: [], total: 0 });
+            }
+            where.id = { in: ids };
+        }
+        const cacheKey = `res:list:${JSON.stringify({ q, courseId, category, page, pageSize })}`;
         const cached = yield (0, cache_1.cacheGet)(cacheKey);
         if (cached)
             return res.json(JSON.parse(cached));
@@ -103,7 +133,17 @@ router.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
             db_1.default.resource.findMany({ where, include: { course: true, uploader: true }, orderBy: { id: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
             db_1.default.resource.count({ where })
         ]);
-        const payload = { items: items.map(toClientShape), total };
+        let tagMap = {};
+        try {
+            if (items.length) {
+                const ids = items.map((i) => i.id);
+                const placeholders = ids.map((_, i) => `$${i + 1}`).join(',');
+                const rows = yield db_1.default.$queryRawUnsafe(`SELECT resource_id, category_code FROM "ResourceCategoryMap" WHERE resource_id IN (${placeholders})`, ...ids);
+                tagMap = Object.fromEntries(rows.map((r) => [r.resource_id, r.category_code]));
+            }
+        }
+        catch (_c) { }
+        const payload = { items: items.map((r) => (Object.assign(Object.assign({}, toClientShape(r)), { tag: tagMap[r.id] || null }))), total };
         yield (0, cache_1.cacheSet)(cacheKey, JSON.stringify(payload), 60);
         res.json(payload);
     }
@@ -161,9 +201,19 @@ router.get('/:id', (req, res) => __awaiter(void 0, void 0, void 0, function* () 
 }));
 router.post('/', auth_1.requireAuth, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { title, summary, courseId, fileUrl, type, size } = req.body || {};
-        if (!title || !summary || !courseId || !fileUrl)
+        const { title, summary, courseId, fileUrl, type, size, category } = req.body || {};
+        if (!title || !summary || !courseId || !fileUrl || !category)
             return res.status(400).json({ message: 'Invalid' });
+        let dictRow = null;
+        try {
+            const rows = yield db_1.default.$queryRawUnsafe(`SELECT code FROM "ResourceCategoryDict" WHERE code = $1`, category);
+            dictRow = rows && rows[0] ? rows[0] : null;
+        }
+        catch (_d) {
+            dictRow = null;
+        }
+        if (!dictRow)
+            return res.status(400).json({ message: 'Invalid category' });
         const uploaderId = req.userId;
         const finalCourseId = yield resolveCourseId(courseId, uploaderId);
         const created = yield db_1.default.resource.create({
@@ -180,13 +230,18 @@ router.post('/', auth_1.requireAuth, (req, res) => __awaiter(void 0, void 0, voi
             include: { course: true, uploader: true }
         });
         try {
+            yield db_1.default.$executeRawUnsafe(`INSERT INTO "ResourceCategoryMap"(resource_id, category_code) VALUES ($1, $2) ON CONFLICT (resource_id) DO UPDATE SET category_code = EXCLUDED.category_code`, created.id, category);
+        }
+        catch (_e) { }
+        try {
             yield db_1.default.$executeRawUnsafe(`UPDATE "User" SET uploads = uploads + 1 WHERE id = $1`, uploaderId);
         }
         catch (e) {
             console.warn('[uploads counter] failed', e);
         }
         yield (0, cache_1.delByPrefix)('res:list:');
-        res.json(toClientShape(created));
+        const shaped = toClientShape(created);
+        res.json(Object.assign(Object.assign({}, shaped), { tag: category }));
     }
     catch (err) {
         res.status(500).json({ message: err.message || 'Server error' });
