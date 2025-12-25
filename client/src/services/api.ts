@@ -86,11 +86,11 @@ export const CourseCategoryApi = {
 }
 
 export const ResourcesApi = {
-  list: (params: { q?: string; courseId?: string; categoryId?: number; page?: number; pageSize?: number }) => {
+  list: (params: { q?: string; courseId?: string; category?: string; page?: number; pageSize?: number }) => {
     const q = new URLSearchParams()
     if (params.q) q.set('q', params.q)
     if (params.courseId) q.set('courseId', params.courseId)
-    if (params.categoryId) q.set('categoryId', String(params.categoryId))
+    if (params.category) q.set('category', String(params.category))
     q.set('page', String(params.page || 1))
     q.set('pageSize', String(params.pageSize || 20))
     return apiFetch(`/resources?${q.toString()}`)
@@ -102,6 +102,10 @@ export const ResourcesApi = {
   downloadLog: (id: string) => apiFetch(`/resources/${id}/downloads`, { method: 'POST' }),
   myDownloads: () => apiFetch('/resources/downloads/me'),
   myUploads: () => apiFetch('/resources/me/uploads')
+}
+
+export const ResourceCategoriesApi = {
+  list: () => apiFetch('/resources/categories')
 }
 
 export const QaApi = {

@@ -6,7 +6,7 @@ import {
   CloudUpload, Trash2, CheckCircle2, AlertCircle, Layers, ChevronRight,
   BookOpen, Type, ArrowLeft, Sparkles, Loader2, Zap, Send
 } from 'lucide-react'
-import { ResourcesApi } from '../../services/api'
+import { ResourcesApi, ResourceCategoriesApi } from '../../services/api'
 import { UploadsApi } from '../../services/uploads'
 import { useToast } from '../../components/common/Toast'
 import RichText from '../../components/editor/RichText'
@@ -37,10 +37,12 @@ export default function ResourceUpload() {
   const [loading, setLoading] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [categories, setCategories] = useState<Array<{ code: string; name: string }>>([])
+  const [category, setCategory] = useState<string>('')
 
   const isReady = useMemo(() => {
-    return title.length > 0 && String(courseId).length > 0 && summary.length > 0
-  }, [title, courseId, summary])
+    return title.length > 0 && String(courseId).length > 0 && summary.length > 0 && category.length > 0
+  }, [title, courseId, summary, category])
 
   const checkFileHeader = async (file: File): Promise<string> => {
     return new Promise((resolve) => {
@@ -79,11 +81,19 @@ export default function ResourceUpload() {
     if (!title || title.length > 100) return '标题需填写且不超过100字'
     if (!summary || summary.length > 2000) return '简介需填写且不超过2000字'
     if (!courseId) return '请选择课程' // 校验 ID
+    if (!category) return '请选择分类'
     if (file && file.size > 50 * 1024 * 1024) return '文件大小超过50MB'
     return ''
   }
 
   useEffect(() => {
+    ;(async () => {
+      try {
+        const res = await ResourceCategoriesApi.list()
+        const items = Array.isArray(res.items) ? res.items : []
+        setCategories(items)
+      } catch {}
+    })()
     return () => {
       if (previewUrl) URL.revokeObjectURL(previewUrl)
     }
@@ -140,6 +150,7 @@ export default function ResourceUpload() {
           title, 
           summary, 
           courseId: Number(courseId), 
+          category,
           ...fileMeta 
       })
       
@@ -272,6 +283,23 @@ export default function ResourceUpload() {
                  onChange={(id) => setCourseId(id)}
                  placeholder="选择课程..."
                />
+             </div>
+             <div>
+               <label className="block text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+                 <Layers size={18} className="text-indigo-500"/> 分类板块 <span className="text-rose-500">*</span>
+               </label>
+               <div className="relative">
+                 <select
+                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-2xl text-sm font-bold text-slate-800 placeholder:text-slate-400 transition-all outline-none"
+                   value={category}
+                   onChange={e => setCategory(e.target.value)}
+                 >
+                   <option value="">{categories.length ? '请选择分类' : '加载中...'}</option>
+                   {categories.map(c => (
+                     <option key={c.code} value={c.code}>{c.name}</option>
+                   ))}
+                 </select>
+               </div>
              </div>
           </div>
 

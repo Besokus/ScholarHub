@@ -160,8 +160,7 @@ export default function Resources() {
           id: x.id, 
           title: x.title, 
           course: x.courseId, 
-          // 优化点：简单推断 tag，而不是全写死成 '全部'
-          tag: guessTag(x.title, x.type), 
+          tag: x.tag || guessTag(x.title, x.type), 
           fileUrl: x.fileUrl 
         })))
       } catch {
