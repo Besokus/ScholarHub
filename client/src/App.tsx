@@ -30,6 +30,7 @@ const StudentCourses = lazy(() => import('./pages/student/Courses'));
 const StudentResources = lazy(() => import('./pages/student/Resources'));
 const StudentResourceUpload = lazy(() => import('./pages/student/ResourceUpload'));
 const StudentResourceDetail = lazy(() => import('./pages/student/ResourceDetail'));
+const StudentResourceEdit = lazy(() => import('./pages/student/ResourceEdit'));
 const StudentQA = lazy(() => import('./pages/student/QA'));
 const StudentQAPublish = lazy(() => import('./pages/student/QAPublish'));
 const StudentQAQuestion = lazy(() => import('./pages/student/QAQuestion'));
@@ -445,6 +446,7 @@ const App: React.FC = () => {
                 <Route path="/student/resources" element={<StudentResources />} />
                 <Route path="/student/resources/upload" element={<StudentResourceUpload />} />
                 <Route path="/student/resources/:id" element={<StudentResourceDetail />} />
+                <Route path="/student/resources/:id/edit" element={<StudentResourceEdit />} />
                 <Route path="/student/qa" element={<StudentQA />} />
                 <Route path="/student/qa/publish" element={<StudentQAPublish />} />
                 <Route path="/student/qa/:questionId" element={<StudentQAQuestion />} />

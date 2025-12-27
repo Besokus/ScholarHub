@@ -125,6 +125,7 @@ export default function Profile() {
   const [prefBadge, setPrefBadge] = useState(true)
   
   const [myUploads, setMyUploads] = useState<any[]>([])
+  const [deletingId, setDeletingId] = useState<number | null>(null)
   const [myDownloads, setMyDownloads] = useState<any[]>([])
   const [showSettings, setShowSettings] = useState(false)
   const [pwdCur, setPwdCur] = useState('')
@@ -475,7 +476,10 @@ export default function Profile() {
                   items={myUploads}
                   emptyText="暂无上传记录，快去分享你的第一份资料吧！"
                   renderItem={(item: any) => (
-                    <div className="flex items-center p-3 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all cursor-pointer">
+                    <div 
+                      className="flex items-center p-3 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all cursor-pointer"
+                      onClick={() => navigate(`/student/resources/${item.id}`)}
+                    >
                       <div className="bg-blue-50 text-blue-600 p-2.5 rounded-xl mr-4 shrink-0 border border-blue-100">
                         <FileText size={18} />
                       </div>
@@ -489,8 +493,36 @@ export default function Profile() {
                           {item.downloads !== undefined && <span className="flex items中心 gap-1"><Download size={10}/> {item.downloads}</span>}
                         </div>
                       </div>
-                      <div className="ml-2 text-slate-300">
-                        <ArrowRight size={16} />
+                      <div className="ml-2 flex items-center gap-2 shrink-0">
+                        <button 
+                          className="px-2 py-1 text-xs bg-white border border-slate-200 rounded-lg text-slate-600 hover:text-indigo-600 hover:border-indigo-200"
+                          onClick={(e) => { e.stopPropagation(); navigate(`/student/resources/${item.id}/edit`) }}
+                        >
+                          编辑
+                        </button>
+                        <button 
+                          className="px-2 py-1 text-xs bg-white border border-slate-200 rounded-lg text-rose-600 hover:bg-rose-50"
+                          onClick={async (e) => { 
+                            e.stopPropagation()
+                            const ok = window.confirm('确定要删除该资源吗？此操作不可撤销')
+                            if (!ok) return
+                            try {
+                              setDeletingId(item.id)
+                              await ResourcesApi.remove(String(item.id))
+                              setMyUploads(prev => prev.filter(x => x.id !== item.id))
+                              show('已删除', 'success')
+                              try { window.dispatchEvent(new CustomEvent('SH_STATS_UPDATED')) } catch {}
+                            } catch (err: any) {
+                              show(err?.message || '删除失败', 'error')
+                            } finally {
+                              setDeletingId(null)
+                            }
+                          }}
+                          disabled={deletingId === item.id}
+                        >
+                          {deletingId === item.id ? '处理中...' : '删除'}
+                        </button>
+                        <ArrowRight size={16} className="text-slate-300" />
                       </div>
                     </div>
                   )}

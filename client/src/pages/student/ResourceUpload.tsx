@@ -39,9 +39,10 @@ export default function ResourceUpload() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [categories, setCategories] = useState<Array<{ code: string; name: string }>>([])
   const [category, setCategory] = useState<string>('')
+  const [titleError, setTitleError] = useState<string>('')
 
   const isReady = useMemo(() => {
-    return title.length > 0 && String(courseId).length > 0 && summary.length > 0 && category.length > 0
+    return title.length > 0 && title.length <= 100 && String(courseId).length > 0 && summary.length > 0 && category.length > 0
   }, [title, courseId, summary, category])
 
   const checkFileHeader = async (file: File): Promise<string> => {
@@ -82,7 +83,7 @@ export default function ResourceUpload() {
     if (!summary || summary.length > 2000) return '简介需填写且不超过2000字'
     if (!courseId) return '请选择课程' // 校验 ID
     if (!category) return '请选择分类'
-    if (file && file.size > 50 * 1024 * 1024) return '文件大小超过50MB'
+    if (file && file.size > 500 * 1024 * 1024) return '文件大小超过500MB'
     return ''
   }
 
@@ -98,6 +99,10 @@ export default function ResourceUpload() {
       if (previewUrl) URL.revokeObjectURL(previewUrl)
     }
   }, [previewUrl])
+  useEffect(() => {
+    if (title.length > 100) setTitleError('标题不得超过100个字符')
+    else setTitleError('')
+  }, [title])
 
   const processFile = async (f: File) => {
     const detected = await checkFileHeader(f)
@@ -378,12 +383,14 @@ export default function ResourceUpload() {
                   placeholder="请输入标题..." 
                   value={title} 
                   onChange={e => setTitle(e.target.value)} 
-                  maxLength={100}
                 />
                 <div className={`absolute right-4 bottom-4 text-xs font-mono transition-colors ${title.length > 90 ? 'text-amber-500 font-bold' : 'text-slate-400'}`}>
                   {title.length}/100
                 </div>
               </div>
+              {titleError && (
+                <div className="mt-2 text-sm text-rose-600 font-medium">{titleError}</div>
+              )}
             </div>
 
             {/* Description */}
