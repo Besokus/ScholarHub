@@ -36,7 +36,9 @@ const TeacherManager: React.FC = () => {
   });
   const [saving, setSaving] = useState(false);
   const [empErr, setEmpErr] = useState('');
-  const autoAccount = formData.employeeId ? `${formData.employeeId}@edu` : '';
+  const [nameErr, setNameErr] = useState('');
+  const [titleErr, setTitleErr] = useState('');
+  const allowedTitles = ['助教', '讲师', '副教授', '教授'];
   const fmtEmp = (x?: string) => {
     const s = (x || '').trim();
     if (/^\d+$/.test(s)) return s;
@@ -55,23 +57,19 @@ const TeacherManager: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setNameErr('');
+    setTitleErr('');
     const empOk = /^\d{6}$/.test(formData.employeeId.trim());
     if (!empOk) { setEmpErr('工号必须为6位数字'); return; }
+    const name = formData.fullName.trim();
+    const nameLen = name.length;
+    if (!name || nameLen < 2 || nameLen > 20) { setNameErr('姓名长度需在2-20字符之间'); return; }
+    if (!allowedTitles.includes(formData.title)) { setTitleErr('职称必须从预设选项中选择'); return; }
     setSaving(true);
     try {
       if (editing) {
         await AdminApi.teachers.update(editing.id, formData);
       } else {
-        try {
-          const res = await AdminApi.teachers.list({ q: autoAccount });
-          const items = res.data?.items || [];
-          const exists = items.some((t: any) => String(t?.username || '') === autoAccount);
-          if (exists) {
-            alert('自动生成的登录账号已存在，请更换工号');
-            setSaving(false);
-            return;
-          }
-        } catch {}
         await AdminApi.teachers.create(formData);
       }
       setModalOpen(false);
@@ -263,6 +261,7 @@ const TeacherManager: React.FC = () => {
                       onChange={e => setFormData({...formData, fullName: e.target.value})}
                       placeholder="e.g. 王老师"
                     />
+                    {nameErr && <div className="text-xs text-rose-600">{nameErr}</div>}
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-500 uppercase">工号 <span className="text-rose-500">*</span></label>
@@ -277,9 +276,6 @@ const TeacherManager: React.FC = () => {
                       }}
                       placeholder="e.g. 123456"
                     />
-                    {formData.employeeId && (
-                      <div className="text-xs text-slate-500">登录账号将自动生成：<span className="font-mono text-slate-700">{autoAccount}</span></div>
-                    )}
                     {empErr && <div className="text-xs text-rose-600">{empErr}</div>}
                   </div>
                 </div>
@@ -311,6 +307,7 @@ const TeacherManager: React.FC = () => {
                       <option value="副教授">副教授</option>
                       <option value="教授">教授</option>
                     </select>
+                    {titleErr && <div className="text-xs text-rose-600 mt-1">{titleErr}</div>}
                     <div className="absolute right-3 top-3 text-slate-400 pointer-events-none">
                       <Briefcase size={14}/>
                     </div>

@@ -124,13 +124,9 @@ const CategoryManagement = () => {
   const [teacherLoading, setTeacherLoading] = useState(false);
   const [teachers, setTeachers] = useState<Array<{ id: string; username?: string; fullName?: string; email?: string }>>([]);
   const [teacherId, setTeacherId] = useState<string>('');
-  const FIXED_CATEGORIES = [
-    { code: 'basic', label: '基础课' },
-    { code: 'major', label: '专业课' },
-    { code: 'sport', label: '体育课' }
-  ];
   const [categoryCode, setCategoryCode] = useState<string>('');
   const [showCatOptions, setShowCatOptions] = useState(false);
+  const [categoryOptions, setCategoryOptions] = useState<Array<{ code: string; label: string }>>([]);
   const [catMap, setCatMap] = useState<Record<string, number>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -195,8 +191,16 @@ const CategoryManagement = () => {
         if (c?.code && typeof c.id === 'number') m[String(c.code)] = c.id;
       }
       setCatMap(m);
+      const opts: Array<{ code: string; label: string }> = [];
+      for (const c of list) {
+        if (c?.code && c?.name) {
+          opts.push({ code: String(c.code), label: String(c.name) });
+        }
+      }
+      setCategoryOptions(opts);
     } catch {
       setCatMap({});
+      setCategoryOptions([]);
     }
   };
   const openAddCourseModal = async (majorId: number) => {
@@ -534,7 +538,7 @@ const CategoryManagement = () => {
                     value={courseDept}
                     onChange={e => setCourseDept(e.target.value)}
                     maxLength={50}
-                    placeholder="如：计算机学院"
+                    placeholder="如：光电信息与计算机学院"
                     className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
                   />
                   {errors.dept && <div className="text-xs text-rose-600 mt-1">{errors.dept}</div>}
@@ -615,7 +619,7 @@ const CategoryManagement = () => {
                       className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between"
                     >
                       <span className={`text-sm ${categoryCode ? 'text-slate-700' : 'text-slate-400'}`}>
-                        {categoryCode ? (FIXED_CATEGORIES.find(c => c.code === categoryCode)?.label || categoryCode) : '选择分类'}
+                        {categoryCode ? (categoryOptions.find(c => c.code === categoryCode)?.label || categoryCode) : '选择分类'}
                       </span>
                       <ChevronDown size={16} className="text-slate-400" />
                     </button>
@@ -629,16 +633,20 @@ const CategoryManagement = () => {
                           className="absolute left-0 right-0 mt-2 bg-white border border-slate-100 rounded-xl shadow-xl z-50 overflow-hidden"
                         >
                           <div className="max-h-56 overflow-y-auto">
-                            {FIXED_CATEGORIES.map(c => (
-                              <button
-                                key={c.code}
-                                type="button"
-                                onClick={() => { setCategoryCode(c.code); setShowCatOptions(false); }}
-                                className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 ${categoryCode === c.code ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700'}`}
-                              >
-                                <span className="break-words whitespace-normal">{c.label}</span>
-                              </button>
-                            ))}
+                            {categoryOptions.length ? (
+                              categoryOptions.map(c => (
+                                <button
+                                  key={c.code}
+                                  type="button"
+                                  onClick={() => { setCategoryCode(c.code); setShowCatOptions(false); }}
+                                  className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 ${categoryCode === c.code ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700'}`}
+                                >
+                                  <span className="break-words whitespace-normal">{c.label}</span>
+                                </button>
+                              ))
+                            ) : (
+                              <div className="p-3 text-center text-xs text-slate-400">暂无分类数据</div>
+                            )}
                           </div>
                         </motion.div>
                       )}
