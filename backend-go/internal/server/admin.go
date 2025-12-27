@@ -367,6 +367,10 @@ func (a *AdminController) CreateTeacher(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, respErr(1002, "name_password_required"))
 		return
 	}
+	if ln := utf8.RuneCountInString(name); ln < 2 || ln > 20 {
+		c.JSON(http.StatusBadRequest, respErr(1002, "invalid_name_length"))
+		return
+	}
 	emp := strings.TrimSpace(req.EmployeeID)
 	if emp == "" {
 		c.JSON(http.StatusBadRequest, respErr(1002, "employee_id_required"))
@@ -377,15 +381,17 @@ func (a *AdminController) CreateTeacher(c *gin.Context) {
 		return
 	}
 	name = sanitizeName(name)
-	title := normalizeTitle(strings.TrimSpace(req.Title))
-	if title == "" {
+	titleInput := strings.TrimSpace(req.Title)
+	allowedTitles := map[string]bool{"助教": true, "讲师": true, "副教授": true, "教授": true}
+	if !allowedTitles[titleInput] {
 		c.JSON(http.StatusBadRequest, respErr(1002, "invalid_title"))
 		return
 	}
+	title := titleInput
 
 	emailLocal := toPinyinName(name)
 	email := emailLocal + "@edu.com"
-	username := emp + "@edu"
+	username := name
 
 	hash, _ := bcrypt.GenerateFromPassword([]byte(req.Password), 10)
 	var created models.User
@@ -425,12 +431,13 @@ func (a *AdminController) CreateTeacher(c *gin.Context) {
 			c.JSON(http.StatusConflict, respErr(1003, "employee_exists"))
 			return
 		}
-		log.Printf("create_teacher error: %v", err)
+		log.Printf("create_teacher error name=%s emp=%s title=%s err=%v", name, emp, title, err)
 		c.JSON(http.StatusInternalServerError, respErr(1004, "db_error"))
 		return
 	}
 
 	adminID := c.GetString("user_id")
+	log.Printf("create_teacher success id=%s name=%s title=%s username=%s email=%s", created.ID, name, title, username, email)
 	a.logAction(adminID, "CREATE_TEACHER", created.ID, gin.H{"name": name, "employeeId": emp, "title": title, "email": email, "username": username})
 
 	c.JSON(http.StatusOK, respOk(created))
