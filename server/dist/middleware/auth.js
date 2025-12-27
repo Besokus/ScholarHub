@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.authOptional = authOptional;
 exports.requireAuth = requireAuth;
+exports.requireAdmin = requireAdmin;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 function authOptional(req, _res, next) {
     const h = req.headers.authorization;
@@ -23,5 +24,12 @@ function authOptional(req, _res, next) {
 function requireAuth(req, res, next) {
     if (!req.userId)
         return res.status(401).json({ message: 'Unauthorized' });
+    next();
+}
+function requireAdmin(req, res, next) {
+    if (!req.userId)
+        return res.status(401).json({ message: 'Unauthorized' });
+    if (req.userRole !== 'ADMIN')
+        return res.status(403).json({ message: 'Forbidden: Admin only' });
     next();
 }

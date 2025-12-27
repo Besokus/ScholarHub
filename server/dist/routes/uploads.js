@@ -55,7 +55,7 @@ const router = (0, express_1.Router)();
 const uploadDir = path_1.default.join(process.cwd(), 'uploads');
 const profileDir = path_1.default.join(uploadDir, 'profile');
 const questionsDir = path_1.default.join(uploadDir, 'questions');
-const resourcesDir = path_1.default.join(uploadDir, 'resources');
+const resourcesDir = path_1.default.join(uploadDir, 'recourses');
 for (const d of [uploadDir, profileDir, questionsDir, resourcesDir]) {
     if (!fs_1.default.existsSync(d))
         fs_1.default.mkdirSync(d, { recursive: true, mode: 0o755 });
@@ -76,7 +76,7 @@ const imagesStorage = multer_1.default.diskStorage({
     }
 });
 const genericStorage = multer_1.default.diskStorage({
-    destination: (_req, _file, cb) => cb(null, uploadDir),
+    destination: (_req, _file, cb) => cb(null, resourcesDir),
     filename: (_req, file, cb) => {
         const ext = path_1.default.extname(file.originalname);
         cb(null, `${Date.now()}-${Math.random().toString(16).slice(2)}${ext}`);
@@ -93,7 +93,7 @@ const fileFilter = (_req, file, cb) => {
     cb(null, true);
 };
 const imagesUpload = (0, multer_1.default)({ storage: imagesStorage, fileFilter: imageFilter, limits: { fileSize: 5 * 1024 * 1024 } });
-const filesUpload = (0, multer_1.default)({ storage: genericStorage, fileFilter, limits: { fileSize: 50 * 1024 * 1024 } });
+const filesUpload = (0, multer_1.default)({ storage: genericStorage, fileFilter, limits: { fileSize: 500 * 1024 * 1024 } });
 const avatarUpload = (0, multer_1.default)({ storage: multer_1.default.diskStorage({
         destination: (_req, _file, cb) => cb(null, profileDir),
         filename: (req, file, cb) => {
@@ -254,7 +254,7 @@ router.post('/files', auth_1.requireAuth, filesUpload.single('file'), (req, res)
                 return res.status(400).json({ message: 'Unsupported file type or content mismatch' });
             }
         }
-        const url = `/uploads/${path_1.default.basename(f.path)}`;
+        const url = `/uploads/recourses/${path_1.default.basename(f.path)}`;
         res.json({ url, size: f.size, type });
     }
     catch (err) {
@@ -320,7 +320,7 @@ router.post('/resources', auth_1.requireAuth, (0, multer_1.default)({ storage: g
         fs_1.default.renameSync(f.path, targetPath);
         fs_1.default.chmodSync(targetPath, 0o644);
         const hash = yield sha256File(targetPath);
-        const url = `/uploads/resources/${resourceType}/${targetName}`;
+        const url = `/uploads/recourses/${resourceType}/${targetName}`;
         try {
             fs_1.default.appendFileSync(path_1.default.join(process.cwd(), 'uploads.log'), `${new Date().toISOString()} ${JSON.stringify({ user: req.userId, url, size: fs_1.default.statSync(targetPath).size, hash, type: `resource_${resourceType}` })}\n`);
         }

@@ -25,6 +25,8 @@ const mail_1 = require("./mail");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const path_1 = __importDefault(require("path"));
 const uploads_1 = __importDefault(require("./routes/uploads"));
+const categories_1 = __importDefault(require("./routes/categories"));
+const courseCategories_1 = __importDefault(require("./routes/courseCategories"));
 const swagger_1 = require("./swagger");
 const answers_1 = __importDefault(require("./routes/answers"));
 const auth_2 = require("./middleware/auth");
@@ -73,6 +75,8 @@ app.use('/api/qa', qa_1.default);
 app.use('/api', answers_1.default);
 app.use('/api/notifications', notifications_1.default);
 app.use('/api/courses', courses_1.default);
+app.use('/api/course-categories', courseCategories_1.default);
+app.use('/api/categories', categories_1.default);
 app.use('/api/uploads', uploads_1.default);
 (0, swagger_1.registerSwagger)(app);
 app.get('/', (req, res) => {
@@ -97,7 +101,9 @@ app.listen(port, () => {
     }
     if (process.env.DATABASE_URL) {
         void bootstrapAdmin();
-        void bootstrapResourceCategories();
+        void bootstrapCourseCategories();
+        void bootstrapCourseAssignments();
+        void bootstrapResourceCategoriesDict();
     }
     else {
         console.warn('DATABASE_URL not set; skipping admin bootstrap');
@@ -128,57 +134,151 @@ function bootstrapAdmin() {
         }
     });
 }
-function bootstrapResourceCategories() {
+function bootstrapCourseCategories() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            yield db_1.default.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "ResourceCategoryDict" (code TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE)`);
-            yield db_1.default.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "ResourceCategoryMap" (resource_id INTEGER PRIMARY KEY, category_code TEXT NOT NULL, FOREIGN KEY(category_code) REFERENCES "ResourceCategoryDict"(code))`);
-            const defaults = ['课件', '真题', '作业', '代码', '答案', '笔记', '教材', '其他'];
-            let rows = [];
-            try {
-                rows = yield db_1.default.$queryRawUnsafe(`SELECT code FROM "ResourceCategoryDict"`);
+            const names = [
+                '计算机与信息技术类',
+                '数学与统计类',
+                '电子信息与通信类',
+                '自动化与控制工程类',
+                '机械与工程技术类',
+                '电气与能源类',
+                '经济管理与商科类',
+                '人文社科与通识教育类',
+                '外语与语言类',
+                '艺术与设计类',
+                '体育与健康类',
+                '创新创业与实践类'
+            ];
+            const existing = yield db_1.default.courseCategory.findMany({ select: { name: true } });
+            const ex = new Set(existing.map(x => x.name));
+            const missing = names.filter(n => !ex.has(n));
+            if (missing.length) {
+                yield db_1.default.courseCategory.createMany({
+                    data: missing.map(n => ({ name: n }))
+                });
             }
-            catch (_a) {
-                rows = [];
+            const all = yield db_1.default.courseCategory.findMany({ orderBy: { id: 'asc' } });
+            const seen = new Set();
+            const dupIds = [];
+            for (const c of all) {
+                if (seen.has(c.name))
+                    dupIds.push(c.id);
+                else
+                    seen.add(c.name);
             }
-            const existing = new Set((rows || []).map((r) => r.code));
-            for (const name of defaults) {
-                const code = name;
-                if (!existing.has(code)) {
+            if (dupIds.length) {
+                for (const id of dupIds) {
                     try {
-                        yield db_1.default.$executeRawUnsafe(`INSERT INTO "ResourceCategoryDict"(code, name) VALUES ($1, $2)`, code, name);
+                        yield db_1.default.courseCategory.delete({ where: { id } });
                     }
-                    catch (_b) { }
+                    catch (_a) { }
                 }
             }
-            let resRows = [];
             try {
-                resRows = yield db_1.default.$queryRawUnsafe(`SELECT id FROM "Resource"`);
+                yield (0, cache_1.delByPrefix)('course_categories');
             }
-            catch (_c) {
-                resRows = [];
-            }
-            let mappedRows = [];
-            try {
-                mappedRows = yield db_1.default.$queryRawUnsafe(`SELECT resource_id FROM "ResourceCategoryMap"`);
-            }
-            catch (_d) {
-                mappedRows = [];
-            }
-            const mapped = new Set((mappedRows || []).map((r) => r.resource_id));
-            for (const r of resRows || []) {
-                const rid = r.id;
-                if (!mapped.has(rid)) {
-                    try {
-                        yield db_1.default.$executeRawUnsafe(`INSERT INTO "ResourceCategoryMap"(resource_id, category_code) VALUES ($1, $2)`, rid, '其他');
-                    }
-                    catch (_e) { }
-                }
-            }
-            console.log('Resource categories ensured and backfilled');
+            catch (_b) { }
+            const count = yield db_1.default.courseCategory.count();
+            console.log(`Course categories ensured. Total: ${count}`);
         }
         catch (err) {
-            console.error('Failed to bootstrap resource categories', err);
+            console.error('Failed to bootstrap course categories', err);
+        }
+    });
+}
+function bootstrapCourseAssignments() {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const ccNames = ['计算机与信息技术类', '体育与健康类'];
+            const ccList = yield db_1.default.courseCategory.findMany({ where: { name: { in: ccNames } } });
+            const ccMap = new Map(ccList.map(c => [c.name, c.id]));
+            const csBasic = yield ensureCat('基础课', 'basic');
+            const csMajor = yield ensureCat('专业课', 'major');
+            const csSport = yield ensureCat('体育课', 'sport');
+            const courses = yield db_1.default.course.findMany({ where: { name: { in: ['数据结构', '软件工程', 'web开发', '击剑'] } } });
+            for (const c of courses) {
+                let categoryId = null;
+                let courseCategoryId = null;
+                if (c.name === '数据结构') {
+                    categoryId = csBasic.id;
+                    courseCategoryId = ccMap.get('计算机与信息技术类') || null;
+                }
+                else if (c.name === '软件工程') {
+                    categoryId = csBasic.id;
+                    courseCategoryId = ccMap.get('计算机与信息技术类') || null;
+                }
+                else if (c.name.toLowerCase() === 'web开发' || c.name.toLowerCase() === 'web') {
+                    categoryId = csMajor.id;
+                    courseCategoryId = ccMap.get('计算机与信息技术类') || null;
+                }
+                else if (c.name === '击剑') {
+                    categoryId = csSport.id;
+                    courseCategoryId = ccMap.get('体育与健康类') || null;
+                }
+                const data = {};
+                if (categoryId !== null)
+                    data.categoryId = categoryId;
+                if (courseCategoryId !== null)
+                    data.courseCategoryId = courseCategoryId;
+                if (Object.keys(data).length) {
+                    yield db_1.default.course.update({ where: { id: c.id }, data });
+                }
+            }
+            try {
+                yield (0, cache_1.delByPrefix)('courses:list');
+            }
+            catch (_a) { }
+            console.log('Course assignments ensured');
+        }
+        catch (err) {
+            console.error('Failed to bootstrap course assignments', err);
+        }
+    });
+}
+function ensureCat(name, code, parentId, sortOrder) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const exists = yield db_1.default.category.findUnique({ where: { code } });
+        if (exists)
+            return exists;
+        return db_1.default.category.create({ data: { name, code, parentId: parentId || null, sortOrder: sortOrder || 0 } });
+    });
+}
+function bootstrapResourceCategoriesDict() {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const TAGS = ['课件', '真题', '作业', '代码', '答案', '笔记', '教材', '其他'];
+            yield db_1.default.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "ResourceCategory" (
+        code TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        sort INTEGER NOT NULL DEFAULT 0
+      );
+    `);
+            yield db_1.default.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "ResourceCategoryMap" (
+        resource_id INTEGER PRIMARY KEY,
+        category_code TEXT NOT NULL REFERENCES "ResourceCategory"(code) ON UPDATE CASCADE ON DELETE RESTRICT
+      );
+    `);
+            for (let i = 0; i < TAGS.length; i++) {
+                const code = TAGS[i];
+                const name = TAGS[i];
+                const sort = i;
+                yield db_1.default.$executeRawUnsafe(`
+        INSERT INTO "ResourceCategory"(code, name, sort) VALUES ($1, $2, $3)
+        ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, sort = EXCLUDED.sort
+      `, code, name, sort);
+            }
+            try {
+                yield (0, cache_1.delByPrefix)('res:list:');
+            }
+            catch (_a) { }
+            console.log('Resource category dictionary ensured');
+        }
+        catch (err) {
+            console.error('Failed to bootstrap resource category dict', err);
         }
     });
 }

@@ -199,6 +199,7 @@ router.post('/', requireAuth, async (req, res) => {
   try {
     const { title, summary, courseId, fileUrl, type, size, category } = req.body || {}
     if (!title || !summary || !courseId || !fileUrl) return res.status(400).json({ message: 'Invalid' })
+    if (String(title).length > 100) return res.status(400).json({ message: '标题不得超过100个字符' })
     if (!category || !RESOURCE_TAGS.includes(String(category))) return res.status(400).json({ message: 'Invalid category' })
     const uploaderId = (req as any).userId as string
     const finalCourseId = await resolveCourseId(courseId, uploaderId)
@@ -241,15 +242,20 @@ router.post('/', requireAuth, async (req, res) => {
 router.put('/:id', requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10)
-    const { title, summary, courseId, fileUrl, category } = req.body || {}
+    const { title, summary, courseId, fileUrl, category, viewType } = req.body || {}
+    const existing = await prisma.resource.findUnique({ where: { id } })
+    if (!existing) return res.status(404).json({ message: 'Not found' })
+    if (existing.uploaderId !== (req as any).userId) return res.status(403).json({ message: 'Forbidden' })
+    if (title && String(title).length > 100) return res.status(400).json({ message: '标题不得超过100个字符' })
     const data: any = {}
     if (title) data.title = title
     if (summary) data.description = summary
     if (fileUrl) data.filePath = fileUrl
     if (courseId && courseId !== 'all') {
-      const course = await ensureCourseByName(String(courseId), (req as any).userId as string)
-      data.courseId = course.id
+      const cId = await resolveCourseId(courseId, (req as any).userId as string)
+      data.courseId = cId
     }
+    if (viewType && ['PUBLIC','PRIVATE'].includes(String(viewType))) data.viewType = String(viewType)
     const updated = await prisma.resource.update({ where: { id }, data, include: { course: true, uploader: true } })
     // 更新分类映射（可选）
     if (category && RESOURCE_TAGS.includes(String(category))) {
@@ -261,6 +267,7 @@ router.put('/:id', requireAuth, async (req, res) => {
       } catch (e) { console.warn('[ResourceCategoryMap] update failed', e) }
     }
     await delByPrefix('res:list:')
+    try { fs.appendFileSync('resource_actions.log', `${new Date().toISOString()} ${JSON.stringify({ op:'update', id, user:(req as any).userId })}\n`) } catch {}
     res.json({ ...toClientShape(updated), tag: String(category || '') || null })
   } catch (err: any) {
     if (err.code === 'P2025') return res.status(404).json({ message: 'Not found' })
@@ -268,11 +275,25 @@ router.put('/:id', requireAuth, async (req, res) => {
   }
 })
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10)
+    const r = await prisma.resource.findUnique({ where: { id } })
+    if (!r) return res.status(404).json({ message: 'Not found' })
+    if (r.uploaderId !== (req as any).userId) return res.status(403).json({ message: 'Forbidden' })
+    try {
+      const uploadsDir = path.join(process.cwd(), 'uploads')
+      let p = r.filePath || ''
+      let rel = p.startsWith('/uploads/') ? p.slice('/uploads/'.length) : ''
+      const abs = rel ? path.join(uploadsDir, rel) : (fs.existsSync(p) ? p : '')
+      if (abs && fs.existsSync(abs)) {
+        fs.unlinkSync(abs)
+      }
+    } catch {}
     await prisma.resource.delete({ where: { id } })
+    try { await prisma.$executeRawUnsafe(`UPDATE "User" SET uploads = CASE WHEN uploads > 0 THEN uploads - 1 ELSE 0 END WHERE id = $1`, (req as any).userId) } catch {}
     await delByPrefix('res:list:')
+    try { fs.appendFileSync('resource_actions.log', `${new Date().toISOString()} ${JSON.stringify({ op:'delete', id, user:(req as any).userId })}\n`) } catch {}
     res.json({ ok: true })
   } catch (err: any) {
     if (err.code === 'P2025') return res.status(404).json({ message: 'Not found' })

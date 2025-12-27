@@ -150,6 +150,12 @@ router.post('/questions/:id/view', (req, res) => __awaiter(void 0, void 0, void 
         const id = parseInt(req.params.id, 10);
         if (!Number.isFinite(id) || id <= 0)
             return res.status(400).json({ message: 'Invalid id' });
+        try {
+            res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+            res.set('Pragma', 'no-cache');
+            res.set('Expires', '0');
+        }
+        catch (_a) { }
         const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '');
         const key = `qview:ip:${ip}:qid:${id}`;
         let limited = false;
@@ -161,11 +167,11 @@ router.post('/questions/:id/view', (req, res) => __awaiter(void 0, void 0, void 
                 try {
                     fs_1.default.appendFileSync('view.log', `${new Date().toISOString()} ${JSON.stringify({ phase: 'rate_limit', id, ip, key, n })}\n`);
                 }
-                catch (_a) { }
+                catch (_b) { }
                 return res.json({ ok: true, limited: true });
             }
         }
-        catch (_b) { }
+        catch (_c) { }
         const aggKey = `qview:agg:${id}`;
         const AGG_TTL = 300;
         let currentAgg = 1;
@@ -173,16 +179,20 @@ router.post('/questions/:id/view', (req, res) => __awaiter(void 0, void 0, void 
             const { incrWithTTL } = yield Promise.resolve().then(() => __importStar(require('../cache')));
             currentAgg = yield incrWithTTL(aggKey, AGG_TTL);
         }
-        catch (_c) { }
+        catch (_d) { }
         let flushed = false;
         let delta = 0;
-        if (currentAgg <= 3 || currentAgg % 10 === 0) {
+        // Batch update: only write to DB when we have accumulated enough views (e.g. 10)
+        // or if we want to ensure low-traffic questions get updated, we could check time, but for now strict batching
+        // The detail page combines DB + Cache, so users always see real-time count.
+        // The list page might lag slightly, which is acceptable for performance.
+        if (currentAgg >= 10) {
             try {
                 const { getAndResetWithTTL } = yield Promise.resolve().then(() => __importStar(require('../cache')));
                 const prev = yield getAndResetWithTTL(aggKey, '0', AGG_TTL);
                 delta = parseInt(prev || '0', 10) || 0;
             }
-            catch (_d) {
+            catch (_e) {
                 delta = 0;
             }
             if (delta > 0) {
@@ -191,27 +201,56 @@ router.post('/questions/:id/view', (req, res) => __awaiter(void 0, void 0, void 
                 try {
                     yield (0, cache_1.delByPrefix)('qa:list:');
                 }
-                catch (_e) { }
+                catch (_f) { }
             }
         }
+        try {
+            let courseId = 0;
+            try {
+                const { cacheGet, cacheSet } = yield Promise.resolve().then(() => __importStar(require('../cache')));
+                const mk = `q2c:${id}`;
+                const s = yield cacheGet(mk);
+                courseId = parseInt(s || '0', 10) || 0;
+                if (!courseId) {
+                    const q = yield db_1.default.question.findUnique({ where: { id }, select: { courseId: true } });
+                    courseId = (q === null || q === void 0 ? void 0 : q.courseId) || 0;
+                    if (courseId)
+                        yield cacheSet(mk, String(courseId), 24 * 60 * 60);
+                }
+            }
+            catch (_g) { }
+            if (courseId) {
+                const d = new Date();
+                const y = d.getUTCFullYear();
+                const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+                const dd = String(d.getUTCDate()).padStart(2, '0');
+                const dayKey = `boardviews:daily:${courseId}:${y}${m}${dd}`;
+                try {
+                    const { incrWithTTL } = yield Promise.resolve().then(() => __importStar(require('../cache')));
+                    yield incrWithTTL(dayKey, 90 * 24 * 60 * 60);
+                }
+                catch (_h) { }
+            }
+        }
+        catch (_j) { }
         let base = 0;
         try {
             const rows = yield db_1.default.$queryRaw `SELECT "viewcount" FROM "Question" WHERE id = ${id}`;
             base = rows && rows[0] ? (rows[0].viewcount || 0) : 0;
         }
-        catch (_f) { }
+        catch (_k) { }
         let aggNow = 0;
         try {
             const { cacheGet } = yield Promise.resolve().then(() => __importStar(require('../cache')));
             const s = yield cacheGet(aggKey);
             aggNow = parseInt(s || '0', 10) || 0;
         }
-        catch (_g) { }
+        catch (_l) { }
         const total = base + aggNow;
         try {
             fs_1.default.appendFileSync('view.log', `${new Date().toISOString()} ${JSON.stringify({ phase: 'response', id, ip, limited, currentAgg, delta, flushed, base, aggNow, total })}\n`);
         }
-        catch (_h) { }
+        catch (_m) { }
         res.json({ ok: true, viewCount: total, flushed });
     }
     catch (err) {

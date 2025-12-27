@@ -16,6 +16,7 @@ const express_1 = require("express");
 const db_1 = __importDefault(require("../db"));
 const auth_1 = require("../middleware/auth");
 const cache_1 = require("../cache");
+const fs_1 = __importDefault(require("fs"));
 const router = (0, express_1.Router)();
 function toClient(q) {
     var _a, _b, _c;
@@ -33,7 +34,10 @@ function toClient(q) {
         createdAt: new Date(q.createTime).getTime(),
         createdById: q.studentId ? String(q.studentId) : undefined,
         askerName: ((_b = q.student) === null || _b === void 0 ? void 0 : _b.username) || null,
-        askerAvatar: ((_c = q.student) === null || _c === void 0 ? void 0 : _c.avatar) || null
+        askerAvatar: ((_c = q.student) === null || _c === void 0 ? void 0 : _c.avatar) || null,
+        answersCount: typeof q.answersCount === 'number'
+            ? q.answersCount
+            : (q._count && typeof q._count.answers === 'number' ? q._count.answers : 0)
     };
 }
 function ensureCourseByName(name, teacherId) {
@@ -65,7 +69,7 @@ router.get('/questions', (req, res) => __awaiter(void 0, void 0, void 0, functio
             where.status = 'UNANSWERED';
         if (my === '1' && userId)
             where.studentId = userId;
-        const orderBy = sort === 'hot' || sort === 'viewCount'
+        const orderBy = sort === 'viewCount'
             ? { viewCount: 'desc' }
             : { createTime: 'desc' };
         const cacheKey = `qa:list:${JSON.stringify({ courseName, sort, status, my, page, pageSize, userId: my === '1' ? userId : '' })}`;
@@ -75,10 +79,52 @@ router.get('/questions', (req, res) => __awaiter(void 0, void 0, void 0, functio
             if (cached)
                 return res.json(JSON.parse(cached));
         }
-        const [items, total] = yield Promise.all([
-            db_1.default.question.findMany({ where, orderBy, include: { course: true, student: true }, skip: (page - 1) * pageSize, take: pageSize }),
-            db_1.default.question.count({ where })
-        ]);
+        let items = [];
+        let total = 0;
+        if (sort === 'hot') {
+            total = yield db_1.default.question.count({ where });
+            const list = yield db_1.default.question.findMany({
+                where,
+                orderBy: { answers: { _count: 'desc' } },
+                include: { course: true, student: true, _count: { select: { answers: true } } },
+                skip: (page - 1) * pageSize,
+                take: pageSize
+            });
+            items = list.map((q) => { var _a; return (Object.assign(Object.assign({}, q), { answersCount: ((_a = q._count) === null || _a === void 0 ? void 0 : _a.answers) || 0 })); });
+        }
+        else {
+            const list = yield db_1.default.question.findMany({
+                where,
+                orderBy,
+                include: { course: true, student: true, _count: { select: { answers: true } } },
+                skip: (page - 1) * pageSize,
+                take: pageSize
+            });
+            total = yield db_1.default.question.count({ where });
+            items = list.map((q) => { var _a; return (Object.assign(Object.assign({}, q), { answersCount: ((_a = q._count) === null || _a === void 0 ? void 0 : _a.answers) || 0 })); });
+        }
+        try {
+            const details = [];
+            for (const q of items) {
+                let agg = 0;
+                try {
+                    const s = yield (0, cache_1.cacheGet)(`qview:agg:${q.id}`);
+                    agg = parseInt(s || '0', 10) || 0;
+                }
+                catch (_a) { }
+                const base = typeof q.viewCount === 'number'
+                    ? q.viewCount
+                    : (typeof q.viewcount === 'number' ? q.viewcount : 0);
+                const next = base + agg;
+                q.viewCount = next;
+                details.push({ id: q.id, base, agg, next });
+            }
+            try {
+                fs_1.default.appendFileSync('qa.log', `${new Date().toISOString()} ${JSON.stringify({ path: '/qa/questions', sort, status, my, page, pageSize, count: items.length, details })}\n`);
+            }
+            catch (_b) { }
+        }
+        catch (_c) { }
         const payload = { items: items.map(toClient), total };
         if (my !== '1') {
             yield (0, cache_1.cacheSet)(cacheKey, JSON.stringify(payload), 60);
@@ -95,7 +141,26 @@ router.get('/questions/:id', (req, res) => __awaiter(void 0, void 0, void 0, fun
         const q = yield db_1.default.question.findUnique({ where: { id }, include: { course: true, student: true } });
         if (!q)
             return res.status(404).json({ message: 'Not found' });
-        res.json(toClient(q));
+        let agg = 0;
+        try {
+            const s = yield (0, cache_1.cacheGet)(`qview:agg:${id}`);
+            agg = parseInt(s || '0', 10) || 0;
+        }
+        catch (_a) { }
+        const base = typeof q.viewCount === 'number'
+            ? q.viewCount
+            : (typeof q.viewcount === 'number' ? q.viewcount : 0);
+        const next = base + agg;
+        const merged = Object.assign(Object.assign({}, q), { viewCount: next });
+        try {
+            res.set('Cache-Control', 'no-store');
+        }
+        catch (_b) { }
+        try {
+            fs_1.default.appendFileSync('qa.log', `${new Date().toISOString()} ${JSON.stringify({ path: '/qa/questions/:id', id, base, agg, next })}\n`);
+        }
+        catch (_c) { }
+        res.json(toClient(merged));
     }
     catch (err) {
         res.status(500).json({ message: err.message || 'Server error' });
@@ -172,6 +237,59 @@ router.delete('/questions/:id', auth_1.requireAuth, (req, res) => __awaiter(void
     catch (err) {
         if (err.code === 'P2025')
             return res.status(404).json({ message: 'Not found' });
+        res.status(500).json({ message: err.message || 'Server error' });
+    }
+}));
+router.get('/boards/rank/viewed', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const range = String(req.query.range || 'all');
+        const limit = parseInt(String(req.query.limit || '10')) || 10;
+        const cacheKey = `qa:boards:rank:${JSON.stringify({ range, limit })}`;
+        const cached = yield (0, cache_1.cacheGet)(cacheKey);
+        if (cached)
+            return res.json(JSON.parse(cached));
+        let items = [];
+        if (range === 'all') {
+            const rows = yield db_1.default.$queryRaw `
+        SELECT c.id, c.name, c.description, COALESCE(SUM(q.viewcount), 0) AS views
+        FROM "Course" c
+        LEFT JOIN "Question" q ON q."courseId" = c.id
+        GROUP BY c.id
+        ORDER BY views DESC
+        LIMIT ${limit}
+      `;
+            items = rows.map(r => ({ id: r.id, name: r.name, description: r.description || '', views: (r.views || 0) }));
+        }
+        else {
+            const days = range === '7d' ? 7 : 30;
+            const courses = yield db_1.default.course.findMany({ select: { id: true, name: true, description: true } });
+            const now = Date.now();
+            const list = [];
+            for (const c of courses) {
+                let sum = 0;
+                for (let i = 0; i < days; i++) {
+                    const d = new Date(now - i * 24 * 60 * 60 * 1000);
+                    const y = d.getUTCFullYear();
+                    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+                    const dd = String(d.getUTCDate()).padStart(2, '0');
+                    const key = `boardviews:daily:${c.id}:${y}${m}${dd}`;
+                    const v = yield (0, cache_1.cacheGet)(key);
+                    sum += parseInt(v || '0', 10) || 0;
+                }
+                list.push({ id: c.id, name: c.name, description: c.description || '', views: sum });
+            }
+            list.sort((a, b) => b.views - a.views);
+            items = list.slice(0, limit);
+        }
+        const payload = { items };
+        yield (0, cache_1.cacheSet)(cacheKey, JSON.stringify(payload), 60);
+        try {
+            fs_1.default.appendFileSync('qa.log', `${new Date().toISOString()} ${JSON.stringify({ path: '/qa/boards/rank/viewed', range, limit, count: items.length, top: items[0] || null })}\n`);
+        }
+        catch (_a) { }
+        res.json(payload);
+    }
+    catch (err) {
         res.status(500).json({ message: err.message || 'Server error' });
     }
 }));

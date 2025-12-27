@@ -10,7 +10,7 @@ const router = Router()
 const uploadDir = path.join(process.cwd(), 'uploads')
 const profileDir = path.join(uploadDir, 'profile')
 const questionsDir = path.join(uploadDir, 'questions')
-const resourcesDir = path.join(uploadDir, 'resources')
+const resourcesDir = path.join(uploadDir, 'recourses')
 for (const d of [uploadDir, profileDir, questionsDir, resourcesDir]) { if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true, mode: 0o755 }) }
 
 const tsName = (ext: string) => {
@@ -31,7 +31,7 @@ const imagesStorage = multer.diskStorage({
 })
 
 const genericStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadDir),
+  destination: (_req, _file, cb) => cb(null, resourcesDir),
   filename: (_req, file, cb) => {
     const ext = path.extname(file.originalname)
     cb(null, `${Date.now()}-${Math.random().toString(16).slice(2)}${ext}`)
@@ -50,7 +50,7 @@ const fileFilter: multer.Options['fileFilter'] = (_req, file, cb) => {
 }
 
 const imagesUpload = multer({ storage: imagesStorage, fileFilter: imageFilter, limits: { fileSize: 5 * 1024 * 1024 } })
-const filesUpload = multer({ storage: genericStorage, fileFilter, limits: { fileSize: 50 * 1024 * 1024 } })
+const filesUpload = multer({ storage: genericStorage, fileFilter, limits: { fileSize: 500 * 1024 * 1024 } })
 const avatarUpload = multer({ storage: multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, profileDir),
   filename: (req, file, cb) => {
@@ -179,7 +179,7 @@ router.post('/files', requireAuth, filesUpload.single('file'), (req, res) => {
        }
     }
 
-    const url = `/uploads/${path.basename(f.path)}`
+    const url = `/uploads/recourses/${path.basename(f.path)}`
     res.json({ url, size: f.size, type })
   } catch (err) {
     if (fs.existsSync(f.path)) fs.unlinkSync(f.path)
@@ -219,7 +219,7 @@ router.post('/resources', requireAuth, multer({ storage: genericStorage, fileFil
     fs.renameSync(f.path, targetPath)
     fs.chmodSync(targetPath, 0o644)
     const hash = await sha256File(targetPath)
-    const url = `/uploads/resources/${resourceType}/${targetName}`
+    const url = `/uploads/recourses/${resourceType}/${targetName}`
     try { fs.appendFileSync(path.join(process.cwd(),'uploads.log'), `${new Date().toISOString()} ${JSON.stringify({ user:(req as any).userId, url, size:fs.statSync(targetPath).size, hash, type:`resource_${resourceType}` })}\n`) } catch {}
     res.json({ url, size: fs.statSync(targetPath).size })
   } catch {
