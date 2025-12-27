@@ -23,6 +23,6 @@ echo "Go backend PID: $GO_PID"
 echo "Server PID: $SERVER_PID"
 echo "Client PID: $CLIENT_PID"
 
-echo "⏳ 按 Ctrl+C 停止所有服务..."
+echo " 按 Ctrl+C 停止所有服务..."
 
 wait

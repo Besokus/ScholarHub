@@ -30,7 +30,8 @@ CREATE TABLE "Question" (
                             status       TEXT NOT NULL DEFAULT 'UNANSWERED',
                             "createTime" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
                             images       TEXT,
-                            content_html TEXT
+                            content_html TEXT,
+                            viewCount    integer default 0
 );
 
 CREATE TABLE "Answer" (
@@ -126,3 +127,56 @@ DO $$
     END $$;
 
 ROLLBACK;
+
+-- 分类表
+create table "Category"
+(
+    id          serial
+        primary key,
+    name        text              not null,
+    code        text              not null,
+    "parentId"  integer
+                                  references "Category"
+                                      on update cascade on delete set null,
+    "sortOrder" integer default 0 not null
+);
+
+alter table "Category"
+    owner to "SQL_user";
+
+create unique index "Category_code_key"
+    on "Category" (code);
+
+-- 课程分类表
+create table "CourseCategory"
+(
+    id          serial
+        primary key,
+    name        text                                   not null,
+    description text,
+    "createdAt" timestamp(3) default CURRENT_TIMESTAMP not null
+);
+
+alter table "CourseCategory"
+    owner to "SQL_user";
+
+create index "CourseCategory_name_idx"
+    on "CourseCategory" (name);
+
+-- 健康指标样本表
+create table "HealthSample"
+(
+    id            bigserial
+        primary key,
+    score         bigint,
+    status        text,
+    "cpuUsed"     numeric,
+    "memUsed"     numeric,
+    "diskUsed"    numeric,
+    "dbLatencyMs" bigint,
+    "endpointMs"  bigint,
+    "createTime"  timestamp with time zone
+);
+
+alter table "HealthSample"
+    owner to "SQL_user";

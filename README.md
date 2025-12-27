@@ -59,15 +59,230 @@
 
 ---
 
-## 🗄️ Database Schema Design (数据库设计)
+## 🗄️ 数据库设计
+ 
+说明依据 Prisma 模型与实际运行环境（PostgreSQL），与项目代码已交叉验证（参考后端模型：server/prisma/schema.prisma）。类型与约束均按 PostgreSQL 表示。
+ 
+### 类型映射说明
+- String → TEXT（无限制）
+- Int → INTEGER
+- Boolean → BOOLEAN
+- DateTime → TIMESTAMP(3)
+ 
+### 表关系图
+```mermaid
+erDiagram
+  User ||--o{ Course : teaches
+  User ||--o{ Resource : uploads
+  User ||--o{ Question : asks
+  User ||--o{ Answer : answers
+  User ||--o{ Notification : receives
+  Category ||--o{ Course : categorizes
+  CourseCategory ||--o{ Course : majorCategory
+  Course ||--o{ Question : has
+  Course ||--o{ Resource : has
+  Question ||--o{ Answer : has
+  Category }o--|| Category : parentOf
+```
+ 
+### User（用户表）
+- 用途：存储平台用户（学生、教师、管理员）基础信息
+ 
+```
+create table "User"
+(
+    id           text                            not null
+        primary key,
+    username     text                            not null
+        unique,
+    fullname     text,
+    password     text                            not null,
+    role         text    default 'STUDENT'::text not null,
+    avatar       text,
+    email        text                            not null
+        unique,
+    title        text,
+    uploads      integer default 0               not null,
+    downloads    integer default 0               not null,
+    "employeeId" text
+);
 
-> Optimized for PostgreSQL features.
+create unique index "User_employeeId_key"
+    on "User" ("employeeId");
+```
+ 
+说明：fullname 实际列名为 fullname（字段映射）。
+ 
+### Course（课程表）
+- 用途：课程基础信息与分类关联
+ 
+ ```
+create table "Course"
+(
+    id                 serial
+        primary key,
+    name               text not null,
+    description        text,
+    department         text not null,
+    "teacherId"        text not null
+        references "User"
+            on update cascade on delete restrict,
+    "categoryId"       integer
+                            references "Category"
+                                on update cascade on delete set null,
+    "courseCategoryId" integer
+                            references "CourseCategory"
+                                on update cascade on delete set null
+);
 
-1.  **Users**: `ID, Username, Password, Role, Avatar, Email, Title`
-2.  **Courses**: `ID, Name, Description, Department, TeacherID (FK)`
-3.  **Resources**: `ID, Title, FilePath, ViewType, DownloadCount, SearchVector (tsvector)`
-4.  **Questions**: `ID, Title, Content, Images (JSON/Array), Status, CreatedAt`
-5.  **Answers**: `ID, Content, Attachments (JSON/Array), TeacherID`
+create index "Course_courseCategoryId_idx"
+    on "Course" ("courseCategoryId");
+```
+ 
+### Category（课程分类表）
+- 用途：课程体系分类（层级结构）
+```create table "Category"
+(
+    id          serial
+        primary key,
+    name        text              not null,
+    code        text              not null,
+    "parentId"  integer
+                                  references "Category"
+                                      on update cascade on delete set null,
+    "sortOrder" integer default 0 not null
+);
+
+create unique index "Category_code_key"
+    on "Category" (code);
+```
+ 
+### CourseCategory（课程大类表）
+- 用途：学院/专业方向等课程大类
+ 
+```create table "CourseCategory"
+(
+    id          serial
+        primary key,
+    name        text                                   not null,
+    description text,
+    "createdAt" timestamp(3) default CURRENT_TIMESTAMP not null
+);
+
+create index "CourseCategory_name_idx"
+    on "CourseCategory" (name);
+```
+ 
+### Resource（资源表）
+- 用途：课程资源（课件、作业、代码、笔记等）
+ 
+```
+create table "Resource"
+(
+    id              serial
+        primary key,
+    title           text                                   not null,
+    description     text,
+    "filePath"      text                                   not null,
+    "uploaderId"    text                                   not null
+        references "User"
+            on update cascade on delete restrict,
+    "courseId"      integer                                not null
+        references "Course"
+            on update cascade on delete restrict,
+    "viewType"      text         default 'PUBLIC'::text    not null,
+    "downloadCount" integer      default 0                 not null,
+    "createTime"    timestamp(3) default CURRENT_TIMESTAMP not null,
+    "fileSize"      text,
+    "fileType"      text,
+    viewcount       integer      default 0                 not null,
+    status          text         default 'NORMAL'::text    not null
+);
+```
+ 
+说明：字段 viewCount 在数据库列名为 viewcount（字段映射）。
+ 
+### Question（提问表）
+- 用途：学生提问，关联课程与学生
+ 
+```create table "Question"
+(
+    id           serial
+        primary key,
+    title        text                                    not null,
+    content      text                                    not null,
+    "studentId"  text                                    not null
+        references "User"
+            on update cascade on delete restrict,
+    "courseId"   integer                                 not null
+        references "Course"
+            on update cascade on delete restrict,
+    status       text         default 'UNANSWERED'::text not null,
+    "createTime" timestamp(3) default CURRENT_TIMESTAMP  not null,
+    images       text,
+    viewcount    integer      default 0                  not null
+);
+
+create index "Question_viewcount_idx"
+    on "Question" (viewcount);
+```
+ 
+### Answer（回答表）
+- 用途：教师回答学生问题
+ 
+```
+create table "Answer"
+(
+    id           serial
+        primary key,
+    "questionId" integer                                not null
+        references "Question"
+            on update cascade on delete restrict,
+    "teacherId"  text                                   not null
+        references "User"
+            on update cascade on delete restrict,
+    content      text                                   not null,
+    attachments  text,
+    "createTime" timestamp(3) default CURRENT_TIMESTAMP not null,
+    hidden       boolean      default false             not null,
+    "isTop"      boolean      default false             not null
+);
+```
+ 
+### Notification（通知表）
+- 用途：用户收到的系统通知（回答提醒等）
+ 
+```
+create table "Notification"
+(
+    type         text                                   not null,
+    "questionId" integer,
+    "userId"     text                                   not null
+        references "User"
+            on update cascade on delete restrict,
+    read         boolean      default false             not null,
+    "createTime" timestamp(3) default CURRENT_TIMESTAMP not null,
+    "answerId"   integer,
+    id           serial
+        primary key
+);
+```
+ 
+### AdminLog（管理员操作日志）
+- 用途：管理员后台操作审计
+ 
+```
+create table "AdminLog"
+(
+    id           serial
+        primary key,
+    "adminId"    text                                   not null,
+    "actionType" text                                   not null,
+    "targetId"   text                                   not null,
+    details      text,
+    "createTime" timestamp(3) default CURRENT_TIMESTAMP not null
+);
+```
 
 ## 📑 Admin API Notes
 - `POST /api/admin/teachers` 接收 `fullName, employeeId, password, title`，登录账号由系统自动生成为 `employeeId@edu`，`id` 字段为工号。
@@ -131,6 +346,32 @@ Notes:
 - Logs are written to `mail.log` for auditing.
 - Retries are enabled with exponential backoff.
 ---
+ 
+### 数据库初始化步骤
+ 
+```bash
+# 1) 设置数据库连接（环境变量）
+# server/.env 或根目录 .env
+DATABASE_URL=postgresql://user:pass@localhost:5432/scholarhub
+ 
+# 2) 安装后端依赖并生成 Prisma 客户端
+cd server
+npm install
+npx prisma generate
+ 
+# 3) 将模型推送到数据库（无迁移目录时使用 db push）
+npx prisma db push
+ 
+# 4) 启动后端服务（首次启动将自动执行基础数据引导）
+npm run dev
+```
+ 
+引导内容（自动执行）：
+- 课程大类初始化与去重（bootstrapCourseCategories）
+- 课程示例归类（bootstrapCourseAssignments）
+- 资源类别字典创建（bootstrapResourceCategoriesDict）
+ 
+提示：有迁移目录时可使用 `npx prisma migrate dev`，本项目默认使用 `db push` 同步模型。
 
 ## 🧭 Usage (使用说明)
 - 前端入口：`http://localhost:3000`（默认开发端口，或 Docker 映射端口）
@@ -257,6 +498,12 @@ ScholarHub/
 - 调试建议：
   - 设置 `ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000` 以允许多端口联调
   - 无 Redis 时自动切换为内存缓存（健康检查接口：`GET /api/health/redis`）
+ 
+## 📝 数据库版本变更记录
+ 
+- 2025-12-27
+  - 文档更新：新增完整“数据库设计”章节，补充字段、约束与索引清单，添加表关系图与数据库初始化步骤
+  - 本次更新未涉及数据库结构字段变更；与现有 Prisma 模型一致
 
 ## 📜 License (许可证)
 - 本项目使用 `MIT License`，详见根目录 `LICENSE`
