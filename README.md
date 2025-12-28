@@ -88,7 +88,7 @@ erDiagram
 ### User（用户表）
 - 用途：存储平台用户（学生、教师、管理员）基础信息
  
-```
+```sql
 create table "User"
 (
     id           text                            not null
@@ -116,7 +116,7 @@ create unique index "User_employeeId_key"
 ### Course（课程表）
 - 用途：课程基础信息与分类关联
  
- ```
+ ```sql
 create table "Course"
 (
     id                 serial
@@ -141,7 +141,8 @@ create index "Course_courseCategoryId_idx"
  
 ### Category（课程分类表）
 - 用途：课程体系分类（层级结构）
-```create table "Category"
+```sql
+create table "Category"
 (
     id          serial
         primary key,
@@ -160,7 +161,8 @@ create unique index "Category_code_key"
 ### CourseCategory（课程大类表）
 - 用途：学院/专业方向等课程大类
  
-```create table "CourseCategory"
+```sql
+create table "CourseCategory"
 (
     id          serial
         primary key,
@@ -176,7 +178,7 @@ create index "CourseCategory_name_idx"
 ### Resource（资源表）
 - 用途：课程资源（课件、作业、代码、笔记等）
  
-```
+```sql
 create table "Resource"
 (
     id              serial
@@ -205,7 +207,8 @@ create table "Resource"
 ### Question（提问表）
 - 用途：学生提问，关联课程与学生
  
-```create table "Question"
+```sql
+create table "Question"
 (
     id           serial
         primary key,
@@ -230,7 +233,7 @@ create index "Question_viewcount_idx"
 ### Answer（回答表）
 - 用途：教师回答学生问题
  
-```
+```sql
 create table "Answer"
 (
     id           serial
@@ -252,7 +255,7 @@ create table "Answer"
 ### Notification（通知表）
 - 用途：用户收到的系统通知（回答提醒等）
  
-```
+```sql
 create table "Notification"
 (
     type         text                                   not null,
@@ -271,7 +274,7 @@ create table "Notification"
 ### AdminLog（管理员操作日志）
 - 用途：管理员后台操作审计
  
-```
+```sql
 create table "AdminLog"
 (
     id           serial
