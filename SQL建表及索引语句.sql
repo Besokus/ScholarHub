@@ -180,3 +180,11 @@ create table "HealthSample"
 
 alter table "HealthSample"
     owner to "SQL_user";
+
+create table "ResourceCategory"
+(
+    code text              not null
+        primary key,
+    name text              not null,
+    sort integer default 0 not null
+);

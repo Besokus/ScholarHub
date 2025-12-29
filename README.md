@@ -270,7 +270,18 @@ create table "Notification"
         primary key
 );
 ```
- 
+### ResourceCategory（资源分类表）
+- 用途：资源分类（如课件、作业、笔记等）
+```sql
+create table "ResourceCategory"
+(
+    code text              not null
+        primary key,
+    name text              not null,
+    sort integer default 0 not null
+);
+```
+
 ### AdminLog（管理员操作日志）
 - 用途：管理员后台操作审计
  
