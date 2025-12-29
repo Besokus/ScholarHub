@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"scholarhub/backend-go/internal/models"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -13,6 +14,26 @@ import (
 type AuthController struct{ db *gorm.DB }
 
 func NewAuthController(db *gorm.DB) *AuthController { return &AuthController{db: db} }
+
+func isValidUsername(name string) bool {
+	if name == "" {
+		return false
+	}
+	if ln := utf8.RuneCountInString(name); ln < 2 || ln > 20 {
+		return false
+	}
+	for _, r := range name {
+		if (r >= '0' && r <= '9') ||
+			(r >= 'a' && r <= 'z') ||
+			(r >= 'A' && r <= 'Z') ||
+			r == '_' || r == '-' || r == '.' ||
+			(r >= '\u4e00' && r <= '\u9fa5') {
+			continue
+		}
+		return false
+	}
+	return true
+}
 
 func (a *AuthController) Register(c *gin.Context) {
 	var req struct {
@@ -25,17 +46,22 @@ func (a *AuthController) Register(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, respErr(1002, "bad_request"))
 		return
 	}
-	if req.Username == "" || req.Password == "" {
+	name := strings.TrimSpace(req.Username)
+	if name == "" || strings.TrimSpace(req.Password) == "" {
 		c.JSON(http.StatusBadRequest, respErr(1002, "bad_request"))
 		return
 	}
+	if !isValidUsername(name) {
+		c.JSON(http.StatusBadRequest, respErr(1002, "invalid_username"))
+		return
+	}
 	var exist models.User
-	if err := a.db.Where("username = ?", req.Username).First(&exist).Error; err == nil {
+	if err := a.db.Where("username = ?", name).First(&exist).Error; err == nil {
 		c.JSON(http.StatusConflict, respErr(1003, "exists"))
 		return
 	}
 	hash, _ := bcrypt.GenerateFromPassword([]byte(req.Password), 10)
-	u := models.User{Username: req.Username, Email: req.Email, Password: string(hash), Role: strings.ToUpper(req.Role)}
+	u := models.User{Username: name, Email: req.Email, Password: string(hash), Role: strings.ToUpper(req.Role)}
 	if u.Role == "" {
 		u.Role = "STUDENT"
 	}

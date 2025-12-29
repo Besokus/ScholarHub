@@ -2,6 +2,8 @@ package main
 
 import (
 	"log"
+	"net"
+	"net/http"
 	"os"
 	"scholarhub/backend-go/internal/models"
 	"scholarhub/backend-go/internal/server"
@@ -38,31 +40,35 @@ func main() {
 	r.Use(server.CORS())
 	server.RegisterStatic(r)
 	server.RegisterRoutes(r, db)
-	port := os.Getenv("ADMIN_PORT")
-	if port == "" {
-		port = "3000"
+	pc := server.LoadPortConfig()
+	pm := server.NewPortManager(pc)
+	ln, port, err := pm.GetListener()
+	if err != nil {
+		log.Fatal(err)
 	}
-	s := &httpServer{r: r, addr: ":" + port}
+	log.Printf("admin server listening on :%d", port)
+	s := &httpServer{r: r, ln: ln}
 	s.run()
 }
 
 type httpServer struct {
-	r    *gin.Engine
-	addr string
+	r  *gin.Engine
+	ln net.Listener
 }
 
 func (s *httpServer) run() {
-	srv := &serverRunner{engine: s.r, addr: s.addr}
+	srv := &serverRunner{engine: s.r, ln: s.ln}
 	srv.start()
 }
 
 type serverRunner struct {
 	engine *gin.Engine
-	addr   string
+	ln     net.Listener
 }
 
 func (s *serverRunner) start() {
-	_ = s.engine.Run(s.addr)
+	srv := &http.Server{Handler: s.engine}
+	_ = srv.Serve(s.ln)
 }
 
 func loadEnv() {
