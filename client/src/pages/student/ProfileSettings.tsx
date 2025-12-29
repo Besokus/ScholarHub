@@ -74,8 +74,8 @@ export default function ProfileSettings() {
     setNameInput(v)
     if (nameTimer.current) clearTimeout(nameTimer.current)
     nameTimer.current = setTimeout(async ()=>{
-      const ok = /^[A-Za-z0-9_\-\.]{2,20}$/.test(v)
-      if (!ok) { setNameErr('2-20字符，字母数字下划线'); return }
+      const ok = /^[\u4e00-\u9fa5A-Za-z0-9_.-]{2,20}$/.test(v.trim())
+      if (!ok) { setNameErr('用户名格式不正确：允许中文、字母、数字、下划线、点和中划线，2-20字符'); return }
       try {
         const res = await AuthApi.checkUsername(v)
         setNameErr(res.exists && v !== username ? '用户名已被占用' : '')

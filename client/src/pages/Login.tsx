@@ -5,7 +5,7 @@ import {
   User, Lock, ArrowRight, Loader2, AlertCircle, CheckCircle2, 
   GraduationCap, BookOpen, Sparkles, Github, ExternalLink 
 } from 'lucide-react';
-import { AuthApi } from '../services/api';
+import { AuthApi, setAuthCache } from '../services/api';
 
 // 登录界面图片来源
 import LoginPage1 from '../assets/images/Login1.jpg';
@@ -58,9 +58,7 @@ const Login: React.FC = () => {
       const token = data.data?.token || data.token;
       const user = data.data?.user || data.user;
       if (!token || !user) throw new Error('invalid_response');
-      localStorage.setItem('token', token);
-      if (user.id) localStorage.setItem('id', String(user.id));
-      if (user.role) localStorage.setItem('role', String(user.role));
+      setAuthCache(token, user);
       setMessage({ type: 'success', text: '登录成功！正在进入工作台...' });
       navigate('/');
     } catch (err) {

@@ -1,8 +1,67 @@
 export const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001/api'
 export const API_ORIGIN = new URL(API_BASE).origin
 
-export async function apiFetch(path: string, options?: RequestInit) {
+const AUTH_TTL_ENV = Number((import.meta as any).env?.VITE_AUTH_TTL_MIN)
+
+const getAuthTTLMinutes = (): number => {
+  const overrideStr = localStorage.getItem('auth_ttl_min')
+  const override = overrideStr ? Number(overrideStr) : NaN
+  if (Number.isFinite(override) && override > 0 && override <= 1440) return override
+  if (Number.isFinite(AUTH_TTL_ENV) && AUTH_TTL_ENV > 0 && AUTH_TTL_ENV <= 1440) return AUTH_TTL_ENV
+  return 10
+}
+
+export const setAuthTTLMinutes = (minutes: number) => {
+  if (!Number.isFinite(minutes) || minutes <= 0) return
+  const m = Math.min(Math.max(minutes, 1), 1440)
+  localStorage.setItem('auth_ttl_min', String(m))
   const token = localStorage.getItem('token')
+  if (token) {
+    const expiresAt = Date.now() + m * 60 * 1000
+    localStorage.setItem('auth_expires_at', String(expiresAt))
+  }
+}
+
+export const clearAuthCache = () => {
+  localStorage.removeItem('token')
+  localStorage.removeItem('id')
+  localStorage.removeItem('role')
+  localStorage.removeItem('auth_expires_at')
+  localStorage.removeItem('auth_ttl_min')
+  localStorage.removeItem('username')
+  localStorage.removeItem('fullName')
+}
+
+export const getAuthToken = (): string | null => {
+  const token = localStorage.getItem('token')
+  if (!token) return null
+  const expStr = localStorage.getItem('auth_expires_at')
+  if (!expStr) return token
+  const exp = Number(expStr)
+  if (Number.isFinite(exp) && Date.now() > exp) {
+    clearAuthCache()
+    return null
+  }
+  return token
+}
+
+export const isAuthenticated = (): boolean => {
+  return !!getAuthToken()
+}
+
+export const setAuthCache = (token: string, user: any, ttlMinutes?: number) => {
+  const ttl = ttlMinutes && ttlMinutes > 0 ? ttlMinutes : getAuthTTLMinutes()
+  const expiresAt = Date.now() + ttl * 60 * 1000
+  localStorage.setItem('token', token)
+  if (user && user.id) localStorage.setItem('id', String(user.id))
+  if (user && user.role) localStorage.setItem('role', String(user.role))
+  if (user && user.username) localStorage.setItem('username', String(user.username))
+  if (user && user.fullName) localStorage.setItem('fullName', String(user.fullName))
+  localStorage.setItem('auth_expires_at', String(expiresAt))
+}
+
+export async function apiFetch(path: string, options?: RequestInit) {
+  const token = getAuthToken()
   const uid = localStorage.getItem('id')
   const method = String(options?.method || 'GET').toUpperCase()
   const headers = {
@@ -150,7 +209,7 @@ export const NotiApi = {
 export const API_ADMIN_BASE = (import.meta as any).env?.VITE_ADMIN_API_URL || 'http://localhost:4000/api'
 
 export async function adminFetch(path: string, options?: RequestInit) {
-  const token = localStorage.getItem('token')
+  const token = getAuthToken()
   const uid = localStorage.getItem('id')
   const headers = {
     'Content-Type': 'application/json',

@@ -4,11 +4,11 @@ import {
   Loader2, LogOut, User, BookOpen, LayoutDashboard, Bell, 
   GraduationCap, Settings, ChevronRight, Shield, MessageSquare, 
   ShieldCheck, Upload, Sparkles, Command, 
-  Sun, Moon, Calendar, Clock, Layers // ✅ 新增图标
+  Sun, Moon, Calendar, Clock, Layers
 } from 'lucide-react';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { AuthApi, AnnApi } from './services/api';
+import { AuthApi, AnnApi, isAuthenticated, clearAuthCache } from './services/api';
 // 引入新增的图标
 import { 
   LayoutGrid, ExternalLink, Github, Globe, Book, 
@@ -68,11 +68,12 @@ const PageLoader = () => (
 
 // --- 路由守卫与重定向 ---
 const PrivateRoute = () => {
-  const isAuthenticated = !!localStorage.getItem('token');
-  return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
+  const ok = isAuthenticated();
+  return ok ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
 const RoleBasedRedirect = () => {
+  if (!isAuthenticated()) return <Navigate to="/login" replace />;
   const role = localStorage.getItem('role');
   if (role === 'TEACHER') return <Navigate to="/teacher/dashboard" replace />;
   if (role === 'STUDENT') return <Navigate to="/student/dashboard" replace />;
@@ -81,13 +82,15 @@ const RoleBasedRedirect = () => {
 };
 
 const StudentRoute = () => {
+  const ok = isAuthenticated();
   const role = localStorage.getItem('role');
-  return role === 'STUDENT' ? <Outlet /> : <Navigate to="/login" replace />;
+  return ok && role === 'STUDENT' ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
 const AdminRoute = () => {
+  const ok = isAuthenticated();
   const role = localStorage.getItem('role');
-  return role === 'ADMIN' ? <Outlet /> : <Navigate to="/login" replace />;
+  return ok && role === 'ADMIN' ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
 // ==========================================
@@ -142,7 +145,7 @@ const Sidebar = () => {
   }, []);
 
   const handleLogout = () => {
-    localStorage.clear();
+    clearAuthCache();
     navigate('/login');
   };
 

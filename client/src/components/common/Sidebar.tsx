@@ -6,7 +6,7 @@ import {
   LogOut, GraduationCap, Settings, ChevronRight, Loader2, Shield, 
   Sparkles, Command
 } from 'lucide-react'
-import { AuthApi, AnnApi } from '../../services/api'
+import { AuthApi, AnnApi, clearAuthCache } from '../../services/api'
 
 // 定义用户类型
 interface UserInfo {
@@ -78,7 +78,7 @@ export default function Sidebar() {
   }, [])
 
   const handleLogout = () => {
-    localStorage.clear()
+    clearAuthCache()
     navigate('/login')
   }
 

@@ -4,11 +4,14 @@ import { motion } from 'framer-motion';
 import { User, Mail, Lock, ArrowRight, Loader2, AlertCircle, CheckCircle2, BookOpen } from 'lucide-react';
 import { AuthApi } from '../services/api';
 
+const usernamePattern = /^[\u4e00-\u9fa5A-Za-z0-9_.-]{2,20}$/;
+
 const Register: React.FC = () => {
   const [username, setUsername] = useState('');
   const [accountId, setAccountId] = useState('');
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
+  const [usernameError, setUsernameError] = useState('');
   const [password, setPassword] = useState('');
   
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -21,10 +24,14 @@ const Register: React.FC = () => {
     setIsLoading(true);
 
     try {
+      const name = username.trim();
+      if (!usernamePattern.test(name)) {
+        setUsernameError('invalid username（允许：中文、字母、数字、下划线、点和中划线，长度2-20）');
+        throw new Error('invalid_username');
+      }
       const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       if (!re.test(email.trim())) { setEmailError('请输入有效的邮箱地址'); throw new Error('invalid_email') }
       const id = accountId.trim();
-      const name = username.trim();
       await AuthApi.register({ id, username: name, email, password, role: 'STUDENT' });
       setMessage({ type: 'success', text: '注册成功！即将跳转登录页' });
       setTimeout(() => navigate('/login'), 500);
@@ -139,10 +146,24 @@ const Register: React.FC = () => {
                     type="text"
                     required
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setUsername(v);
+                      const trimmed = v.trim();
+                      if (!trimmed) {
+                        setUsernameError('用户名不能为空');
+                      } else if (!usernamePattern.test(trimmed)) {
+                        setUsernameError('invalid username（允许：中文、字母、数字、下划线、点和中划线，长度2-20）');
+                      } else {
+                        setUsernameError('');
+                      }
+                    }}
                     className="w-full pl-11 pr-4 py-3 bg-white/50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400"
                     placeholder={'设置用户名'}
                   />
+                  {usernameError && (
+                    <div className="mt-2 text-xs text-rose-600 font-medium">{usernameError}</div>
+                  )}
                 </div>
 
               <div className="group relative">

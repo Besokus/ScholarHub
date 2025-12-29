@@ -1,7 +1,7 @@
-import { API_BASE } from './api'
+import { API_BASE, getAuthToken } from './api'
 
 const getHeaders = () => {
-  const token = localStorage.getItem('token')
+  const token = getAuthToken()
   const uid = localStorage.getItem('id')
   const headers: HeadersInit = {}
   if (token) headers['Authorization'] = `Bearer ${token}`

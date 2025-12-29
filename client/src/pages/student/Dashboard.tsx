@@ -11,7 +11,7 @@ import { QaApi, ResourcesApi, AuthApi } from '../../services/api'
 import useNotifications from '../../hooks/useNotifications'
 
 // --- Animation Config ---
-const containerVariants = {
+const containerVariants: Record<string, any> = {
   hidden: { opacity: 0 },
   visible: { 
     opacity: 1, 
@@ -19,7 +19,7 @@ const containerVariants = {
   }
 }
 
-const cardVariants = {
+const cardVariants: Record<string, any> = {
   hidden: { y: 20, opacity: 0, scale: 0.98 },
   visible: { 
     y: 0, 

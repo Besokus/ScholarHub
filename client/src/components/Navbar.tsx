@@ -5,6 +5,7 @@ import {
   Home, BookOpen, MessageCircle, Menu, X, 
   User, LogOut, Settings, ChevronDown, GraduationCap, LogIn
 } from 'lucide-react';
+import { clearAuthCache } from '../services/api';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false); // 移动端菜单开关
@@ -41,9 +42,9 @@ export default function Navbar() {
   useEffect(() => setIsOpen(false), [location]);
 
   const handleLogout = () => {
-    localStorage.clear();
+    clearAuthCache();
     navigate('/login');
-    window.location.reload(); // 简单粗暴刷新状态，建议改用 Context 更新
+    window.location.reload();
   };
 
   // 导航链接配置
