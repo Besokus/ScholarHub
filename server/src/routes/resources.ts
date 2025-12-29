@@ -95,7 +95,7 @@ router.get('/', async (req, res) => {
     const courseId = String(req.query.courseId || '')
     const categoryId = req.query.categoryId ? parseInt(String(req.query.categoryId)) : undefined
     const page = parseInt(String(req.query.page || '1')) || 1
-    const pageSize = parseInt(String(req.query.pageSize || '20')) || 20
+    const pageSize = parseInt(String(req.query.pageSize || '12')) || 12
     const where: any = {}
     
     if (q) where.title = { contains: q }

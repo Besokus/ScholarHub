@@ -13,6 +13,10 @@ export function authOptional(req: Request, _res: Response, next: NextFunction) {
         ;(req as any).userId = typeof rawId === 'string' ? rawId : String(rawId)
       }
       ;(req as any).userRole = payload && (payload as any).role
+      const exp = payload && (payload as any).exp
+      if (typeof exp === 'number') {
+        ;(req as any).sessionExp = exp * 1000
+      }
     } catch {}
   }
   next()

@@ -180,6 +180,14 @@ router.get('/me', async (req, res) => {
   }
 });
 
+router.get('/session', requireAuth, async (req, res) => {
+  const uid = (req as any).userId as string
+  const role = (req as any).userRole as string | undefined
+  const anyReq = req as any
+  const exp = typeof anyReq.sessionExp === 'number' ? anyReq.sessionExp : null
+  res.json({ valid: true, userId: uid, role, expiresAt: exp })
+})
+
 // Update username (students only)
 router.patch('/username', requireAuth, async (req, res) => {
   try {
