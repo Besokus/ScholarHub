@@ -42,3 +42,9 @@
 [OK ] 2025-12-23T13:45:04.319Z {"userId":"s1766497503975"}
 [REQ] 2025-12-23T13:46:39.487Z {"body":{"id":"s1766497599097","username":"stu1766497599097","email":"s1766497599097@test.com","role":"STUDENT"},"data":{"id":"s1766497599097","username":"stu1766497599097","password":"$2b$12$spF4.Gv6v5ZEX6ouH/lGC.wWeYdhsYL.kkBwlSbvY4MOL.IdGuGV2","email":"s1766497599097@test.com","role":"STUDENT"}}
 [OK ] 2025-12-23T13:46:39.499Z {"userId":"s1766497599097"}
+[REQ] 2025-12-29T12:11:43.936Z {"body":{"id":"2235051233","username":"huang","email":"yang.peng@siemens.com","role":"STUDENT"},"data":{"id":"2235051233","username":"huang","password":"$2b$12$7NedRYClaJWvDbL.O9CSFeWaTeCWiIy/NUxHGNWILrBYmBk50u1c.","email":"yang.peng@siemens.com","role":"STUDENT"}}
+[OK ] 2025-12-29T12:11:43.950Z {"userId":"2235051233"}
+[REQ] 2025-12-29T12:31:46.126Z {"body":{"id":"2235051237","username":"zhang","email":"446895782@qq.com","role":"STUDENT"},"data":{"id":"2235051237","username":"zhang","password":"$2b$12$SM8w8Ep15jch9d.KSKKc0epKBncP1AENAJEMUPkvgdPzbR9kQBOFC","email":"446895782@qq.com","role":"STUDENT"}}
+[OK ] 2025-12-29T12:31:46.145Z {"userId":"2235051237"}
+[REQ] 2025-12-29T13:04:35.038Z {"body":{"id":"2235051239","username":"小杨","email":"446685262@qq.com","role":"STUDENT"},"data":{"id":"2235051239","username":"小杨","password":"$2b$12$q/WdVOG/j4tPnfPLQiBvCuFDRzPGUM6sldXKSPBdTmWQC2NNLTAka","email":"446685262@qq.com","role":"STUDENT"}}
+[OK ] 2025-12-29T13:04:35.046Z {"userId":"2235051239"}

@@ -8,8 +8,11 @@ export function authOptional(req: Request, _res: Response, next: NextFunction) {
     try {
       const secret = process.env.JWT_SECRET || 'dev-secret'
       const payload = jwt.verify(token, secret) as any
-      ;(req as any).userId = typeof payload.sub === 'string' ? payload.sub : String(payload.sub)
-      ;(req as any).userRole = payload.role
+      const rawId = (payload && (payload.sub ?? (payload as any).uid)) as any
+      if (rawId !== undefined && rawId !== null) {
+        ;(req as any).userId = typeof rawId === 'string' ? rawId : String(rawId)
+      }
+      ;(req as any).userRole = payload && (payload as any).role
     } catch {}
   }
   next()

@@ -18,7 +18,6 @@ import answersRouter from './routes/answers';
 import { authOptional } from './middleware/auth';
 import fs from 'fs';
 import { redis, cacheGet, cacheSet, incrWithTTL, delByPrefix } from './cache';
-
 dotenv.config();
 
 const app = express();
@@ -75,47 +74,123 @@ app.get('/api/health/redis', async (_req, res) => {
       return res.json({ ok: true, mode: 'memory', ping: 'PONG' })
     }
     const r = await redis.ping()
-    res.json({ ok: true, mode: 'redis', ping: r })
+    res.json({ ok: true, mode: 'memory', ping: 'PONG' })
   } catch {
     res.json({ ok: true, mode: 'memory', ping: 'PONG' })
   }
 });
+app.post('/api/send-email-code', async (req, res) => {
+  try {
+    const email = String((req as any).body?.email || '').trim()
+    if (!email) return res.status(400).json({ error: 'bad_request', message: 'Email required' })
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!re.test(email)) return res.status(400).json({ error: 'bad_request', message: 'Invalid email' })
 
-app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
-  if ((process.env.NODE_ENV || '').toLowerCase() === 'production' && (process.env.JWT_SECRET || 'dev-secret') === 'dev-secret') {
-    console.warn('Unsafe JWT_SECRET in production');
-  }
-  if (process.env.DATABASE_URL) {
-    void bootstrapAdmin();
-    void bootstrapCourseCategories();
-    void bootstrapCourseAssignments();
-    void bootstrapResourceCategoriesDict();
-  } else {
-    console.warn('DATABASE_URL not set; skipping admin bootstrap');
+    const user = await prisma.user.findUnique({ where: { email } })
+    if (!user) return res.status(404).json({ error: 'not_found', message: '注册邮箱不存在' })
+
+    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || ''
+    const ipKey = `emailcode:ip:${ip}`
+    const ipCount = await incrWithTTL(ipKey, 3600)
+    if (ipCount > 10) return res.status(429).json({ error: 'too_frequent', retry_after: 3600 })
+
+    const now = Date.now()
+    const coolKey = `user:${user.id}:email_code_cooldown`
+    const cool = await cacheGet(coolKey)
+    if (cool) {
+      let sendTime = 0
+      try { sendTime = JSON.parse(cool)?.send_time || 0 } catch {}
+      const elapsed = Math.floor((now - sendTime) / 1000)
+      const remain = Math.max(0, 60 - elapsed)
+      if (remain > 0) return res.status(429).json({ error: 'too_frequent', retry_after: remain })
+    }
+
+    const n = Math.floor(Math.random() * 1000000)
+    const code = String(n).padStart(6, '0')
+    await cacheSet(`user:${user.id}:email_code`, JSON.stringify({ code, send_time: now }), 300)
+    await cacheSet(coolKey, JSON.stringify({ send_time: now }), 60)
+    try { await sendMail({ to: email, subject: 'ScholarHub 邮件验证码', text: `验证码：${code}（5分钟内有效）`, html: `<p>验证码：<b>${code}</b>（5分钟内有效）</p>` }) } catch (e: any) { try { fs.appendFileSync('mail.log', `[CODE-FALLBACK] ${new Date().toISOString()} to=${email} code=${code} err=${e?.message}\n`) } catch {} }
+    try { fs.appendFileSync('password_reset.log', `${new Date().toISOString()} ${JSON.stringify({ phase: 'send', email, ip })}\n`) } catch {}
+    res.json({ status: 'success', next_request: 60 })
+  } catch (err: any) {
+    res.status(500).json({ error: 'server_error', message: err?.message || 'Server error' })
   }
 });
 
-async function bootstrapAdmin() {
+async function ensureCat(name: string, code: string, parentId?: number, sortOrder?: number) {
+  const exists = await prisma.category.findUnique({ where: { code } })
+  if (exists) return exists
+  return prisma.category.create({ data: { name, code, parentId: parentId || null, sortOrder: sortOrder || 0 } })
+}
+
+async function bootstrapCourseAssignments() {
   try {
-    const username = 'admin';
-    const existing = await prisma.user.findUnique({ where: { username } });
-    if (!existing) {
-      const defaultPassword = process.env.ADMIN_PASSWORD || 'admin123';
-      const hashed = await bcrypt.hash(defaultPassword, 10);
-      await prisma.user.create({
-        data: {
-          id: username,
-          username,
-          password: hashed,
-          email: process.env.ADMIN_EMAIL || 'admin@example.com',
-          role: 'ADMIN',
-        },
-      });
-      console.log('Default admin user created with username "admin"');
+    const ccNames = ['计算机与信息技术类', '体育与健康类']
+    const ccList = await prisma.courseCategory.findMany({ where: { name: { in: ccNames } } })
+    const ccMap = new Map(ccList.map(c => [c.name, c.id]))
+    const csBasic = await ensureCat('基础课', 'basic')
+    const csMajor = await ensureCat('专业课', 'major')
+    const csSport = await ensureCat('体育课', 'sport')
+    const courses = await prisma.course.findMany({ where: { name: { in: ['数据结构','软件工程','web开发','击剑'] } } })
+    for (const c of courses) {
+      let categoryId: number | null = null
+      let courseCategoryId: number | null = null
+      if (c.name === '数据结构') {
+        categoryId = csBasic.id
+        courseCategoryId = ccMap.get('计算机与信息技术类') || null
+      } else if (c.name === '软件工程') {
+        categoryId = csBasic.id
+        courseCategoryId = ccMap.get('计算机与信息技术类') || null
+      } else if (c.name.toLowerCase() === 'web开发' || c.name.toLowerCase() === 'web') {
+        categoryId = csMajor.id
+        courseCategoryId = ccMap.get('计算机与信息技术类') || null
+      } else if (c.name === '击剑') {
+        categoryId = csSport.id
+        courseCategoryId = ccMap.get('体育与健康类') || null
+      }
+      const data: any = {}
+      if (categoryId !== null) data.categoryId = categoryId
+      if (courseCategoryId !== null) data.courseCategoryId = courseCategoryId
+      if (Object.keys(data).length) {
+        await prisma.course.update({ where: { id: c.id }, data })
+      }
     }
+    try { await delByPrefix('courses:list') } catch {}
+    console.log('Course assignments ensured')
   } catch (err) {
-    console.error('Failed to bootstrap admin user', err);
+    console.error('Failed to bootstrap course assignments', err)
+  }
+}
+
+async function bootstrapResourceCategoriesDict() {
+  try {
+    const TAGS = ['课件', '真题', '作业', '代码', '答案', '笔记', '教材', '其他']
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "ResourceCategory" (
+        code TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        sort INTEGER NOT NULL DEFAULT 0
+      );
+    `)
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "ResourceCategoryMap" (
+        resource_id INTEGER PRIMARY KEY,
+        category_code TEXT NOT NULL REFERENCES "ResourceCategory"(code) ON UPDATE CASCADE ON DELETE RESTRICT
+      );
+    `)
+    for (let i = 0; i < TAGS.length; i++) {
+      const code = TAGS[i]
+      const name = TAGS[i]
+      const sort = i
+      await prisma.$executeRawUnsafe(`
+        INSERT INTO "ResourceCategory"(code, name, sort) VALUES ($1, $2, $3)
+        ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, sort = EXCLUDED.sort
+      `, code, name, sort)
+    }
+    try { await delByPrefix('res:list:') } catch {}
+    console.log('Resource category dictionary ensured')
+  } catch (err) {
+    console.error('Failed to bootstrap resource category dict', err)
   }
 }
 
@@ -163,116 +238,40 @@ async function bootstrapCourseCategories() {
   }
 }
 
-async function bootstrapCourseAssignments() {
+async function bootstrapAdmin() {
   try {
-    const ccNames = ['计算机与信息技术类', '体育与健康类']
-    const ccList = await prisma.courseCategory.findMany({ where: { name: { in: ccNames } } })
-    const ccMap = new Map(ccList.map(c => [c.name, c.id]))
-    const csBasic = await ensureCat('基础课', 'basic')
-    const csMajor = await ensureCat('专业课', 'major')
-    const csSport = await ensureCat('体育课', 'sport')
-    const courses = await prisma.course.findMany({ where: { name: { in: ['数据结构','软件工程','web开发','击剑'] } } })
-    for (const c of courses) {
-      let categoryId: number | null = null
-      let courseCategoryId: number | null = null
-      if (c.name === '数据结构') {
-        categoryId = csBasic.id
-        courseCategoryId = ccMap.get('计算机与信息技术类') || null
-      } else if (c.name === '软件工程') {
-        categoryId = csBasic.id
-        courseCategoryId = ccMap.get('计算机与信息技术类') || null
-      } else if (c.name.toLowerCase() === 'web开发' || c.name.toLowerCase() === 'web') {
-        categoryId = csMajor.id
-        courseCategoryId = ccMap.get('计算机与信息技术类') || null
-      } else if (c.name === '击剑') {
-        categoryId = csSport.id
-        courseCategoryId = ccMap.get('体育与健康类') || null
-      }
-      const data: any = {}
-      if (categoryId !== null) data.categoryId = categoryId
-      if (courseCategoryId !== null) data.courseCategoryId = courseCategoryId
-      if (Object.keys(data).length) {
-        await prisma.course.update({ where: { id: c.id }, data })
-      }
+    const username = 'admin'
+    const existing = await prisma.user.findUnique({ where: { username } })
+    if (!existing) {
+      const defaultPassword = process.env.ADMIN_PASSWORD || 'admin123'
+      const hashed = await bcrypt.hash(defaultPassword, 10)
+      await prisma.user.create({
+        data: {
+          id: username,
+          username,
+          password: hashed,
+          email: process.env.ADMIN_EMAIL || 'admin@example.com',
+          role: 'ADMIN'
+        }
+      })
+      console.log('Default admin user created with username "admin"')
     }
-    try { await delByPrefix('courses:list') } catch {}
-    console.log('Course assignments ensured')
   } catch (err) {
-    console.error('Failed to bootstrap course assignments', err)
+    console.error('Failed to bootstrap admin user', err)
   }
 }
 
-async function ensureCat(name: string, code: string, parentId?: number, sortOrder?: number) {
-  const exists = await prisma.category.findUnique({ where: { code } })
-  if (exists) return exists
-  return prisma.category.create({ data: { name, code, parentId: parentId || null, sortOrder: sortOrder || 0 } })
-}
-
-async function bootstrapResourceCategoriesDict() {
-  try {
-    const TAGS = ['课件', '真题', '作业', '代码', '答案', '笔记', '教材', '其他']
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "ResourceCategory" (
-        code TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        sort INTEGER NOT NULL DEFAULT 0
-      );
-    `)
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "ResourceCategoryMap" (
-        resource_id INTEGER PRIMARY KEY,
-        category_code TEXT NOT NULL REFERENCES "ResourceCategory"(code) ON UPDATE CASCADE ON DELETE RESTRICT
-      );
-    `)
-    for (let i = 0; i < TAGS.length; i++) {
-      const code = TAGS[i]
-      const name = TAGS[i]
-      const sort = i
-      await prisma.$executeRawUnsafe(`
-        INSERT INTO "ResourceCategory"(code, name, sort) VALUES ($1, $2, $3)
-        ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, sort = EXCLUDED.sort
-      `, code, name, sort)
-    }
-    try { await delByPrefix('res:list:') } catch {}
-    console.log('Resource category dictionary ensured')
-  } catch (err) {
-    console.error('Failed to bootstrap resource category dict', err)
+app.listen(port, () => {
+  console.log(`Server is running on http://localhost:${port}`)
+  if ((process.env.NODE_ENV || '').toLowerCase() === 'production' && (process.env.JWT_SECRET || 'dev-secret') === 'dev-secret') {
+    console.warn('Unsafe JWT_SECRET in production')
   }
-}
-app.post('/api/send-email-code', async (req, res) => {
-  try {
-    const email = String((req as any).body?.email || '').trim()
-    if (!email) return res.status(400).json({ error: 'bad_request', message: 'Email required' })
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!re.test(email)) return res.status(400).json({ error: 'bad_request', message: 'Invalid email' })
-
-    const user = await prisma.user.findUnique({ where: { email } })
-    if (!user) return res.status(404).json({ error: 'not_found', message: '注册邮箱不存在' })
-
-    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || ''
-    const ipKey = `emailcode:ip:${ip}`
-    const ipCount = await incrWithTTL(ipKey, 3600)
-    if (ipCount > 10) return res.status(429).json({ error: 'too_frequent', retry_after: 3600 })
-
-    const now = Date.now()
-    const coolKey = `user:${user.id}:email_code_cooldown`
-    const cool = await cacheGet(coolKey)
-    if (cool) {
-      let sendTime = 0
-      try { sendTime = JSON.parse(cool)?.send_time || 0 } catch {}
-      const elapsed = Math.floor((now - sendTime) / 1000)
-      const remain = Math.max(0, 60 - elapsed)
-      if (remain > 0) return res.status(429).json({ error: 'too_frequent', retry_after: remain })
-    }
-
-    const n = Math.floor(Math.random() * 1000000)
-    const code = String(n).padStart(6, '0')
-    await cacheSet(`user:${user.id}:email_code`, JSON.stringify({ code, send_time: now }), 300)
-    await cacheSet(coolKey, JSON.stringify({ send_time: now }), 60)
-    try { await sendMail({ to: email, subject: 'ScholarHub 邮件验证码', text: `验证码：${code}（5分钟内有效）`, html: `<p>验证码：<b>${code}</b>（5分钟内有效）</p>` }) } catch (e: any) { try { fs.appendFileSync('mail.log', `[CODE-FALLBACK] ${new Date().toISOString()} to=${email} code=${code} err=${e?.message}\n`) } catch {} }
-    try { fs.appendFileSync('password_reset.log', `${new Date().toISOString()} ${JSON.stringify({ phase: 'send', email, ip })}\n`) } catch {}
-    res.json({ status: 'success', next_request: 60 })
-  } catch (err: any) {
-    res.status(500).json({ error: 'server_error', message: err?.message || 'Server error' })
+  if (process.env.DATABASE_URL) {
+    void bootstrapAdmin()
+    void bootstrapCourseCategories()
+    void bootstrapCourseAssignments()
+    void bootstrapResourceCategoriesDict()
+  } else {
+    console.warn('DATABASE_URL not set; skipping admin/bootstrap tasks')
   }
 })

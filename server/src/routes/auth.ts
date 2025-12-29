@@ -13,6 +13,11 @@ const RATE_LIMIT_MAX = 10;
 const RESET_CODE_TTL_SEC = 5 * 60;
 const RESET_FAIL_LOCK_SEC = 60 * 60;
 
+export function isValidUsername(input: string): boolean {
+  const name = String(input || '').trim()
+  return /^[\u4e00-\u9fa5A-Za-z0-9_.-]{2,20}$/.test(name)
+}
+
 function genCode(): string {
   const n = Math.floor(Math.random() * 1000000);
   return String(n).padStart(6, '0');
@@ -45,7 +50,7 @@ router.post('/register', async (req, res) => {
   const uname = String(username).trim();
   const emailStr = String(email).trim();
   const passStr = String(password);
-  if (!/^[A-Za-z0-9_\-\.]{3,64}$/.test(uname)) {
+  if (!isValidUsername(uname)) {
     return res.status(400).json({ message: 'Invalid username' });
   }
   if (!/^[A-Za-z0-9_\-]{3,64}$/.test(idTrim)) {
@@ -180,13 +185,15 @@ router.patch('/username', requireAuth, async (req, res) => {
   try {
     const uid = (req as any).userId as string
     const { username } = req.body as { username?: string }
-    if (!username || !username.trim()) return res.status(400).json({ message: 'Username required' })
+    const uname = String(username || '').trim()
+    if (!uname) return res.status(400).json({ message: 'Username required' })
+    if (!isValidUsername(uname)) return res.status(400).json({ message: 'Invalid username' })
     const user = await prisma.user.findUnique({ where: { id: uid } })
     if (!user) return res.status(404).json({ message: 'User not found' })
     if (user.role !== 'STUDENT') return res.status(403).json({ message: 'Only students can update username' })
-    const exists = await prisma.user.findUnique({ where: { username } })
+    const exists = await prisma.user.findUnique({ where: { username: uname } })
     if (exists && exists.id !== uid) return res.status(400).json({ message: 'Username already exists' })
-    const updated = await prisma.user.update({ where: { id: uid }, data: { username } })
+    const updated = await prisma.user.update({ where: { id: uid }, data: { username: uname } })
     res.json({ user: { id: updated.id, username: updated.username, role: updated.role, email: updated.email, avatar: updated.avatar, title: updated.title } })
   } catch (err: any) {
     res.status(500).json({ message: err.message || 'Server error' })
