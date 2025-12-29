@@ -213,14 +213,23 @@ export default function QAQuestion() {
   const isOwner = meId && q?.createdById && String(meId) === String(q.createdById)
   const askerAvatarAbs = q?.askerAvatar ? (/^https?:\/\//.test(q.askerAvatar) ? q.askerAvatar : `${API_ORIGIN}${q.askerAvatar.startsWith('/') ? q.askerAvatar : '/' + q.askerAvatar}`) : ''
 
-  const updateStatus = async (next: 'open' | 'solved') => {
+    const updateStatus = async (next: 'open' | 'solved') => {
     if (!questionId) return
     setUpdatingStatus(true)
     try {
       const updated = await QaApi.update(questionId, { status: next })
       setQ(updated)
+      if (typeof window !== 'undefined') {
+        try {
+          window.dispatchEvent(
+            new CustomEvent('SH_QA_STATUS_UPDATED', {
+              detail: { id: updated?.id || questionId, status: next }
+            })
+          )
+        } catch {}
+      }
     } catch (e: any) {
-      alert(e?.message || '状态更新失败')
+      alert(e?.message || '更新失败')
     } finally {
       setUpdatingStatus(false)
     }

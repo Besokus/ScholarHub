@@ -184,10 +184,7 @@ export default function Resources() {
     link.click()
     document.body.removeChild(link)
     try { window.dispatchEvent(new CustomEvent('SH_STATS_UPDATED')) } catch {}
-    show('开始下载...', 'success')
   }
-
-  // --- 关键修复：添加 missing 'filtered' definition ---
   const filtered = useMemo(() => {
     if (filter === '全部') return remote
     return remote.filter(item => item.tag === filter)

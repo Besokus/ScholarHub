@@ -147,7 +147,7 @@ export const NotiApi = {
   readAll: () => apiFetch('/notifications/read-all', { method: 'POST' })
 }
 
-export const API_ADMIN_BASE = (import.meta as any).env?.VITE_ADMIN_API_URL || 'http://localhost:3000/api'
+export const API_ADMIN_BASE = (import.meta as any).env?.VITE_ADMIN_API_URL || 'http://localhost:4000/api'
 
 export async function adminFetch(path: string, options?: RequestInit) {
   const token = localStorage.getItem('token')

@@ -94,11 +94,11 @@ export default function ResourceDetail() {
     document.body.removeChild(link)
     setCount(prev => prev + 1)
     try { window.dispatchEvent(new CustomEvent('SH_STATS_UPDATED')) } catch {}
-    show('开始下载...', 'success')
   }
 
-  const handleOnlineOpen = (e: React.MouseEvent) => {
-    if (['ZIP', 'RAR', '7Z','PPT','PPTX'].includes(meta.type)) {
+  const handleOnlineOpen = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!meta.fileUrl) return
+    if (['ZIP', 'RAR', '7Z', 'PPT', 'PPTX'].includes(meta.type)) {
       e.preventDefault()
       show('该资源不支持在线查看，请直接下载', 'error')
     }
