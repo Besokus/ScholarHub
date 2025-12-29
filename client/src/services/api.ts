@@ -8,7 +8,7 @@ const getAuthTTLMinutes = (): number => {
   const override = overrideStr ? Number(overrideStr) : NaN
   if (Number.isFinite(override) && override > 0 && override <= 1440) return override
   if (Number.isFinite(AUTH_TTL_ENV) && AUTH_TTL_ENV > 0 && AUTH_TTL_ENV <= 1440) return AUTH_TTL_ENV
-  return 10
+  return 30
 }
 
 export const setAuthTTLMinutes = (minutes: number) => {
@@ -30,6 +30,7 @@ export const clearAuthCache = () => {
   localStorage.removeItem('auth_ttl_min')
   localStorage.removeItem('username')
   localStorage.removeItem('fullName')
+  localStorage.removeItem('auth_last_active_at')
 }
 
 export const getAuthToken = (): string | null => {
@@ -45,6 +46,10 @@ export const getAuthToken = (): string | null => {
   return token
 }
 
+export const getAuthTimeoutMs = (): number => {
+  return getAuthTTLMinutes() * 60 * 1000
+}
+
 export const isAuthenticated = (): boolean => {
   return !!getAuthToken()
 }
@@ -58,11 +63,17 @@ export const setAuthCache = (token: string, user: any, ttlMinutes?: number) => {
   if (user && user.username) localStorage.setItem('username', String(user.username))
   if (user && user.fullName) localStorage.setItem('fullName', String(user.fullName))
   localStorage.setItem('auth_expires_at', String(expiresAt))
+  localStorage.setItem('auth_last_active_at', String(Date.now()))
 }
 
 export async function apiFetch(path: string, options?: RequestInit) {
   const token = getAuthToken()
   const uid = localStorage.getItem('id')
+  if (token) {
+    try {
+      localStorage.setItem('auth_last_active_at', String(Date.now()))
+    } catch {}
+  }
   const method = String(options?.method || 'GET').toUpperCase()
   const headers = {
     'Content-Type': 'application/json',

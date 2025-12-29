@@ -8,12 +8,13 @@ import {
 } from 'lucide-react';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { AuthApi, AnnApi, isAuthenticated, clearAuthCache } from './services/api';
+import { AuthApi, AnnApi, isAuthenticated, clearAuthCache, getAuthTimeoutMs } from './services/api';
 // 引入新增的图标
 import { 
   LayoutGrid, ExternalLink, Github, Globe, Book, 
   Code, Coffee, Library 
 } from 'lucide-react';
+import { useToast } from './components/common/Toast';
 
 if ((import.meta as any).env?.MODE === 'development') {
   import('./utils/date.test')
@@ -91,6 +92,69 @@ const AdminRoute = () => {
   const ok = isAuthenticated();
   const role = localStorage.getItem('role');
   return ok && role === 'ADMIN' ? <Outlet /> : <Navigate to="/login" replace />;
+};
+
+const SessionGuard = () => {
+  const navigate = useNavigate();
+  const { show } = useToast();
+  useEffect(() => {
+    const timeoutMs = getAuthTimeoutMs();
+    if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return;
+    const handleExpire = (msg: string) => {
+      clearAuthCache();
+      try {
+        show(msg, 'error');
+      } catch {}
+      navigate('/login', { replace: true });
+    };
+    const check = () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const now = Date.now();
+      const expStr = localStorage.getItem('auth_expires_at');
+      const exp = expStr ? Number(expStr) : NaN;
+      if (Number.isFinite(exp) && now > exp) {
+        handleExpire('登录已过期，请重新登录');
+        return;
+      }
+      const lastStr = localStorage.getItem('auth_last_active_at');
+      const last = lastStr ? Number(lastStr) : NaN;
+      if (Number.isFinite(last) && now - last > timeoutMs) {
+        handleExpire('由于长时间未操作，会话已超时，请重新登录');
+      }
+    };
+    const onVisibility = () => {
+      if (document.hidden) {
+        try {
+          localStorage.setItem('auth_hidden_at', String(Date.now()));
+        } catch {}
+        return;
+      }
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const raw = localStorage.getItem('auth_hidden_at');
+      const hiddenAt = raw ? Number(raw) : NaN;
+      try {
+        localStorage.removeItem('auth_hidden_at');
+      } catch {}
+      const now = Date.now();
+      if (Number.isFinite(hiddenAt) && now - hiddenAt > timeoutMs) {
+        handleExpire('由于长时间未操作，会话已超时，请重新登录');
+        return;
+      }
+      try {
+        localStorage.setItem('auth_last_active_at', String(now));
+      } catch {}
+      check();
+    };
+    const id = window.setInterval(check, 60000);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [navigate, show]);
+  return null;
 };
 
 // ==========================================
@@ -430,6 +494,7 @@ const MainLayout = () => {
 const App: React.FC = () => {
   return (
     <Router>
+      <SessionGuard />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Public Routes */}

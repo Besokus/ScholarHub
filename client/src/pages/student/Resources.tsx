@@ -97,8 +97,9 @@ export default function Resources() {
   const [keyword, setKeyword] = useState('')
   const [courseId, setCourseId] = useState('all')
   const [page, setPage] = useState(1)
-  const pageSize = 20
+  const pageSize = 12
   const [remote, setRemote] = useState<any[]>([])
+  const [total, setTotal] = useState(0)
   const [tree, setTree] = useState<any[]>([]) 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -154,9 +155,8 @@ export default function Resources() {
         }
         
         const res = await ResourcesApi.list(params)
-        
-        // 映射数据
-        setRemote(res.items.map((x: any) => ({ 
+        setTotal(Number(res.total || 0))
+        setRemote((res.items || []).map((x: any) => ({ 
           id: x.id, 
           title: x.title, 
           course: x.courseId, 
@@ -190,8 +190,7 @@ export default function Resources() {
     return remote.filter(item => item.tag === filter)
   }, [remote, filter])
 
-  // 分页截取逻辑
-  const list = filtered.slice((page - 1) * pageSize, page * pageSize)
+  const list = filtered
 
   // Animations
   const containerVariants = {
@@ -222,7 +221,7 @@ export default function Resources() {
               资源中心
             </h1>
             <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-500 text-xs font-bold tracking-wide border border-slate-200">
-              {filtered.length} ITEMS
+              {(total || filtered.length) || 0} ITEMS
             </span>
           </div>
 
@@ -447,7 +446,7 @@ export default function Resources() {
           </div>
 
           <div className="flex justify-center pt-2 pb-8">
-             <Pagination page={page} pageSize={pageSize} total={filtered.length} onChange={setPage} />
+             <Pagination page={page} pageSize={pageSize} total={total || filtered.length} onChange={setPage} />
           </div>
 
         </div>
