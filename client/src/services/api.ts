@@ -1,13 +1,106 @@
-export const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001/api'
-export const API_ORIGIN = new URL(API_BASE).origin
+type AppEnv = 'development' | 'testing' | 'production'
 
-const AUTH_TTL_ENV = Number((import.meta as any).env?.VITE_AUTH_TTL_MIN)
+type RawEnv = {
+  VITE_API_URL?: string
+  VITE_ADMIN_API_URL?: string
+  VITE_AUTH_TTL_MIN?: string | number
+  VITE_API_TIMEOUT_MS?: string | number
+  VITE_AUTH_KEY?: string
+  VITE_ENV?: string
+}
+
+type ResolvedConfig = {
+  env: AppEnv
+  apiBase: string
+  apiOrigin: string
+  adminApiBase: string
+  authTtlMinutes: number
+  apiTimeoutMs: number
+  authKey: string
+}
+
+const rawEnv: RawEnv = (import.meta as any).env || {}
+
+const normalizeEnv = (v: unknown): RawEnv => {
+  const src: any = v || {}
+  return {
+    VITE_API_URL: src.VITE_API_URL || src.vite_api_url,
+    VITE_ADMIN_API_URL: src.VITE_ADMIN_API_URL || src.vite_admin_api_url,
+    VITE_AUTH_TTL_MIN: src.VITE_AUTH_TTL_MIN,
+    VITE_API_TIMEOUT_MS: src.VITE_API_TIMEOUT_MS,
+    VITE_AUTH_KEY: src.VITE_AUTH_KEY,
+    VITE_ENV: src.VITE_ENV || src.MODE || src.mode
+  }
+}
+
+const parseNumber = (value: string | number | undefined, fallback: number, min?: number, max?: number): number => {
+  if (value === undefined || value === null) return fallback
+  const n = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(n)) return fallback
+  let v = n
+  if (typeof min === 'number' && v < min) v = min
+  if (typeof max === 'number' && v > max) v = max
+  return v
+}
+
+const parseEnvName = (v: string | undefined): AppEnv => {
+  const x = (v || '').toLowerCase()
+  if (x === 'production') return 'production'
+  if (x === 'testing' || x === 'test') return 'testing'
+  return 'development'
+}
+
+const resolveConfig = (): ResolvedConfig => {
+  const e = normalizeEnv(rawEnv)
+  const env = parseEnvName(typeof e.VITE_ENV === 'string' ? e.VITE_ENV : (import.meta as any).env?.MODE)
+  const apiBase = (() => {
+    const v = e.VITE_API_URL || 'http://localhost:3001/api'
+    try {
+      const u = new URL(v)
+      if (!u.pathname.endsWith('/api')) u.pathname = (u.pathname.replace(/\/+$/, '') || '') + '/api'
+      return u.toString().replace(/\/+$/, '')
+    } catch {
+      return 'http://localhost:3001/api'
+    }
+  })()
+  const adminApiBase = (() => {
+    const v = e.VITE_ADMIN_API_URL || 'http://localhost:4000/api'
+    try {
+      const u = new URL(v)
+      if (!u.pathname.endsWith('/api')) u.pathname = (u.pathname.replace(/\/+$/, '') || '') + '/api'
+      return u.toString().replace(/\/+$/, '')
+    } catch {
+      return 'http://localhost:4000/api'
+    }
+  })()
+  const authTtlMinutes = parseNumber(e.VITE_AUTH_TTL_MIN, 30, 1, 1440)
+  const apiTimeoutMs = parseNumber(e.VITE_API_TIMEOUT_MS, 15000, 1000, 60000)
+  const authKey = typeof e.VITE_AUTH_KEY === 'string' && e.VITE_AUTH_KEY.trim()
+    ? String(e.VITE_AUTH_KEY)
+    : 'token'
+  return {
+    env,
+    apiBase,
+    apiOrigin: new URL(apiBase).origin,
+    adminApiBase,
+    authTtlMinutes,
+    apiTimeoutMs,
+    authKey
+  }
+}
+
+export const API_CONFIG = resolveConfig()
+
+export const API_BASE = API_CONFIG.apiBase
+export const API_ORIGIN = API_CONFIG.apiOrigin
 
 const getAuthTTLMinutes = (): number => {
   const overrideStr = localStorage.getItem('auth_ttl_min')
   const override = overrideStr ? Number(overrideStr) : NaN
   if (Number.isFinite(override) && override > 0 && override <= 1440) return override
-  if (Number.isFinite(AUTH_TTL_ENV) && AUTH_TTL_ENV > 0 && AUTH_TTL_ENV <= 1440) return AUTH_TTL_ENV
+  if (Number.isFinite(API_CONFIG.authTtlMinutes) && API_CONFIG.authTtlMinutes > 0 && API_CONFIG.authTtlMinutes <= 1440) {
+    return API_CONFIG.authTtlMinutes
+  }
   return 30
 }
 
@@ -34,7 +127,7 @@ export const clearAuthCache = () => {
 }
 
 export const getAuthToken = (): string | null => {
-  const token = localStorage.getItem('token')
+  const token = localStorage.getItem(API_CONFIG.authKey)
   if (!token) return null
   const expStr = localStorage.getItem('auth_expires_at')
   if (!expStr) return token
@@ -57,7 +150,7 @@ export const isAuthenticated = (): boolean => {
 export const setAuthCache = (token: string, user: any, ttlMinutes?: number) => {
   const ttl = ttlMinutes && ttlMinutes > 0 ? ttlMinutes : getAuthTTLMinutes()
   const expiresAt = Date.now() + ttl * 60 * 1000
-  localStorage.setItem('token', token)
+  localStorage.setItem(API_CONFIG.authKey, token)
   if (user && user.id) localStorage.setItem('id', String(user.id))
   if (user && user.role) localStorage.setItem('role', String(user.role))
   if (user && user.username) localStorage.setItem('username', String(user.username))
