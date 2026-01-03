@@ -53,26 +53,19 @@ const parseEnvName = (v: string | undefined): AppEnv => {
 const resolveConfig = (): ResolvedConfig => {
   const e = normalizeEnv(rawEnv)
   const env = parseEnvName(typeof e.VITE_ENV === 'string' ? e.VITE_ENV : (import.meta as any).env?.MODE)
+  // 2. 修正后的学生端 API 基础路径逻辑
   const apiBase = (() => {
-    const v = e.VITE_API_URL || 'http://localhost:3001/api'
-    try {
-      const u = new URL(v)
-      if (!u.pathname.endsWith('/api')) u.pathname = (u.pathname.replace(/\/+$/, '') || '') + '/api'
-      return u.toString().replace(/\/+$/, '')
-    } catch {
-      return 'http://localhost:3001/api'
-    }
-  })()
+    // 优先读取环境变量，如果没有则默认为相对路径 /api
+    const v = e.VITE_API_URL || (import.meta as any).env?.VITE_API_BASE_URL || '/api';
+    // 移除末尾多余的斜杠，并直接返回字符串，不再使用会报错的 new URL()
+    return v.replace(/\/+$/, '');
+  })();
+  // 3. 修正后的管理端 API 基础路径逻辑
   const adminApiBase = (() => {
-    const v = e.VITE_ADMIN_API_URL || 'http://localhost:4000/api'
-    try {
-      const u = new URL(v)
-      if (!u.pathname.endsWith('/api')) u.pathname = (u.pathname.replace(/\/+$/, '') || '') + '/api'
-      return u.toString().replace(/\/+$/, '')
-    } catch {
-      return 'http://localhost:4000/api'
-    }
-  })()
+    // 对应 Nginx 配置中的 /admin-api
+    const v = e.VITE_ADMIN_API_URL || '/admin-api';
+    return v.replace(/\/+$/, '');
+  })();
   const authTtlMinutes = parseNumber(e.VITE_AUTH_TTL_MIN, 30, 1, 1440)
   const apiTimeoutMs = parseNumber(e.VITE_API_TIMEOUT_MS, 15000, 1000, 60000)
   const authKey = typeof e.VITE_AUTH_KEY === 'string' && e.VITE_AUTH_KEY.trim()
@@ -81,7 +74,10 @@ const resolveConfig = (): ResolvedConfig => {
   return {
     env,
     apiBase,
-    apiOrigin: new URL(apiBase).origin,
+    // 4. 修正 apiOrigin：如果是相对路径，则使用当前页面的域名
+    apiOrigin: apiBase.startsWith('http') 
+      ? new URL(apiBase).origin 
+      : window.location.origin,
     adminApiBase,
     authTtlMinutes,
     apiTimeoutMs,
